@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>mcp-control-plane</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans,
+          Helvetica, Arial, sans-serif;
+        margin: 24px;
+        line-height: 1.4;
+        color: #111;
+      }
+      button {
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        background: #f6f6f6;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      pre {
+        background: #f4f4f4;
+        padding: 12px;
+        border-radius: 8px;
+        overflow: auto;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .status {
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>mcp-control-plane</h1>
+
+    <div class="row">
+      <button id="btnStatus" type="button">Load status</button>
+      <div id="statusText" class="status">idle</div>
+    </div>
+
+    <h2>Status JSON</h2>
+    <pre id="statusBox">Press “Load status”.</pre>
+
+    <script>
+      const btn = document.getElementById("btnStatus");
+      const statusText = document.getElementById("statusText");
+      const statusBox = document.getElementById("statusBox");
+
+      async function loadStatus() {
+        statusText.textContent = "loading";
+        statusBox.textContent = "";
+        try {
+          const res = await fetch("/.netlify/functions/status", { method: "GET" });
+          const json = await res.json();
+          statusText.textContent = res.ok ? "ok" : "error";
+          statusBox.textContent = JSON.stringify(json, null, 2);
+        } catch (e) {
+          statusText.textContent = "error";
+          statusBox.textContent = String(e);
+        }
+      }
+
+      btn.addEventListener("click", loadStatus);
+      loadStatus();
+    </script>
+  </body>
+</html>
+

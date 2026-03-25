@@ -1,0 +1,7 @@
+{
+  "mint-mcp-server": {
+    "command": "/media/panosboy/ExtHD/panag/Documents/projects/AAP/tools/rust/mint-mcp-server/target/release/mint-mcp-server",
+    "args": [],
+    "env": {}
+  }
+}
