@@ -2,14 +2,17 @@ export default async function handler(req: Request) {
   // Proxy to your Asus-hosted gateway when configured.
   //
   // Set in Netlify env vars (Functions scope):
-  // - PB_GATEWAY_URL=https://<reachable-host>/status   (or http://127.0.0.1:8080/status for local netlify dev)
+  // - PB_GATEWAY_URL=https://<reachable-host>/status   (full status URL)
+  // - PB_GATEWAY_BASE_URL=https://<reachable-host>     (base URL; /status will be appended)
   // - PB_GATEWAY_TOKEN=<optional token>               (must match PB_GATEWAY_TOKEN on the gateway)
   //
-  // If PB_GATEWAY_URL is missing, we fall back to a deterministic mock response.
+  // If neither PB_GATEWAY_URL nor PB_GATEWAY_BASE_URL is set, we fall back to mock mode.
   //
-  // Note: `agent-request.ts` prefers PB_GATEWAY_BASE_URL (base without path).
-  const url = (globalThis as any).process?.env?.PB_GATEWAY_URL as string | undefined;
+  const full = (globalThis as any).process?.env?.PB_GATEWAY_URL as string | undefined;
+  const base = (globalThis as any).process?.env?.PB_GATEWAY_BASE_URL as string | undefined;
   const token = (globalThis as any).process?.env?.PB_GATEWAY_TOKEN as string | undefined;
+  const normBase = base?.trim().replace(/\/+$/, "");
+  const url = (full?.trim() || (normBase ? `${normBase}/status` : undefined));
 
   if (!url) {
     return new Response(
@@ -17,7 +20,7 @@ export default async function handler(req: Request) {
         ok: true,
         service: "mcp-control-plane",
         mode: "mock",
-        message: "Netlify side is working (PB_GATEWAY_URL not set).",
+        message: "Netlify side is working (PB_GATEWAY_URL / PB_GATEWAY_BASE_URL not set).",
         ts: Date.now(),
       }),
       { headers: { "content-type": "application/json; charset=utf-8" } }
@@ -44,7 +47,8 @@ export default async function handler(req: Request) {
         ok: false,
         service: "mcp-control-plane",
         mode: "proxy",
-        error: "failed to reach PB_GATEWAY_URL",
+        error: "failed to reach configured gateway status URL",
+        url,
         detail: String(e?.message ?? e),
         ts: Date.now(),
       }),

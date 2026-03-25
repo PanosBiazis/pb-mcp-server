@@ -575,3 +575,171 @@ The key idea is simple: Netlify is your front door, Asus is your private engine.
 ​
 
 Prepared using GPT-5.4 Thinking
+
+can you access there pb-mcp-server.netlify.app
+Completed 1 step
+I can’t reliably access it from my side right now, because attempts to retrieve both the main page and the /.netlify/functions/status endpoint failed from my environment.
+​
+
+That does not necessarily mean your site is down, because earlier you were able to open the homepage and get a valid JSON status response locally in your browser. The most accurate check is still from your side: open https://pb-mcp-server.netlify.app/ and https://pb-mcp-server.netlify.app/.netlify/functions/status in a browser or run curl against both URLs from your Asus and your Lenovo.
+​
+
+Use these commands:
+
+bash
+curl -i https://pb-mcp-server.netlify.app/
+curl -i https://pb-mcp-server.netlify.app/.netlify/functions/status
+If you paste the output, I can tell you immediately whether the site is publicly reachable, partially working, or blocked only from some networks.
+
+Prepared using GPT-5.4 Thinking
+user@workstation:./local_path cargo build --release
+Compiling pb-mcp-server v0.1.0 (./local_path)
+Finished `release` profile [optimized] target(s) in 9.31s
+user@workstation:./local_path cargo run --release
+Finished `release` profile [optimized] target(s) in 0.06s
+Running `target/release/pb-mcp-server`
+user@workstation:./local_path curl -i https://pb-mcp-server.netlify.app/
+curl -i https://pb-mcp-server.netlify.app/.netlify/functions/status
+HTTP/2 200
+accept-ranges: bytes
+age: 0
+cache-control: public,max-age=0,must-revalidate
+cache-status: "Netlify Edge"; fwd=miss
+content-type: text/html; charset=UTF-8
+date: Wed, 25 Mar 2026 17:23:50 GMT
+etag: "53fd07709ccb053018ace2ae1e99d0ee-ssl"
+server: Netlify
+strict-transport-security: max-age=31536000; includeSubDomains; preload
+x-nf-request-id: 01KMK0C8YDH52WNVVGHPXG9AW6
+content-length: 1979
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>mcp-control-plane</title>
+<style>
+body {
+font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans,
+Helvetica, Arial, sans-serif;
+margin: 24px;
+line-height: 1.4;
+color: #111;
+}
+button {
+padding: 8px 12px;
+border: 1px solid #ccc;
+background: #f6f6f6;
+border-radius: 6px;
+cursor: pointer;
+}
+pre {
+background: #f4f4f4;
+padding: 12px;
+border-radius: 8px;
+overflow: auto;
+}
+.row {
+display: flex;
+align-items: center;
+gap: 12px;
+flex-wrap: wrap;
+}
+.status {
+font-weight: 600;
+}
+</style>
+</head>
+<body>
+<h1>mcp-control-plane</h1>
+
+<div class="row">
+<button id="btnStatus" type="button">Load status</button>
+<div id="statusText" class="status">idle</div>
+</div>
+
+<h2>Status JSON</h2>
+<pre id="statusBox">Press “Load status”.</pre>
+
+<script>
+const btn = document.getElementById("btnStatus");
+const statusText = document.getElementById("statusText");
+const statusBox = document.getElementById("statusBox");
+
+async function loadStatus() {
+statusText.textContent = "loading";
+statusBox.textContent = "";
+try {
+const res = await fetch("/.netlify/functions/status", { method: "GET" });
+const json = await res.json();
+statusText.textContent = res.ok ? "ok" : "error";
+statusBox.textContent = JSON.stringify(json, null, 2);
+} catch (e) {
+statusText.textContent = "error";
+statusBox.textContent = String(e);
+}
+}
+
+btn.addEventListener("click", loadStatus);
+loadStatus();
+</script>
+</body>
+</html>
+
+HTTP/2 200
+age: 0
+cache-control: no-cache
+cache-status: "Netlify Durable"; fwd=bypass
+cache-status: "Netlify Edge"; fwd=miss
+content-type: application/json; charset=utf-8
+date: Wed, 25 Mar 2026 17:23:50 GMT
+netlify-vary: query
+server: Netlify
+strict-transport-security: max-age=31536000; includeSubDomains; preload
+x-content-type-options: nosniff
+x-nf-request-id: 01KMK0C9DCAZQZ7G43ZJ7BT6V6
+
+{"ok":true,"service":"mcp-control-plane","mode":"mock","message":"Netlify side is working (PB_GATEWAY_URL not set).","ts":1774459430628}user@workstation:./local_path
+Completed 1 step
+Yes — your Netlify site is live, and the status endpoint is working, but it is still in mock mode because your function is looking for PB_GATEWAY_URL, while you were planning to set PB_GATEWAY_BASE_URL. Your repo also clearly has the Netlify function layer you need to edit, including status.ts, agent-request.ts, auth.ts, and review-packet.ts under mcp-control-plane/netlify/functions.
+​
+
+What this means
+Your curl output shows the frontend is being served correctly and /.netlify/functions/status is returning JSON, so the Netlify side is healthy. The remaining issue is configuration: the function says PB_GATEWAY_URL not set, which means the environment variable name used in code and the one you planned to store in Netlify do not match.
+
+Fix the variable name
+Pick one name and use it everywhere. Since your function response explicitly says PB_GATEWAY_URL not set, the fastest fix is to create these two variables in Netlify exactly as:
+
+PB_GATEWAY_URL=https://asus-x541na.tail924856.ts.net
+
+PB_GATEWAY_TOKEN=ZtEWD5k8sCDCETNKHFBsPhcs9PPclNzDvK3RjMOo6EBkmTPCqYPc2CVo8QOd0JGk
+
+Netlify’s docs say runtime values for serverless functions should be set as site environment variables in the dashboard, and the variable must be available to Functions scope to be readable at runtime.
+
+Where to set it
+In Netlify, go to Project configuration -> Environment variables, add PB_GATEWAY_URL, then add PB_GATEWAY_TOKEN, save them, and redeploy the site. Netlify notes that values defined only in netlify.toml are not available to Functions runtime, so use the dashboard for these secrets rather than the config file.
+
+Code check
+Open mcp-control-plane/netlify/functions/status.ts and make sure it reads the same name you stored in Netlify. Your repo already contains that file in the expected Netlify functions folder, so this is the right place to change it if needed.
+​
+
+Use this pattern:
+
+ts
+const baseUrl = process.env.PB_GATEWAY_URL;
+const token = process.env.PB_GATEWAY_TOKEN;
+Then call the Asus gateway:
+
+ts
+const res = await fetch(`${baseUrl}/status`, {
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
+});
+After that
+Redeploy, then run this again:
+
+bash
+curl -i https://pb-mcp-server.netlify.app/.netlify/functions/status
+If it is fixed, the JSON should stop saying mode: "mock" and should start reflecting the real Asus gateway response. Also, because you pasted the token in chat, you should rotate it and replace it with a new one before using it in production.
