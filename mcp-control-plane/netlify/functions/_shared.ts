@@ -14,6 +14,8 @@ export function json(
     status: init?.status ?? 200,
     headers: {
       "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
       ...(init?.headers ?? {}),
     },
   });
@@ -61,6 +63,10 @@ async function hmacSha256(key: string, data: string): Promise<Uint8Array> {
   );
   const sig = await crypto.subtle.sign("HMAC", k, enc.encode(data));
   return new Uint8Array(sig);
+}
+
+function toHex(bytes: Uint8Array): string {
+  return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 async function hmacVerifySha256(key: string, data: string, sig: Uint8Array): Promise<boolean> {
@@ -144,6 +150,46 @@ export async function verifyPow(agentId: string, nonce: string, solution: string
   return nibble < (1 << (4 - rem));
 }
 
+function canonicalSignInput(
+  tsMs: string,
+  nonce: string,
+  method: string,
+  pathname: string,
+  query: string,
+  bodySha256Hex: string
+): string {
+  return `${tsMs}\n${nonce}\n${method.toUpperCase()}\n${pathname}\n${query}\n${bodySha256Hex}`;
+}
+
+export async function gatewaySignedHeaders(
+  method: string,
+  url: string,
+  bodyText: string
+): Promise<Record<string, string>> {
+  const secret = getEnv("PB_GATEWAY_SIGNING_SECRET")?.trim();
+  if (!secret) return {};
+
+  const tsMs = String(Date.now());
+  const nonceBytes = crypto.getRandomValues(new Uint8Array(16));
+  const nonce = toBase64Url(nonceBytes);
+  const u = new URL(url);
+  const path = u.pathname || "/";
+  const query = u.search.startsWith("?") ? u.search.slice(1) : u.search;
+  const bodyDigest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(bodyText)
+  );
+  const bodySha256Hex = toHex(new Uint8Array(bodyDigest));
+  const input = canonicalSignInput(tsMs, nonce, method, path, query, bodySha256Hex);
+  const sigHex = toHex(await hmacSha256(secret, input));
+
+  return {
+    "x-pb-ts": tsMs,
+    "x-pb-nonce": nonce,
+    "x-pb-signature": sigHex,
+  };
+}
+
 // Optional auth:
 // - If CONTROL_PLANE_TOKEN is unset: allow everything.
 // - If set: require Authorization header with that token.
@@ -163,6 +209,13 @@ export async function requireAgentAuth(req: Request): Promise<AgentAuthDecision>
   if (!got) return { ok: false, status: 401, error: "missing agent token" };
   const v = await verifyAgentToken(got);
   if (!v.ok) return { ok: false, status: 403, error: v.error };
+  const allowlist = getEnv("AGENT_ID_ALLOWLIST")
+    ?.split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (allowlist && allowlist.length > 0 && !allowlist.includes(v.agentId)) {
+    return { ok: false, status: 403, error: "agent_id not allowed" };
+  }
   return { ok: true, agentId: v.agentId };
 }
 

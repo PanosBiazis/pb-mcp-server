@@ -424,6 +424,11 @@ A safe first public tool set is:
 /search-code
 Those are much safer than terminal execution or arbitrary file writes for an internet-facing service.
 
+Current implementation status:
+
+- Implemented: `/health`, `/status`, `/project-info`, review packet endpoints
+- Not implemented yet: `/search-docs`, `/search-code` as dedicated gateway routes (search exists inside the MCP server toolset already)
+
 Immediate next steps
 Do these next:
 
@@ -743,3 +748,138 @@ Redeploy, then run this again:
 bash
 curl -i https://pb-mcp-server.netlify.app/.netlify/functions/status
 If it is fixed, the JSON should stop saying mode: "mock" and should start reflecting the real Asus gateway response. Also, because you pasted the token in chat, you should rotate it and replace it with a new one before using it in production.
+
+now on the original reason how you and other ai agents on zed can use it?
+Completed 2 steps
+Yes — Zed agents can use it, but the main point is this: Zed usually uses MCP servers by launching a local command you configure as a Context Server, not by directly consuming your Netlify URL as if it were a website API. So your Asus + Netlify setup is best understood as the remote backend, while Zed still needs a local MCP entry to expose tools into the Agent Panel.
+​
+
+How Zed connects
+Zed’s Agent Panel lets you add a custom context server by giving it the command, arguments, and environment variables needed to start that server process on your machine, and successful servers appear in the MCP/Context Server settings for the agent to use. In practice, that means a Zed agent can use your tools only after you register a server in Zed and enable it for that session.
+​
+
+Best way for you
+For your workflow, the simplest setup is still local command mode on the machine running Zed, because you already used the pattern where Zed points to a built Rust binary path and launches it directly. A working shape is the same one you used before, with a named server entry whose command points at your compiled binary and whose args and env are passed by Zed when it starts the MCP server.
+​
+
+json
+{
+  "context_servers": {
+    "pb-mcp-server": {
+      "command": "./local_path",
+      "args": [],
+      "env": {}
+    }
+  }
+}
+Where Asus and Netlify fit
+Your current Asus + Funnel + Netlify setup is useful because it gives you a reachable remote gateway and public control plane for AI-agent workflows beyond one local editor session. But Zed custom server setup still wants a local executable definition, so the remote URL is not the thing you paste into Zed as the MCP server itself; instead, it is the backend your local MCP server or shim can call.
+​
+​
+​
+
+Two real options
+You now have two good ways to use it in Zed:
+
+Option 1: local MCP server. Zed launches your Rust binary directly on the Lenovo, which is the easiest and most native MCP setup for editor use.
+​
+​
+
+Option 2: remote-backed MCP shim. Zed launches a small local wrapper command, and that wrapper talks to your Netlify/Asus gateway for status, review, or controlled remote actions.
+​
+​
+
+The first option is better for fast coding tasks inside Zed, while the second is better if you want multiple machines or agents to share one Asus-hosted backend.
+
+How agents use it in Zed
+Once the server is enabled in the Agent Panel, any model you use inside Zed can call its tools during the session, and prompting it explicitly with the server/tool name can improve reliability. So your practical flow becomes: configure the context server in Zed, open the Agent Panel, enable it, then prompt things like “Using pb-mcp-server, inspect this Rust project” or “Use the review tool on the current repo”.
+​
+​
+
+The shortest recommendation is: start with Option 1 now, and keep the Asus/Netlify path for shared remote services. Want me to write the exact Zed settings.json block for both Lenovo and Asus versions next?
+
+Prepared using GPT-5.4 Thinking
+Option 2: remote-backed MCP shim. Zed launches a small local wrapper command, and that wrapper talks to your Netlify/Asus gateway for status, review, or controlled remote actions.
+you forgot the reason i made this, so that you and other ai agents can communicate to make our projects better
+Completed 1 step
+You’re right — the actual goal is not just “remote tools for one editor,” but a shared agent-communication layer so multiple AI agents in Zed can exchange context, tasks, and results to improve your projects together. In that design, the Asus-hosted gateway is not merely a backend API; it becomes the broker or message hub that agents can all talk through.
+​
+
+Correct architecture
+For your original goal, Zed should not only launch a local MCP server that does isolated tools. Instead, Zed agents should connect to an MCP server whose tools are things like post_message, read_inbox, claim_task, submit_result, and review_patch, so different agents can collaborate through a shared bus rather than acting alone.
+​
+
+That matches the Rust multi-agent architecture you wanted earlier: Zed MCP server in front, an Agent Broker in the middle, and agent workers behind it. Your current Asus gateway plus Funnel plus Netlify path gives you the networked foundation for that broker, which means you are much closer to the original “AI messenger” idea than just a status endpoint.
+​
+
+How Zed uses it
+Inside Zed, each agent session still uses MCP tools through the Agent Panel, but now those tools should map to shared coordination actions instead of only local filesystem actions. So one Zed agent can ask the MCP server to create a task, another can fetch pending tasks, and another can submit code review notes, all through the same Rust service on the Asus laptop.
+
+In other words:
+
+Zed agent A sends “analyze parser bug.”
+
+Broker stores it.
+
+Zed agent B picks it up and proposes a fix.
+
+Zed agent C reviews the fix.
+
+Results come back into the shared project workflow.
+That is the “agents talking to help each other” model you originally asked for.
+​
+
+What your current system is missing
+Right now, your system proves only that Zed/Netlify can reach the Asus gateway through the public path, because the working status response shows the gateway is online and reachable. But a status endpoint alone is not agent collaboration yet; you still need shared message/task/state endpoints in the Rust backend so agents can exchange structured work items instead of only checking health.
+​
+
+The real missing layer is a broker data model like:
+
+Conversations or channels.
+
+Tasks.
+
+Claims/locks.
+
+Artifacts/results.
+
+Reviews/comments.
+That is the part that turns an MCP server into an agent-to-agent communication system.
+​
+
+What to build next
+Your next Rust tools should not be “more status.” They should be collaboration primitives:
+​
+
+post_agent_message(channel, role, content)
+
+list_agent_messages(channel)
+
+create_task(title, description, repo, branch)
+
+claim_task(task_id, agent_name)
+
+submit_task_result(task_id, patch_summary, files, notes)
+
+request_review(task_id, reviewer_role)
+
+list_open_tasks()
+
+Then expose those through your MCP server so Zed agents can call them naturally from the Agent Panel. The Asus laptop becomes the always-on broker, Netlify becomes the public control surface, and Zed agents become clients of that brokered collaboration system.
+
+Best practical setup
+The cleanest implementation for your goal is:
+
+Asus laptop: Rust broker + storage + auth, always on.
+
+Netlify: public gateway/control plane and safe proxy endpoints.
+
+Zed: local MCP client entry that exposes collaboration tools to each agent session.
+
+Agents: OpenRouter or other models in Zed, each acting through shared broker tools instead of isolated prompts.
+​
+
+So yes — you were right to call that out. The project should be treated as an AI-agent collaboration bus, not just a remote helper API. The next step is to design the broker tools and message schema, because that is what lets me and other agents in Zed actually coordinate on your projects instead of just accessing one machine.
+​
+
+Paste your current src/bus.rs, src/main.rs, and src/ops.rs, and I’ll map them into the first real multi-agent broker version.
