@@ -1,0 +1,38 @@
+[
+Unit]
+Description=PB Gateway (pb-mcp-server)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=appuser
+Group=appuser
+WorkingDirectory=/opt/app/pb-mcp-server
+EnvironmentFile=/etc/pb-gateway/pb-gateway.env
+ExecStart=/opt/app/pb-mcp-server/target/release/pb-gateway
+Restart=always
+RestartSec=2
+
+# Hardening (tune if your project_root is under /home and access is blocked)
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallArchitectures=native
+
+# Allow writing only the durable logs under the project root.
+# If MINT_PROJECT_ROOT points elsewhere, update this accordingly.
+ReadWritePaths=/opt/app/pb-mcp-server
+
+[Install]
+WantedBy=multi-user.target
+

@@ -1,4 +1,10 @@
-**Current code:** the `mint-mcp-server` binary is a read-only MCP server (`read_file`, `list_files`, `git_status`) scoped to `MINT_PROJECT_ROOT` / `PROJECT_ROOT` / cwd. The sketch below is a possible future multi-agent design, not implemented in `src/main.rs` yet.
+**Current code (implemented):** the `pb-mcp-server` / `mint-mcp-server` Rust binary is a stdio MCP server with:
+
+- Project-scoped file + git + search tools (read-only)
+- A **durable multi-agent JSONL bus** under `.mint-mcp/agent-bus.jsonl` for “agents talking to agents”
+- An **`ask_agents`** tool that broadcasts a question to the bus and polls for replies in the same `topic`
+
+What’s still “future”: running LLM-backed agent workers *inside* this Rust process (today the bus is transport/coordination; other agents can be separate processes/editor sessions that respond via `agent_send`).
 
 ---
 
@@ -6,16 +12,51 @@ Zed Editor
     │  (MCP protocol)
     ▼
 ┌─────────────────────────────────┐
-│   MCP Server (Rust binary)      │
+│   MCP Server (Rust binary)      │   stdio transport
 │                                 │
 │  ┌──────────────────────────┐   │
-│  │     Agent Broker         │   │
-│  │  (broadcast channel)     │   │
+│  │ Durable Agent Bus        │   │
+│  │ (.mint-mcp/ JSONL + flock)│   │
 │  └────┬──────┬──────┬───────┘   │
 │       │      │      │           │
 │  Agent A  Agent B  Agent C      │
 │  (Claude) (GPT-4) (Ollama)      │
 └─────────────────────────────────┘
+
+### Trust zones (what to expose where)
+
+- **LAN / local zone (high trust)**: Zed ↔ stdio MCP server. Can include broader tooling, but keep it read-first.
+- **Remote zone (low trust)**: expose only a *small* surface (status, safe read/search) behind auth.
+- **Secrets/admin zone**: never expose broadly; keep on-host only.
+
+### Control plane (Netlify) + gateway (Asus laptop)
+
+This repo also includes a “control plane” scaffold under `mcp-control-plane/` that can be deployed to Netlify.
+
+Netlify should **not** host the Rust MCP process. Instead:
+
+Browser/agent → Netlify Function → **Asus-hosted HTTP gateway** → local tools/project
+
+The gateway is a small Rust binary (`pb-gateway`) with:
+
+- `GET /health`
+- `GET /status` (optional bearer token)
+- `POST /review-packet` (append-only JSONL storage under `.mint-mcp/`)
+- `GET /review-packets?limit=...` (tail window)
+
+Netlify Functions can add an extra auth layer (agent tokens) before forwarding allowlisted calls.
+
+### Multi-agent message flow (implemented)
+
+1. Any agent posts to the bus with `agent_send(topic=...)`
+2. Other agents poll with `agent_inbox` / `agent_recent` and respond with the same topic
+3. The orchestrator tool `ask_agents` sends a “question” and collects replies for a short time window
+
+### Next steps (recommended)
+
+- Add an explicit message contract for “review packets” (planner/tester/security summaries) and implement the Netlify stubs (`agent-request.ts`, `review-packet.ts`) to forward only safe requests.
+- Keep in mind: you **cannot reliably prove “AI agent vs human”**. Any “puzzle” (proof-of-work) can be solved by anyone with compute. Prefer cryptographic identity (shared secrets / keys) + least-privilege allowlists.
+- If you want in-process agent workers: add separate crates/modules for “broker”, “worker”, and provider adapters; keep the bus as the durable source of truth.
 
 
 New but not replacable totally the old one
@@ -402,6 +443,135 @@ Point your Netlify status function to that Asus gateway through a private route 
 ​
 
 The most important technical point is this: your current stdio MCP server is not yet the thing to expose directly; first turn the Asus laptop into a server by adding a small network-facing gateway beside it. Would you like the exact Rust architecture for that gateway next, including routes, auth model, and systemd service files?
+​
+
+Prepared using GPT-5.4 Thinking
+
+
+Yes — the right way to use your Asus laptop as the server is to keep pb-mcp-server.netlify.app as the public control plane and run the actual Rust backend on the Asus machine. Your repo already has both parts: a Netlify side in mcp-control-plane/web and mcp-control-plane/netlify/functions/*.ts, plus a Rust server side in src/main.rs, src/ops.rs, and src/bus.rs.
+​
+
+Server role
+Your current Rust MCP binary appears to be a stdio-style server that waits for an MCP client connection, which is good for local Zed integration but not something you should expose directly to the network. For remote use, the Asus laptop should run a small network-facing gateway beside that MCP binary, while Netlify Functions call that gateway instead of trying to talk to the raw stdio server directly.
+​
+
+A good architecture is:
+
+Browser/agent -> Netlify Function
+
+Netlify Function -> Asus gateway
+
+Asus gateway -> Rust MCP logic/tools
+
+That fits your repo layout because you already have Netlify functions like status.ts, agent-request.ts, auth.ts, and review-packet.ts ready to act as the public edge layer.
+​
+
+On the Asus
+Do the backend work locally on the Asus, not from an SMB-mounted folder, so the machine can boot and serve independently. Your Asus is fine for a lightweight Rust service and gateway, but it is better used as a tool server than as a heavy local AI inference box.
+
+Use this flow on the Asus:
+
+bash
+sudo apt update
+sudo apt install -y git curl build-essential pkg-config libssl-dev
+curl https://sh.rustup.rs -sSf | sh
+source "$HOME/.cargo/env"
+
+git clone https://github.com/PanosBiazis/pb-mcp-server.git
+cd pb-mcp-server
+cargo build --release
+After that, test the Rust binary locally first:
+
+bash
+./target/release/pb-mcp-server
+If it behaves like your earlier MCP build and just waits silently, that is expected for a stdio MCP server.
+​
+
+What to add
+Because the backend is stdio-oriented, add a second small Rust binary or service that exposes HTTP endpoints like /health, /status, and later /agent-request. Your repo already separates edge functions from backend code, so the cleanest next step is to keep src/main.rs for local MCP use and add a second binary such as src/bin/gateway.rs for network access.
+​
+
+Start with only these endpoints:
+
+/health
+
+/status
+
+/project-info
+
+Do not expose shell execution, arbitrary file write, or full terminal control first. Since you want this for AI-agent workflows, the safe pattern is read-only or tightly validated actions first.
+
+Keep it running
+Run the Asus backend with systemd so it starts automatically on boot. A service like this is the usual pattern:
+
+text
+[Unit]
+Description=PB MCP Gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=appuser
+WorkingDirectory=/opt/app/pb-mcp-server
+ExecStart=/opt/app/pb-mcp-server/target/release/pb-gateway
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+Then enable it:
+
+bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now pb-mcp-gateway
+sudo systemctl status pb-mcp-gateway
+Networking
+For your setup, use Tailscale Serve first, because Tailscale documents Serve as a way to share a local service only with devices on your private tailnet, while Funnel is the feature that exposes a service to the public internet. Tailscale also recommends keeping the backend bound to localhost when using proxy identity headers, so your gateway should listen on 127.0.0.1, not directly on a public interface.
+
+That means your flow should be:
+
+Asus gateway listens on 127.0.0.1:8080.
+
+Tailscale Serve exposes that privately to your own devices.
+​
+
+Netlify calls the Asus backend through a URL you store in environment variables, because Netlify environment variables are the proper place for backend URLs and secrets, and function runtime variables need Functions scope.
+
+Netlify changes
+Once the Asus gateway is reachable, update the existing Netlify Functions in mcp-control-plane/netlify/functions/ to proxy to the Asus backend instead of returning mock data. Netlify says environment variables should be used for runtime configuration, so add something like BACKEND_URL in Netlify and give it Functions scope.
+​
+
+So in practice:
+
+status.ts -> fetch ${BACKEND_URL}/status
+
+agent-request.ts -> forward validated requests to the Asus gateway
+
+auth.ts -> check a shared token before forwarding
+
+review-packet.ts -> build safe review jobs only
+
+Best order
+Do it in this order:
+
+Clone and build the repo on the Asus.
+
+Keep the existing MCP binary for local/Zed use.
+​
+
+Add a tiny HTTP gateway binary on the Asus.
+
+Run that gateway with systemd.
+
+Expose it privately with Tailscale Serve.
+​
+
+Put the Asus backend URL into Netlify environment variables.
+
+Replace the mock Netlify status.ts with a real proxy to the Asus backend.
+​
+
+The key idea is simple: Netlify is your front door, Asus is your private engine. Do you want me to write the exact gateway.rs starter code and the matching status.ts proxy next?
 ​
 
 Prepared using GPT-5.4 Thinking

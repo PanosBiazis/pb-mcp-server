@@ -422,6 +422,26 @@ struct SummarizeTextArgs {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct AskAgentsArgs {
+    #[schemars(description = "Stable id for the asking agent (e.g. zed_user, cursor-main).")]
+    #[serde(default = "default_from_agent")]
+    from_agent: String,
+    #[schemars(description = "Question to broadcast to all agents.")]
+    query: String,
+    #[schemars(
+        description = "Thread key. If omitted, server generates a unique topic so you can poll later with agent_thread."
+    )]
+    #[serde(default)]
+    topic: Option<String>,
+    #[schemars(description = "How long to wait for replies before returning (clamped 250–20000ms).")]
+    #[serde(default = "default_ask_timeout_ms")]
+    timeout_ms: u64,
+    #[schemars(description = "Max replies returned (1–50).")]
+    #[serde(default = "default_ask_limit")]
+    limit: usize,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct PackContextArgs {
     #[schemars(description = "Context segments to pack (each segment may be a file excerpt, message, etc.).")]
     segments: Vec<String>,
@@ -554,6 +574,18 @@ fn default_pack_max_chars() -> usize {
     8000
 }
 
+fn default_from_agent() -> String {
+    "zed_user".to_string()
+}
+
+fn default_ask_timeout_ms() -> u64 {
+    5_000
+}
+
+fn default_ask_limit() -> usize {
+    12
+}
+
 impl MintMcp {
     fn new() -> Self {
         let root = std::env::var("MINT_PROJECT_ROOT")
@@ -616,6 +648,18 @@ impl MintMcp {
             Some(p) if !p.trim().is_empty() => self.resolve_path(p),
             _ => Ok(self.root.canonicalize().unwrap_or_else(|_| self.root.clone())),
         }
+    }
+
+    fn now_ms() -> u64 {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0)
+    }
+
+    fn new_topic() -> String {
+        format!("ask-{}-{}", Self::now_ms(), std::process::id())
     }
 }
 
@@ -1462,6 +1506,96 @@ impl MintMcp {
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Broadcast a question to the durable multi-agent bus and collect replies posted to the same topic within a short time window. Other agents should respond via `agent_send` with the same topic.",
+        annotations(title = "Ask agents (bus orchestrator)", read_only_hint = false)
+    )]
+    async fn ask_agents(
+        &self,
+        Parameters(args): Parameters<AskAgentsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let root = self.project_root_for_bus();
+        let from_agent = args.from_agent.clone();
+        let query = args.query.clone();
+        if query.trim().is_empty() {
+            return Self::tool_text("Error: query must not be empty".to_string());
+        }
+
+        let topic = args.topic.clone().filter(|t| !t.trim().is_empty()).unwrap_or_else(Self::new_topic);
+        let timeout_ms = args.timeout_ms.clamp(250, 20_000);
+        let limit = args.limit.clamp(1, 50);
+
+        let since = Self::now_ms();
+        let send_res = tokio::task::spawn_blocking({
+            let root = root.clone();
+            let from_agent = from_agent.clone();
+            let topic = topic.clone();
+            let query = query.clone();
+            move || crate::bus::agent_send(root, from_agent, query, None, Some(topic), Some("question".to_string()))
+        })
+        .await
+        .unwrap_or_else(|e| Err(format!("task failed: {e}")));
+
+        let msg_id = match send_res {
+            Ok(id) => id,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_millis(timeout_ms);
+        let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut replies: Vec<crate::bus::AgentMessage> = Vec::new();
+
+        while tokio::time::Instant::now() < deadline && replies.len() < limit {
+            let poll = tokio::task::spawn_blocking({
+                let root = root.clone();
+                let topic = topic.clone();
+                let from_agent = from_agent.clone();
+                move || crate::bus::agent_collect_topic_replies(root, topic, since, from_agent, 200)
+            })
+            .await
+            .unwrap_or_else(|e| Err(format!("task failed: {e}")));
+
+            match poll {
+                Ok(msgs) => {
+                    for m in msgs {
+                        if replies.len() >= limit {
+                            break;
+                        }
+                        if seen.insert(m.id.clone()) {
+                            replies.push(m);
+                        }
+                    }
+                }
+                Err(_e) => {
+                    // If polling fails transiently (e.g. file contention), keep waiting.
+                }
+            }
+
+            tokio::time::sleep(std::time::Duration::from_millis(220)).await;
+        }
+
+        let mut out = String::new();
+        out.push_str("ASK_AGENTS\n");
+        out.push_str(&format!("topic: {topic}\nmessage_id: {msg_id}\nfrom_agent: {from_agent}\n"));
+        out.push_str(&format!("timeout_ms: {timeout_ms}\nreplies: {}\n\n", replies.len()));
+        out.push_str("question:\n");
+        out.push_str(&query);
+        out.push_str("\n\n---\n\n");
+
+        if replies.is_empty() {
+            out.push_str("No replies yet. Other agents should call `agent_send` with the same topic, then you can re-run `ask_agents` with that topic or use `agent_thread(topic)`.\n");
+        } else {
+            for r in replies {
+                out.push_str(&format!(
+                    "from: {}\nkind: {}\n---\n{}\n\n====\n\n",
+                    r.from_agent, r.kind, r.body
+                ));
+            }
+        }
 
         Self::tool_text(out)
     }
