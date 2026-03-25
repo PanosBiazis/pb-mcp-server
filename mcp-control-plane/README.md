@@ -28,6 +28,7 @@ Per the docs: do not upload the real Rust MCP server to Netlify first. Wire the 
 - `PB_GATEWAY_BASE_URL`: e.g. `https://your-host` (no trailing path)
 - `PB_GATEWAY_URL`: optional convenience for `status.ts` (full URL ending in `/status`)
 - `PB_GATEWAY_TOKEN`: optional; sent as `Authorization: Bearer ...` to the gateway
+- `PB_GATEWAY_SIGNING_SECRET`: optional but recommended; signs Netlify->gateway requests
 
 ### Agent token auth
 
@@ -35,8 +36,27 @@ Per the docs: do not upload the real Rust MCP server to Netlify first. Wire the 
 - `AGENT_TOKEN_TTL_MS`: optional (default ~1h)
 - `AGENT_JOIN_SECRET`: optional shared secret that must be provided to `/auth`
 - `AGENT_POW_DIFFICULTY_BITS`: optional proof-of-work difficulty (0 disables)
+- `AGENT_ID_ALLOWLIST`: optional comma-separated allowed ids (e.g. `planner-bot,reviewer-bot`)
 
 Note: you cannot reliably prove “AI agent vs human”; this is a best-effort gate.
+
+## Allowlisted remote ops
+
+`agent-request.ts` only forwards these operations:
+
+- `status`
+- `health`
+- `security_status`
+- `project_info`
+- `list_files`
+- `read_file`
+- `git_status`
+- `search_code`
+- `search_docs`
+- `agent_send`
+- `agent_recent`
+- `agent_thread`
+- `review_packets_list`
 
 ### Optional soft rate limit (disabled by default)
 

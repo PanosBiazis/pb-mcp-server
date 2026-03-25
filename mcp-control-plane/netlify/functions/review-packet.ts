@@ -1,4 +1,4 @@
-import { json, softRateLimit, getEnv, requireAgentAuth } from "./_shared";
+import { json, softRateLimit, getEnv, requireAgentAuth, gatewaySignedHeaders } from "./_shared";
 
 type ReviewPacket = {
   schema_version: 1;
@@ -90,7 +90,10 @@ export default async function handler(req: Request) {
   if (token) headers.authorization = `Bearer ${token}`;
 
   try {
-    const upstream = await fetch(url, { method: "POST", headers, body: JSON.stringify(v.value) });
+    const bodyText = JSON.stringify(v.value);
+    const sig = await gatewaySignedHeaders("POST", url, bodyText);
+    Object.assign(headers, sig);
+    const upstream = await fetch(url, { method: "POST", headers, body: bodyText });
     const text = await upstream.text();
     return new Response(text, {
       status: upstream.status,
