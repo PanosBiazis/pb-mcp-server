@@ -628,3 +628,52 @@ pub fn agent_bus_search(
         Ok(out)
     })
 }
+
+/// Collect replies in a topic after `since_ts_ms`, excluding messages from `exclude_from_agent`.
+///
+/// Intended for an "ask_agents" style orchestrator: one agent posts a question with a topic, then
+/// polls for other agents' responses on the same topic.
+pub fn agent_collect_topic_replies(
+    project_root: PathBuf,
+    topic: String,
+    since_ts_ms: u64,
+    exclude_from_agent: String,
+    limit: usize,
+) -> Result<Vec<AgentMessage>, String> {
+    let topic = sanitize_topic(&topic);
+    if topic.is_empty() {
+        return Err("topic must be non-empty".into());
+    }
+    let exclude_from_agent = sanitize_agent_name(&exclude_from_agent);
+    if exclude_from_agent.is_empty() {
+        return Err("exclude_from_agent must be non-empty".into());
+    }
+    let limit = limit.clamp(1, 200);
+
+    let path = log_path(&project_root);
+    with_shared_lock(&project_root, || {
+        if !path.exists() {
+            return Ok(Vec::new());
+        }
+        let s = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        let all = parse_all_lines(&s);
+
+        let mut out: Vec<AgentMessage> = Vec::new();
+        for m in all.into_iter() {
+            if out.len() >= limit {
+                break;
+            }
+            if m.ts < since_ts_ms {
+                continue;
+            }
+            if m.from_agent == exclude_from_agent {
+                continue;
+            }
+            if m.topic.as_deref() != Some(topic.as_str()) {
+                continue;
+            }
+            out.push(m);
+        }
+        Ok(out)
+    })
+}
