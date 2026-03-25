@@ -50,14 +50,27 @@ Safer defaults:
 
 - Keep **`PB_GATEWAY_BIND=127.0.0.1:8080`** (localhost only) and put it behind your VPN/reverse-proxy.
 - Always set **`PB_GATEWAY_TOKEN`** if the gateway is reachable by anything except localhost.
+- Set **`PB_GATEWAY_SIGNING_SECRET`** (same value in Netlify + gateway) to enforce anti-replay signed requests.
+- Set **`PB_GATEWAY_TRUST_LOCAL_NETWORK=1`** only if you intentionally want local LAN/Tailscale callers to bypass token/sign checks and access local-only powerful tools.
 - Always set **`MINT_PROJECT_ROOT`** to the single repo you want the gateway to touch.
 
 Endpoints:
 
 - `GET /health` (no auth)
 - `GET /status` (requires `Authorization: Bearer <PB_GATEWAY_TOKEN>` if token is set)
+- `GET /security-status` (runtime security posture summary; requires auth/signing if enabled)
+- `GET /project-info` (safe metadata summary for remote agents; requires auth if token is set)
+- `GET /list-files?path=...` (safe directory listing under project root)
+- `GET /read-file?path=...&start_line=...&end_line=...` (bounded file read under project root)
+- `GET /git-status?path=...` (safe git status)
+- `GET /search-code?pattern=...&path=...` (safe bounded grep-like search; requires auth if token is set)
+- `GET /search-docs?pattern=...&path=...` (docs-scoped search; requires auth if token is set)
+- `POST /agent-send` (safe remote message append for agent collaboration)
+- `GET /agent-recent?limit=...` (safe remote message tail)
+- `GET /agent-thread?topic=...&limit=...` (safe remote thread view)
 - `POST /review-packet` (stores one JSON object as JSONL; requires auth if token is set)
 - `GET /review-packets?limit=30` (returns tail window; requires auth if token is set)
+- `POST /exec` (runs shell command; available only when `PB_GATEWAY_TRUST_LOCAL_NETWORK=1` and caller is LAN/Tailscale-local)
 
 ## Netlify control-plane (`mcp-control-plane/`)
 

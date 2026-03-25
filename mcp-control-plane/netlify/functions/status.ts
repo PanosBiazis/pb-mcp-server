@@ -1,3 +1,5 @@
+import { gatewaySignedHeaders } from "./_shared";
+
 export default async function handler(req: Request) {
   // Proxy to your Asus-hosted gateway when configured.
   //
@@ -35,6 +37,8 @@ export default async function handler(req: Request) {
   }
 
   try {
+    const sig = await gatewaySignedHeaders("GET", url, "");
+    Object.assign(headers, sig);
     const upstream = await fetch(url, { method: "GET", headers });
     const text = await upstream.text();
     return new Response(text, {
