@@ -2,6 +2,7 @@ target/
 **/target/
 node_modules/
 .netlify/
+.mint-mcp/
 .env
 .env.*
 *.log
