@@ -8,7 +8,7 @@ use regex::{Regex, RegexBuilder};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
-    collections::{BTreeSet, HashMap},
+    collections::{BTreeSet, HashMap, HashSet},
     fs,
     io::{Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
@@ -1134,7 +1134,7 @@ Env: MINT_BUS_READ_ONLY=1; MINT_BUS_MAX_SENDS_PER_WINDOW (0=off), MINT_BUS_RATE_
         crate::bus::MAX_AGENT_MESSAGE_BODY_CHARS
     ));
     out.push_str(&format!(
-        "Context shaping: compress_* (+ simplify_whitespace, markdown_links, unified_diff_stats, strip_tags, ws_collapse, drop_lines_matching_regex, dedent, truncate_middle, lines head/tail…); summarize_* (+ top_terms, duplicate_lines, rank_lines_by_keywords, bullets, markdown_toc, json_structure, delimited_header…); text_levenshtein_distance / text_djb2_hash; compress_gzip_base64 / decompress_gzip_base64 (binary-safe blobs); text_stats; pack_context; convert_format (+ wrap_lines, spaces_to_tabs, remove_empty_lines, dedupe_adjacent_lines, slugify…, max {} bytes/file); codebase_*; code_index_build/search/symbol_prefix/duplicate_symbols/path_substring/aggregate_stats (regex optional); gh_pr_* / glab_mr_*; gitkraken_cloud_catalog + hosted_tool_redirect; terminal_program_version; ai_stack_probe / screenshot_capture / ocr_tesseract / ollama_list_models (optional CLIs + gates); workspace_temp_*; mcp_env_hints; server_sleep (optional reason), wait_until_timestamp, wait_for_path (poll jitter); agent waits.\n",
+        "Context shaping: compress_* (+ simplify_whitespace, markdown_links, unified_diff_stats, strip_tags, ws_collapse, double_slash_line_comments, drop_lines_matching_regex, dedent, truncate_middle, lines head/tail…); summarize_* (+ top_terms, identifier_frequency, duplicate_lines, rank_lines_by_keywords, bullets, markdown_toc, json_structure, delimited_header…); text_levenshtein_distance / text_token_jaccard / text_longest_common_substring / text_djb2_hash; compress_gzip_base64 / decompress_gzip_base64 (binary-safe blobs); text_stats; pack_context; convert_format (+ yaml↔json, toml↔json, *_top_level_keys, sha256_hex, wrap_lines, spaces_to_tabs, remove_empty_lines, dedupe_adjacent_lines, slugify…, max {} bytes/file); codebase_*; code_index_build/search/symbol_prefix/duplicate_symbols/path_substring/aggregate_stats (regex optional); gh_pr_* / glab_mr_*; gitkraken_cloud_catalog + coding_agent_toolchains_catalog + hosted_tool_redirect; terminal_program_version; ai_stack_probe / screenshot_capture / ocr_tesseract / ollama_list_models (optional CLIs + gates); workspace_temp_*; mcp_env_hints; server_sleep (optional reason), wait_until_timestamp, wait_for_path (poll jitter); agent waits.\n",
         MAX_CONVERT_BYTES
     ));
     let term_on = terminal_enabled();
@@ -1148,7 +1148,7 @@ Env: MINT_BUS_READ_ONLY=1; MINT_BUS_MAX_SENDS_PER_WINDOW (0=off), MINT_BUS_RATE_
     out.push_str("\n--- ai_agent_tool_visibility ---\n");
     if is_public_profile {
         out.push_str("deployment: public_internet\n");
-        out.push_str("philosophy: read-biased, minimal side effects. Prefer grep/read_file/compress/summarize/thinking_*/plan_*/reasoning_* (stateless text), agent_coordination_playbook, ai_inference_integration_guide, code_index reads, agent inbox/thread reads, capped waits, terminal_which / terminal_program_version / ai_stack_probe (if terminal enabled), mcp_env_hints, gitkraken_cloud_catalog.\n");
+        out.push_str("philosophy: read-biased, minimal side effects. Prefer grep/read_file/compress/summarize/thinking_*/plan_*/reasoning_* (stateless text), agent_coordination_playbook, ai_inference_integration_guide, coding_agent_toolchains_catalog, code_index reads, agent inbox/thread reads, capped waits, terminal_which / terminal_program_version / ai_stack_probe (if terminal enabled), mcp_env_hints, gitkraken_cloud_catalog.\n");
         out.push_str("blocked: agent_send and all bus mutators, terminal_run, terminal_run_stdin, gh_pr_*, glab_mr_*, git writes/remotes, codebase_manifest_write, code_index_build, thinking_session_*, workspace_temp_*, screenshot_capture, ocr_tesseract, ollama_list_models, convert_format with output_path.\n");
     } else {
         out.push_str("deployment: local_network (trusted)\n");
@@ -1172,6 +1172,36 @@ pub fn gitkraken_cloud_catalog_work() -> String {
     s.push_str("Local-repo parity on this server: git_status, git_log_or_diff, git_branch, git_worktree, git_stash, git_checkout, git_add_or_commit, git_push, git_fetch, git_pull, repository_get_file_content, gk_* aliases (GitKraken arg names).\n\n");
     s.push_str("Optional PR CLI (not a cloud API — runs local `gh` / `glab` like terminal_run): gh_pr_list, gh_pr_view, glab_mr_list, glab_mr_show (need MINT_TERMINAL_ENABLE + gh/glab in MINT_TERMINAL_ALLOW; trusted profile).\n");
     s.push_str("Per-tool hosted redirect: gitkraken_hosted_tool_redirect(tool_name) for agents that expect a named GitKraken cloud tool.\n");
+    s.push_str("Coding-agent CLIs / orchestrators (install separately; see coding_agent_toolchains_catalog): openclaw, claude, codex, aider, etc. Probed in ai_stack_probe when allowlisted.\n");
+    s
+}
+
+/// Read-only map of popular coding-agent CLIs and how they relate to this MCP (no subprocesses here).
+pub fn coding_agent_toolchains_catalog_work() -> String {
+    let mut s = String::from("CODING_AGENT_TOOLCHAINS_CATALOG\n\n");
+    s.push_str("This server stays small and auditable: it does **not** embed Claude/GPT weights or call vendor HTTP APIs. Use the tools below **alongside** optional host CLIs (terminal_run / terminal_run_stdin with MINT_TERMINAL_ENABLE + MINT_TERMINAL_ALLOW) or dedicated vendor MCP servers.\n\n");
+    s.push_str("Orchestration / multi-agent:\n");
+    s.push_str("  - This MCP: agent_bus (agent_send, agent_fan_out, agent_send_pipeline, agent_subagent_task/done, agent_inbox_wait, agent_topic_wait), plan_*, reasoning_*, thinking_* — serial + parallel patterns in agent_coordination_playbook.\n");
+    s.push_str("  - OpenClaw CLI (https://docs.openclaw.ai/cli): gateway/agent automation; pair with this server for repo-scoped file/git tools and durable JSONL bus under .mint-mcp/.\n\n");
+    s.push_str("--- OpenClaw CLI recipes (run on trusted LAN; allowlist `openclaw` in MINT_TERMINAL_ALLOW + MINT_TERMINAL_ENABLE=1) ---\n");
+    s.push_str("  - One-shot turn (scripting): `openclaw agent --message \"Summarize src/\"` — add `--json` for machine-readable output; `--local` to pin embedded runtime when docs match your install.\n");
+    s.push_str("  - Session/thread: reuse `--session-id` across calls; align with this MCP by posting the same correlation string as agent_send `topic` for humans reading both channels.\n");
+    s.push_str("  - Pairing with this MCP: use read_file / grep_code / code_index_* here for repo truth; use OpenClaw for provider-backed reasoning; never paste API keys into agent_send (compress_redact_urls first).\n");
+    s.push_str("  - After OpenClaw edits: git_diff, project_cargo_check (if gated), then agent_subagent_done back to parent with file list + test status.\n\n");
+    s.push_str("--- Claude Code / Anthropic CLI ---\n");
+    s.push_str("  - Prefer the editor’s Anthropic MCP for inline chat; for headless runs use the host `claude` binary only when allowlisted — same redaction rules as OpenClaw.\n");
+    s.push_str("  - Handoff pattern: plan_handoff_brief → agent_subagent_task(task_body=…) → child uses claude CLI or IDE, then agent_subagent_done.\n\n");
+    s.push_str("Editor-integrated agents:\n");
+    s.push_str("  - Anthropic Claude / Claude Code: use the vendor MCP or host `claude` CLI when installed; keep secrets in the client, not on the bus (compress_redact_* before agent_send).\n");
+    s.push_str("  - Cursor / Zed / VS Code: attach **this** MCP for codebase_index, grep_code, git_*, and bus tools; attach vendor MCPs for completions.\n\n");
+    s.push_str("CLI coding assistants (examples):\n");
+    s.push_str("  - OpenAI Codex CLI (`codex`), Google Gemini CLI (`gemini`), Aider (`aider`) — run in terminal_run with tight timeouts; prefer project root as cwd.\n\n");
+    s.push_str("OCR / local ML bridges (this server):\n");
+    s.push_str("  - ocr_tesseract, ollama_list_models, ai_stack_probe, ai_inference_integration_guide; screenshot_capture → PNG → OCR on trusted/LAN profiles.\n\n");
+    s.push_str("Deterministic helpers for agents (no network):\n");
+    s.push_str("  - convert_format (incl. sha256_hex, yaml_to_json*, json_to_yaml, toml_to_json*, json_to_toml, *_top_level_keys), compress_gzip_base64, compress_double_slash_line_comments, summarize_identifier_frequency, text_token_jaccard, text_longest_common_substring, text_levenshtein_distance, text_djb2_hash, summarize_*, compress_*.\n\n");
+    s.push_str("Security recap:\n");
+    s.push_str("  - MINT_NETWORK_PROFILE=public blocks bus writes, terminal_run, stdin-heavy tools, OCR/ollama, and convert_format output_path — see workspace_context → ai_agent_tool_visibility.\n");
     s
 }
 
@@ -1361,7 +1391,8 @@ pub fn ai_inference_integration_guide_work() -> &'static str {
      - Run Python/R notebooks or services in your environment; expose results via files under the project root and use read_file, or wrap CLIs in terminal_run with a tight allowlist.\n\
      \n\
      Deterministic helpers (no weights):\n\
-     - summarize_json_structure for API/JSON config skims; text_levenshtein_distance and text_djb2_hash for comparing strings or fingerprints; compress_simplify_whitespace / compress_markdown_links before bus posts.\n\
+     - summarize_json_structure for API/JSON config skims; text_levenshtein_distance, text_token_jaccard, text_longest_common_substring, text_djb2_hash; summarize_identifier_frequency; convert_format sha256_hex plus yaml_to_json / json_to_yaml / toml_to_json / json_to_toml / *_top_level_keys; compress_double_slash_line_comments; compress_simplify_whitespace / compress_markdown_links before bus posts.\n\
+     - coding_agent_toolchains_catalog: how OpenClaw / Claude Code / Codex-class CLIs map to this MCP.\n\
      \n\
      Security:\n\
      - MINT_NETWORK_PROFILE=public: bus mutations, ocr_tesseract, ollama_list_models, terminal_run_stdin, and unconstrained terminal_run stay blocked — use read-only probes like ai_stack_probe only if MINT_TERMINAL_ENABLE=1.\n\
@@ -1370,7 +1401,18 @@ pub fn ai_inference_integration_guide_work() -> &'static str {
 
 /// `--version` snippets for common optional CLIs (same gates as terminal_program_version).
 pub fn ai_stack_probe_work() -> String {
-    const CANDIDATES: &[&str] = &["python3", "python", "tesseract", "ollama", "ffmpeg"];
+    const CANDIDATES: &[&str] = &[
+        "python3",
+        "python",
+        "tesseract",
+        "ollama",
+        "ffmpeg",
+        "openclaw",
+        "claude",
+        "codex",
+        "aider",
+        "gemini",
+    ];
     let mut out = String::from("AI_STACK_PROBE\n");
     out.push_str("Uses MINT_TERMINAL_ENABLE + MINT_TERMINAL_ALLOW per program (like terminal_program_version).\n\n");
     for p in CANDIDATES {
@@ -1842,6 +1884,116 @@ pub fn summarize_top_terms_work(text: String, min_len: usize, max_terms: usize, 
     }
     let (out, _) = truncate_chars(&out, max_chars);
     out
+}
+
+/// Drop lines whose first non-whitespace content is `//` (C/JS/Rust/Java full-line comments). Does not alter lines with `//` after code on the same line.
+pub fn compress_double_slash_line_comments_work(
+    text: String,
+    max_chars: usize,
+    drop_blank_lines: bool,
+) -> String {
+    let max_chars = max_chars.clamp(1, MAX_RESPONSE_CHARS);
+    let mut kept: Vec<&str> = Vec::new();
+    for line in text.lines() {
+        let t = line.trim_start();
+        if t.starts_with("//") {
+            continue;
+        }
+        if drop_blank_lines && t.is_empty() {
+            continue;
+        }
+        kept.push(line);
+    }
+    let body = kept.join("\n");
+    let (body, _) = truncate_chars(&body, max_chars);
+    format!(
+        "COMPRESS_DOUBLE_SLASH_LINE_COMMENTS drop_blank_lines={drop_blank_lines} max_chars={max_chars}\n\n{body}"
+    )
+}
+
+/// Frequency of identifier-shaped tokens `[A-Za-z_][A-Za-z0-9_]*` (code-oriented; no English stopword list).
+pub fn summarize_identifier_frequency_work(
+    text: String,
+    min_len: usize,
+    max_identifiers: usize,
+    max_chars: usize,
+    fold_case: bool,
+) -> String {
+    let min_len = min_len.clamp(1, 64);
+    let max_identifiers = max_identifiers.clamp(1, 120);
+    let max_chars = max_chars.clamp(1, MAX_RESPONSE_CHARS);
+    let re = match Regex::new(r"[A-Za-z_][A-Za-z0-9_]*") {
+        Ok(r) => r,
+        Err(_) => return "Error: identifier regex".to_string(),
+    };
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for m in re.find_iter(&text) {
+        let s = m.as_str();
+        if s.len() < min_len {
+            continue;
+        }
+        let key = if fold_case {
+            s.to_lowercase()
+        } else {
+            s.to_string()
+        };
+        *counts.entry(key).or_insert(0) += 1;
+    }
+    let mut pairs: Vec<(String, usize)> = counts.into_iter().collect();
+    pairs.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    pairs.truncate(max_identifiers);
+    let mut out = String::from("SUMMARIZE_IDENTIFIER_FREQUENCY\n");
+    out.push_str(&format!(
+        "min_len: {min_len} max_identifiers: {max_identifiers} fold_case: {fold_case}\n\n"
+    ));
+    for (w, c) in pairs {
+        out.push_str(&format!("{c:6}  {w}\n"));
+    }
+    let (out, _) = truncate_chars(&out, max_chars);
+    out
+}
+
+/// Longest contiguous substring shared by two strings (Unicode scalar comparison); CPU-capped via max_len_each and n×m bound.
+pub fn text_longest_common_substring_work(a: String, b: String, max_len_each: usize) -> String {
+    let max_len_each = max_len_each.clamp(32, 4000);
+    let (a, _) = truncate_chars(&a, max_len_each);
+    let (b, _) = truncate_chars(&b, max_len_each);
+    let ac: Vec<char> = a.chars().collect();
+    let bc: Vec<char> = b.chars().collect();
+    let n = ac.len();
+    let m = bc.len();
+    const MAX_CELLS: usize = 400_000;
+    if n.saturating_mul(m) > MAX_CELLS {
+        return format!(
+            "Error: char grid n*m={} exceeds {MAX_CELLS}; shorten strings or lower max_len_each",
+            n.saturating_mul(m)
+        );
+    }
+    let mut best_len = 0usize;
+    let mut best_i = 0usize;
+    for i in 0..n {
+        for j in 0..m {
+            let mut k = 0usize;
+            while i + k < n && j + k < m && ac[i + k] == bc[j + k] {
+                k += 1;
+            }
+            if k > best_len {
+                best_len = k;
+                best_i = i;
+            }
+        }
+    }
+    if best_len == 0 {
+        return format!(
+            "LONGEST_COMMON_SUBSTRING\nn_chars: {n} m_chars: {m} length: 0\n(no shared contiguous substring)\n"
+        );
+    }
+    let slice: String = ac[best_i..best_i + best_len].iter().collect();
+    let (preview, clip) = truncate_chars(&slice, 512);
+    format!(
+        "LONGEST_COMMON_SUBSTRING\nn_chars: {n} m_chars: {m} length: {best_len}\nstart_offset_a_chars: {best_i}\nsubstring_preview{}:\n{preview}\n",
+        if clip { " (truncated)" } else { "" }
+    )
 }
 
 /// Remove angle-bracket segments (heuristic tag stripper; keeps `<` that do not look like markup starts).
@@ -3132,7 +3284,40 @@ fn convert_format_load_raw(
     }
 }
 
-/// JSON pretty/minify, base64/hex encode or decode. Paths must be validated by the caller (project root).
+fn convert_format_emit_string(operation: &str, body: String, output_path: Option<PathBuf>) -> String {
+    if let Some(out_p) = output_path {
+        let disp = out_p.display().to_string();
+        if let Err(e) = fs::write(&out_p, body.as_bytes()) {
+            return format!("Error: write {disp}: {e}");
+        }
+        format!(
+            "CONVERT_FORMAT operation={operation} wrote_chars={} path={disp}\n",
+            body.len()
+        )
+    } else {
+        let (out, clipped) = truncate_chars(&body, MAX_RESPONSE_CHARS);
+        let mut s = format!(
+            "CONVERT_FORMAT operation={operation} output_chars={}\n\n{out}",
+            out.len()
+        );
+        if clipped {
+            s.push_str(&format!("\n\n[truncated to {MAX_RESPONSE_CHARS} chars]"));
+        }
+        s
+    }
+}
+
+fn yaml_mapping_key_display(k: &serde_yaml::Value) -> String {
+    match k {
+        serde_yaml::Value::String(s) => s.clone(),
+        serde_yaml::Value::Number(n) => n.to_string(),
+        serde_yaml::Value::Bool(b) => b.to_string(),
+        serde_yaml::Value::Null => "(null)".to_string(),
+        _ => format!("{k:?}"),
+    }
+}
+
+/// JSON pretty/minify; YAML↔JSON; TOML↔JSON; base64/hex; sha256; line/text transforms. Paths must be validated by the caller (project root).
 /// When `allow_file_output` is false, `output_path` must be absent (public / internet profile).
 /// `tab_stops` applies to `tabs_to_spaces` (1–16). `line_number_start` applies to `prefix_line_numbers` (1-based).
 pub fn convert_format_work(
@@ -3181,6 +3366,154 @@ pub fn convert_format_work(
                 s.push_str(&format!("\n\n[truncated to {MAX_RESPONSE_CHARS} chars]"));
             }
             s
+        }
+        "yaml_to_json_pretty" | "yaml_to_json" => {
+            let raw = match convert_format_load_raw(text_input, input_path.as_ref(), "yaml_to_json") {
+                Ok(s) => s,
+                Err(e) => return e,
+            };
+            let v: Value = match serde_yaml::from_str(raw.trim()) {
+                Ok(v) => v,
+                Err(e) => return format!("Error: YAML parse: {e}"),
+            };
+            let out = match serde_json::to_string_pretty(&v) {
+                Ok(s) => s,
+                Err(e) => return format!("Error: JSON serialize: {e}"),
+            };
+            convert_format_emit_string("yaml_to_json_pretty", out, output_path)
+        }
+        "yaml_to_json_minify" => {
+            let raw = match convert_format_load_raw(text_input, input_path.as_ref(), "yaml_to_json_minify")
+            {
+                Ok(s) => s,
+                Err(e) => return e,
+            };
+            let v: Value = match serde_yaml::from_str(raw.trim()) {
+                Ok(v) => v,
+                Err(e) => return format!("Error: YAML parse: {e}"),
+            };
+            let out = match serde_json::to_string(&v) {
+                Ok(s) => s,
+                Err(e) => return format!("Error: JSON serialize: {e}"),
+            };
+            convert_format_emit_string("yaml_to_json_minify", out, output_path)
+        }
+        "json_to_yaml" => {
+            let raw = match convert_format_load_raw(text_input, input_path.as_ref(), "json_to_yaml") {
+                Ok(s) => s,
+                Err(e) => return e,
+            };
+            let v: Value = match serde_json::from_str(raw.trim()) {
+                Ok(v) => v,
+                Err(e) => return format!("Error: invalid JSON: {e}"),
+            };
+            let out = match serde_yaml::to_string(&v) {
+                Ok(s) => s,
+                Err(e) => return format!("Error: YAML serialize: {e}"),
+            };
+            convert_format_emit_string("json_to_yaml", out, output_path)
+        }
+        "toml_to_json_pretty" | "toml_to_json" => {
+            let raw = match convert_format_load_raw(text_input, input_path.as_ref(), "toml_to_json") {
+                Ok(s) => s,
+                Err(e) => return e,
+            };
+            let v: Value = match toml::from_str(raw.trim()) {
+                Ok(v) => v,
+                Err(e) => return format!("Error: TOML parse: {e}"),
+            };
+            let out = match serde_json::to_string_pretty(&v) {
+                Ok(s) => s,
+                Err(e) => return format!("Error: JSON serialize: {e}"),
+            };
+            convert_format_emit_string("toml_to_json_pretty", out, output_path)
+        }
+        "toml_to_json_minify" => {
+            let raw =
+                match convert_format_load_raw(text_input, input_path.as_ref(), "toml_to_json_minify") {
+                    Ok(s) => s,
+                    Err(e) => return e,
+                };
+            let v: Value = match toml::from_str(raw.trim()) {
+                Ok(v) => v,
+                Err(e) => return format!("Error: TOML parse: {e}"),
+            };
+            let out = match serde_json::to_string(&v) {
+                Ok(s) => s,
+                Err(e) => return format!("Error: JSON serialize: {e}"),
+            };
+            convert_format_emit_string("toml_to_json_minify", out, output_path)
+        }
+        "json_to_toml" => {
+            let raw = match convert_format_load_raw(text_input, input_path.as_ref(), "json_to_toml") {
+                Ok(s) => s,
+                Err(e) => return e,
+            };
+            let v: Value = match serde_json::from_str(raw.trim()) {
+                Ok(v) => v,
+                Err(e) => return format!("Error: invalid JSON: {e}"),
+            };
+            let out = match toml::to_string_pretty(&v) {
+                Ok(s) => s,
+                Err(e) => {
+                    return format!(
+                        "Error: TOML serialize: {e} (JSON null or incompatible types cannot be represented in TOML)\n"
+                    );
+                }
+            };
+            convert_format_emit_string("json_to_toml", out, output_path)
+        }
+        "toml_top_level_keys" => {
+            let raw =
+                match convert_format_load_raw(text_input, input_path.as_ref(), "toml_top_level_keys") {
+                    Ok(s) => s,
+                    Err(e) => return e,
+                };
+            let v: toml::Value = match raw.trim().parse() {
+                Ok(v) => v,
+                Err(e) => return format!("Error: TOML parse: {e}"),
+            };
+            let keys: Vec<String> = match v.as_table() {
+                Some(t) => t.keys().cloned().collect(),
+                None => {
+                    return "Error: toml_top_level_keys needs a TOML document whose root is a table (e.g. key = \"value\" or [section])\n".to_string();
+                }
+            };
+            let mut keys = keys;
+            keys.sort();
+            let body = format!(
+                "TOML_TOP_LEVEL_KEYS count={}\n\n{}\n",
+                keys.len(),
+                keys.join("\n")
+            );
+            convert_format_emit_string("toml_top_level_keys", body, output_path)
+        }
+        "yaml_top_level_keys" | "yaml_root_keys" => {
+            let raw =
+                match convert_format_load_raw(text_input, input_path.as_ref(), "yaml_top_level_keys") {
+                    Ok(s) => s,
+                    Err(e) => return e,
+                };
+            let v: serde_yaml::Value = match serde_yaml::from_str(raw.trim()) {
+                Ok(v) => v,
+                Err(e) => return format!("Error: YAML parse: {e}"),
+            };
+            let keys: Vec<String> = match v {
+                serde_yaml::Value::Mapping(m) => {
+                    let mut k: Vec<String> = m.keys().map(yaml_mapping_key_display).collect();
+                    k.sort();
+                    k
+                }
+                _ => {
+                    return "Error: yaml_top_level_keys needs a YAML mapping at the root (e.g. `foo: 1`); sequences or scalars have no named keys.\n".to_string();
+                }
+            };
+            let body = format!(
+                "YAML_TOP_LEVEL_KEYS count={}\n\n{}\n",
+                keys.len(),
+                keys.join("\n")
+            );
+            convert_format_emit_string("yaml_top_level_keys", body, output_path)
         }
         "base64_encode" => {
             let bytes = if let Some(t) = text_input {
@@ -3852,8 +4185,26 @@ pub fn convert_format_work(
                 o
             }
         }
+        "sha256_hex" | "sha256" => {
+            let bytes = if let Some(t) = text_input.filter(|s| !s.is_empty()) {
+                t.into_bytes()
+            } else if let Some(ref p) = input_path {
+                match read_file_bytes_capped(p, MAX_CONVERT_BYTES) {
+                    Ok(b) => b,
+                    Err(e) => return format!("Error: {e}"),
+                }
+            } else {
+                return "Error: sha256_hex needs `text` or `input_path`".to_string();
+            };
+            let digest = Sha256::digest(&bytes);
+            let hex = hex_encode_bytes(digest.as_slice());
+            format!(
+                "CONVERT_FORMAT operation=sha256_hex input_bytes={} hex_sha256={hex}\n",
+                bytes.len()
+            )
+        }
         _ => format!(
-            "Error: unknown operation {:?}; use json_pretty | json_minify | base64_encode | base64_decode | hex_encode | hex_decode | utf8_bom_strip | crlf_to_lf | lf_to_crlf | tabs_to_spaces | spaces_to_tabs | strip_ansi | collapse_blank_lines | remove_empty_lines | slugify | c_string_escape | prefix_line_numbers | text_lowercase | text_uppercase | sort_lines | reverse_lines | trim_each_line | unique_sorted_lines | dedupe_adjacent_lines | wrap_lines | percent_encode | percent_decode | html_escape",
+            "Error: unknown operation {:?}; see convert_format tool description. Includes json_* | yaml_to_json* | json_to_yaml | toml_to_json* | json_to_toml | yaml_top_level_keys | toml_top_level_keys | base64_* | hex_* | sha256_hex | line/text transforms | html_escape | percent_encode …",
             operation
         ),
     }
@@ -5997,6 +6348,60 @@ pub fn text_djb2_hash_work(text: String) -> String {
     )
 }
 
+/// Jaccard similarity on whitespace-separated tokens (cheap bag-of-words overlap for drafts, logs, or doc pairs).
+/// Capped per side for CPU/memory; if `max_tokens_scanned_per_text` is reached before EOF, similarity is **approximate** (see flags in output).
+pub fn text_token_jaccard_work(
+    a: String,
+    b: String,
+    fold_case: bool,
+    max_chars_each: usize,
+    max_tokens_scanned_per_text: usize,
+) -> String {
+    const MAX_TOKEN_RUNE_LEN: usize = 128;
+    let max_chars_each = max_chars_each.clamp(256, 500_000);
+    let max_scan = max_tokens_scanned_per_text.clamp(50, 200_000);
+    let (a, _) = truncate_chars(&a, max_chars_each);
+    let (b, _) = truncate_chars(&b, max_chars_each);
+
+    fn collect_tokens(s: &str, fold: bool, limit: usize) -> (HashSet<String>, usize, bool, usize) {
+        let mut set = HashSet::new();
+        let mut processed = 0usize;
+        let mut truncated_scan = false;
+        let total_whitespace_tokens = s.split_whitespace().count();
+        for w in s.split_whitespace() {
+            if processed >= limit {
+                truncated_scan = true;
+                break;
+            }
+            processed += 1;
+            let piece: String = w.chars().take(MAX_TOKEN_RUNE_LEN).collect();
+            let piece = if fold { piece.to_lowercase() } else { piece };
+            set.insert(piece);
+        }
+        (set, processed, truncated_scan, total_whitespace_tokens)
+    }
+
+    let (set_a, n_a, cut_a, total_a) = collect_tokens(&a, fold_case, max_scan);
+    let (set_b, n_b, cut_b, total_b) = collect_tokens(&b, fold_case, max_scan);
+    let ia = set_a.len();
+    let ib = set_b.len();
+    let inter = set_a.intersection(&set_b).count();
+    let union = set_a.union(&set_b).count();
+    let jaccard = if union == 0 {
+        1.0f64
+    } else {
+        inter as f64 / union as f64
+    };
+    format!(
+        "TOKEN_JACCARD fold_case={fold_case} max_chars_each={max_chars_each} max_tokens_scanned_per_text={max_scan}\n\
+a_whitespace_tokens_total={total_a} b_whitespace_tokens_total={total_b}\n\
+a_tokens_scanned={n_a} b_tokens_scanned={n_b} a_distinct={ia} b_distinct={ib}\n\
+intersection={inter} union={union} jaccard={jaccard:.6}\n\
+approximate_a={cut_a} approximate_b={cut_b}\n\
+note: tokenization is whitespace-only; punctuation stays attached; each token truncated to {MAX_TOKEN_RUNE_LEN} Unicode scalars.\n"
+    )
+}
+
 /// Gzip raw UTF-8 bytes and return standard base64 (compact agent payloads; no LLM).
 pub fn compress_gzip_base64_work(text_input: Option<String>, input_path: Option<&PathBuf>) -> String {
     let raw: Vec<u8> = if let Some(t) = text_input.filter(|s| !s.is_empty()) {
@@ -6492,5 +6897,129 @@ mod tests {
         assert!(s.contains("CONVERT_FORMAT operation=html_escape"), "{s}");
         assert!(s.contains("&lt;a&gt;"), "{s}");
         assert!(s.contains("&quot;b&quot;"), "{s}");
+    }
+
+    #[test]
+    fn convert_format_sha256_hex_known_vector() {
+        let s = convert_format_work(
+            "sha256_hex".to_string(),
+            Some("abc".to_string()),
+            None,
+            None,
+            true,
+            4,
+            1,
+            80,
+        );
+        assert!(s.contains("CONVERT_FORMAT operation=sha256_hex"), "{s}");
+        assert!(
+            s.contains("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"),
+            "{s}"
+        );
+    }
+
+    #[test]
+    fn text_token_jaccard_identical() {
+        let s = text_token_jaccard_work(
+            "hello world".to_string(),
+            "world hello".to_string(),
+            true,
+            10_000,
+            1000,
+        );
+        assert!(s.contains("TOKEN_JACCARD"), "{s}");
+        assert!(s.contains("jaccard=1.000000"), "{s}");
+    }
+
+    #[test]
+    fn convert_format_yaml_to_json_and_json_to_yaml_smoke() {
+        let j = convert_format_work(
+            "yaml_to_json_pretty".to_string(),
+            Some("x: 42\n".to_string()),
+            None,
+            None,
+            true,
+            4,
+            1,
+            80,
+        );
+        assert!(j.contains("42"), "{j}");
+        assert!(j.contains("\"x\""), "{j}");
+        let y = convert_format_work(
+            "json_to_yaml".to_string(),
+            Some(r#"{"z": true}"#.to_string()),
+            None,
+            None,
+            true,
+            4,
+            1,
+            80,
+        );
+        assert!(y.contains("CONVERT_FORMAT operation=json_to_yaml"), "{y}");
+        assert!(y.contains("z:"), "{y}");
+    }
+
+    #[test]
+    fn convert_format_toml_top_level_keys_and_json() {
+        let t = "[package]\nname = \"x\"\nversion = \"1\"\n";
+        let keys = convert_format_work(
+            "toml_top_level_keys".to_string(),
+            Some(t.to_string()),
+            None,
+            None,
+            true,
+            4,
+            1,
+            80,
+        );
+        assert!(keys.contains("package"), "{keys}");
+        let j = convert_format_work(
+            "toml_to_json_pretty".to_string(),
+            Some(t.to_string()),
+            None,
+            None,
+            true,
+            4,
+            1,
+            80,
+        );
+        assert!(j.contains("\"package\""), "{j}");
+        assert!(j.contains("\"name\""), "{j}");
+    }
+
+    #[test]
+    fn compress_double_slash_strips_only_full_lines() {
+        let s = compress_double_slash_line_comments_work(
+            "keep\n// gone\nlet x = 1; // stay\n".to_string(),
+            4000,
+            true,
+        );
+        assert!(s.contains("keep"), "{s}");
+        assert!(s.contains("// stay"), "{s}");
+        assert!(!s.contains("// gone"), "{s}");
+    }
+
+    #[test]
+    fn summarize_identifier_frequency_counts() {
+        let s = summarize_identifier_frequency_work(
+            "fn foo() { let foo_bar = 1; }".to_string(),
+            2,
+            20,
+            2000,
+            false,
+        );
+        assert!(s.contains("SUMMARIZE_IDENTIFIER_FREQUENCY"), "{s}");
+        assert!(s.contains("foo"), "{s}");
+    }
+
+    #[test]
+    fn text_longest_common_substring_basic() {
+        let s = text_longest_common_substring_work(
+            "abcde".to_string(),
+            "xbcdyz".to_string(),
+            100,
+        );
+        assert!(s.contains("length: 3"), "{s}");
+        assert!(s.contains("bcd"), "{s}");
     }
 }
