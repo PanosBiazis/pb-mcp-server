@@ -209,3 +209,6 @@ let agent = ollama
     .preamble("You are a Rust expert...")
     .build();
 You can mix backends — one agent running Claude via API, others running Ollama locally — since rig normalizes them all under the same Agent trait.
+
+
+add more compression,summary,simplify,codedatabase,codeindexing,wait/sleep,subagents,terminal(read/write and more only on local network),thinking,reasoning,plans,screenshot,temp,tests(for ai agents and this project) tools and format/file converters tools and add more powerful tools  and add OCR,ML,AI,DL,algorithms tools for ai agents and inrich the older tools for fast ,efficient,secure,safe synchronous and  asynchronous with serial and parallel ai agent communications and cross platform , all tools will be available on local network and some safe tools for public for protection in order to make this project better and better for ai agents
