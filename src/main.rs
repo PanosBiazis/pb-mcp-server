@@ -9,7 +9,9 @@ use crate::ops::{
     batch_file_info_work, codebase_duplicate_basenames_work, codebase_index_work,
     codebase_largest_files_work, codebase_manifest_write_work, codebase_path_list_work,
     codebase_cargo_dependency_names_work, codebase_shallow_hash_work, codebase_word_index_work,
-    compress_collapse_blank_lines_work, compress_fenced_code_blocks_work, compress_context_work,
+    coding_agent_toolchains_catalog_work,
+    compress_collapse_blank_lines_work, compress_double_slash_line_comments_work,
+    compress_fenced_code_blocks_work, compress_context_work,
     compress_file_work, compress_lines_head_work, compress_lines_tail_work,
     compress_paragraphs_work, compress_sentences_work, compress_truncate_middle_work,
     compress_dedent_work, compress_drop_lines_matching_regex_work, compress_markdown_frontmatter_work,
@@ -42,8 +44,9 @@ use crate::ops::{
     summarize_token_estimate_work,
     summarize_delimited_header_work, summarize_diff_file_list_work, summarize_json_structure_work,
     summarize_markdown_toc_work,
-    summarize_top_terms_work,
-    text_djb2_hash_work, text_levenshtein_distance_work, text_stats_work,
+    summarize_identifier_frequency_work, summarize_top_terms_work,
+    text_djb2_hash_work, text_levenshtein_distance_work, text_longest_common_substring_work,
+    text_token_jaccard_work, text_stats_work,
     project_cargo_check_build_args, project_cargo_test_build_args, project_pytest_build_args,
     project_test_tools_enabled,
     terminal_program_version_work, terminal_run_precheck, MAX_TERMINAL_STDIN_BYTES,
@@ -1140,6 +1143,23 @@ struct TextLevenshteinArgs {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct TextTokenJaccardArgs {
+    #[schemars(description = "First text (whitespace tokenized).")]
+    text_a: String,
+    #[schemars(description = "Second text.")]
+    text_b: String,
+    #[schemars(description = "Lowercase tokens before comparing (recommended for natural language).")]
+    #[serde(default = "default_true")]
+    fold_case: bool,
+    #[schemars(description = "Max Unicode scalars read per side (256–500000).")]
+    #[serde(default = "default_token_jaccard_max_chars")]
+    max_chars_each: usize,
+    #[schemars(description = "Max whitespace tokens processed per side before stopping (50–200000); if EOF not reached, jaccard is approximate.")]
+    #[serde(default = "default_token_jaccard_max_scan")]
+    max_tokens_scanned_per_text: usize,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct TextDjb2HashArgs {
     #[schemars(description = "Text to fingerprint (truncated at server response cap).")]
     text: String,
@@ -1288,6 +1308,45 @@ struct SummarizeTopTermsArgs {
     max_terms: usize,
     #[serde(default = "default_compress_max_chars")]
     max_chars: usize,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct SummarizeIdentifierFrequencyArgs {
+    #[schemars(description = "Source code or logs; counts tokens matching [A-Za-z_][A-Za-z0-9_]*.")]
+    text: String,
+    #[schemars(description = "Minimum identifier length (1–64).")]
+    #[serde(default = "default_identifier_min_len")]
+    min_len: usize,
+    #[schemars(description = "Max distinct identifiers to list (1–120).")]
+    #[serde(default = "default_identifier_max_list")]
+    max_identifiers: usize,
+    #[serde(default = "default_compress_max_chars")]
+    max_chars: usize,
+    #[schemars(description = "Lowercase identifiers before counting (merge Foo and foo).")]
+    #[serde(default)]
+    fold_case: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct CompressDoubleSlashLineCommentsArgs {
+    #[schemars(description = "Text with optional full-line // comments (Rust/C/JS style).")]
+    text: String,
+    #[serde(default = "default_compress_max_chars")]
+    max_chars: usize,
+    #[schemars(description = "Also remove empty/whitespace-only lines after stripping comments.")]
+    #[serde(default = "default_true")]
+    drop_blank_lines: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct TextLongestCommonSubstringArgs {
+    #[schemars(description = "First string (Unicode scalars).")]
+    a: String,
+    #[schemars(description = "Second string.")]
+    b: String,
+    #[schemars(description = "Max characters taken from each side (32–4000); caps n×m work.")]
+    #[serde(default = "default_lcss_max_len")]
+    max_len_each: usize,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -2054,6 +2113,14 @@ fn default_levenshtein_max_len() -> usize {
     1_000
 }
 
+fn default_token_jaccard_max_chars() -> usize {
+    80_000
+}
+
+fn default_token_jaccard_max_scan() -> usize {
+    50_000
+}
+
 fn default_compress_paragraphs_max() -> usize {
     12
 }
@@ -2200,6 +2267,18 @@ fn default_top_terms_min_len() -> usize {
 
 fn default_top_terms_max() -> usize {
     40
+}
+
+fn default_identifier_min_len() -> usize {
+    2
+}
+
+fn default_identifier_max_list() -> usize {
+    60
+}
+
+fn default_lcss_max_len() -> usize {
+    1_500
 }
 
 fn default_dup_lines_min() -> usize {
@@ -2526,6 +2605,20 @@ impl MintMcp {
     }
 
     #[tool(
+        description = "Read-only index of coding-agent CLIs (OpenClaw, Claude Code, Codex-class tools, Aider, …) and how they combine with this MCP’s bus, git, OCR, and deterministic text tools. No subprocesses; safe on public profile.",
+        annotations(title = "Coding agent toolchains catalog", read_only_hint = true)
+    )]
+    async fn coding_agent_toolchains_catalog(
+        &self,
+        Parameters(_args): Parameters<EmptyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let out = tokio::task::spawn_blocking(|| coding_agent_toolchains_catalog_work())
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
         description = "Lookup a GitKraken/GitLens **hosted** MCP tool by name: returns a redirect message (enable GitLens MCP + auth) or an error if the name is unknown. Read-only.",
         annotations(title = "GitKraken hosted tool redirect", read_only_hint = true)
     )]
@@ -2578,7 +2671,7 @@ impl MintMcp {
     }
 
     #[tool(
-        description = "Probe optional CLIs (python3, tesseract, ollama, ffmpeg) with --version-style calls. Uses MINT_TERMINAL_ENABLE + MINT_TERMINAL_ALLOW per program (same as terminal_program_version). Safe read-only; may be skipped if terminal is disabled.",
+        description = "Probe optional CLIs (python3, tesseract, ollama, ffmpeg, openclaw, claude, codex, aider, gemini, …) with --version-style calls. Uses MINT_TERMINAL_ENABLE + MINT_TERMINAL_ALLOW per program (same as terminal_program_version). Safe read-only; may be skipped if terminal is disabled.",
         annotations(title = "AI optional stack probe", read_only_hint = true)
     )]
     async fn ai_stack_probe(
@@ -4925,6 +5018,27 @@ impl MintMcp {
     }
 
     #[tool(
+        description = "Frequency of identifier-shaped tokens [A-Za-z_][A-Za-z0-9_]* (code/logs). Unlike summarize_top_terms, no English stopword list; optional fold_case merges Foo/foo. Safe on public profile.",
+        annotations(title = "Summarize identifier frequency", read_only_hint = true)
+    )]
+    async fn summarize_identifier_frequency(
+        &self,
+        Parameters(args): Parameters<SummarizeIdentifierFrequencyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let text = args.text.clone();
+        let minl = args.min_len;
+        let maxi = args.max_identifiers;
+        let mc = args.max_chars;
+        let fold = args.fold_case;
+        let out = tokio::task::spawn_blocking(move || {
+            summarize_identifier_frequency_work(text, minl, maxi, mc, fold)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
         description = "Heuristic strip of HTML/XML-like tags (does not parse full markup; preserves `<` that are not tag starts).",
         annotations(title = "Compress strip tags", read_only_hint = true)
     )]
@@ -4953,6 +5067,25 @@ impl MintMcp {
         let out = tokio::task::spawn_blocking(move || compress_fenced_code_blocks_work(text, mc))
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Remove lines where the first non-whitespace characters are // (full-line C/JS/Rust comments). Inline code on the same line is kept. Optional drop_blank_lines. Safe on public profile.",
+        annotations(title = "Compress full-line // comments", read_only_hint = true)
+    )]
+    async fn compress_double_slash_line_comments(
+        &self,
+        Parameters(args): Parameters<CompressDoubleSlashLineCommentsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let text = args.text.clone();
+        let mc = args.max_chars;
+        let dbl = args.drop_blank_lines;
+        let out = tokio::task::spawn_blocking(move || {
+            compress_double_slash_line_comments_work(text, mc, dbl)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5586,6 +5719,44 @@ impl MintMcp {
     }
 
     #[tool(
+        description = "Whitespace token Jaccard similarity between two texts (0–1): overlap of distinct tokens; optional ASCII folding via fold_case. Capped for CPU—see approximate_* flags when inputs are huge. Useful for comparing agent drafts, logs, or requirements blurbs without an LLM.",
+        annotations(title = "Text token Jaccard similarity", read_only_hint = true)
+    )]
+    async fn text_token_jaccard(
+        &self,
+        Parameters(args): Parameters<TextTokenJaccardArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let ta = args.text_a.clone();
+        let tb = args.text_b.clone();
+        let fold = args.fold_case;
+        let mc = args.max_chars_each;
+        let ms = args.max_tokens_scanned_per_text;
+        let out = tokio::task::spawn_blocking(move || {
+            text_token_jaccard_work(ta, tb, fold, mc, ms)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Longest contiguous substring common to two texts (Unicode scalar match). CPU-bounded via max_len_each and n×m cap—pair with text_levenshtein_distance for edit distance vs shared spans.",
+        annotations(title = "Text longest common substring", read_only_hint = true)
+    )]
+    async fn text_longest_common_substring(
+        &self,
+        Parameters(args): Parameters<TextLongestCommonSubstringArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let a = args.a.clone();
+        let b = args.b.clone();
+        let m = args.max_len_each;
+        let out = tokio::task::spawn_blocking(move || text_longest_common_substring_work(a, b, m))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
         description = "DJB2 hash (32-bit) over UTF-8 bytes—cheap fingerprint for caching, dedupe hints, or comparing blobs without storing full text.",
         annotations(title = "Text DJB2 hash", read_only_hint = true)
     )]
@@ -5725,7 +5896,7 @@ impl MintMcp {
     }
 
     #[tool(
-        description = "Safe format helpers: JSON pretty/minify; base64/hex; utf8_bom_strip; line endings; tabs_to_spaces; spaces_to_tabs (leading indent); strip_ansi; collapse_blank_lines; dedupe_adjacent_lines; prefix_line_numbers; case; sort_lines; reverse_lines; trim_each_line; unique_sorted_lines; percent_encode/decode; html_escape. Max 256 KiB/file. output_path disallowed when MINT_NETWORK_PROFILE=public.",
+        description = "Safe format helpers: JSON pretty/minify; YAML→JSON (yaml_to_json, yaml_to_json_minify) and JSON→YAML; TOML→JSON (toml_to_json, toml_to_json_minify) and JSON→TOML (null-free); yaml_top_level_keys / toml_top_level_keys for quick config skims; base64/hex; sha256_hex; utf8_bom_strip; line endings; tabs/spaces; strip_ansi; blank line ops; slugify; sort/reverse/trim lines; percent_encode/decode; html_escape. Max 256 KiB/file. output_path disallowed when MINT_NETWORK_PROFILE=public.",
         annotations(title = "Convert format", read_only_hint = true)
     )]
     async fn convert_format(
@@ -7179,8 +7350,8 @@ impl ServerHandler for MintMcp {
              Suggested workflow for coding agents:\n\
              1) workspace_context — root, git, bus, limits, network_profile, gates.\n\
              2) project_tree, codebase_index, codebase_word_index, codebase_shallow_hash, codebase_path_list, codebase_largest_files, codebase_duplicate_basenames, codebase_cargo_dependency_names, codebase_manifest_write (local only), code_index_build/search/status/file_symbols/aggregate_stats/paths_prefix/path_substring/symbol_prefix/duplicate_symbols/paths_without_symbols/extension_histogram/symbol_frequency, find_files, grep_code.\n\
-             3) read_file / read_file_tail; json_validate_file; mcp_env_hints; agent_coordination_playbook (bus patterns); ai_inference_integration_guide + ai_stack_probe (optional CLIs); gitkraken_cloud_catalog + gitkraken_hosted_tool_redirect; convert_format (+ wrap_lines, remove_empty_lines, dedupe_adjacent_lines, slugify, c_string_escape, html_escape, …); compress_gzip_base64 / decompress_gzip_base64 (binary-safe blobs).\n\
-             4) text_stats; summarize_token_estimate; compress_* (+ ws_collapse, simplify_whitespace, markdown_links, unified_diff_stats, truncate_lines, strip_tags, fenced_code_blocks, redact_urls/emails, markdown_frontmatter, drop_lines_matching_regex, dedent, lines head/tail, collapse_blank, truncate_middle); summarize_* (+ top_terms, duplicate_lines, line_histogram, line_prefix_groups, rank_lines_by_keywords, bullets, headings, markdown_toc, json_structure, delimited_header, diff_file_list, first_lines); text_levenshtein_distance; text_djb2_hash; format_prefix_lines; pack_context (segment_labels).\n\
+             3) read_file / read_file_tail; json_validate_file; mcp_env_hints; agent_coordination_playbook (bus patterns); ai_inference_integration_guide + ai_stack_probe + coding_agent_toolchains_catalog (optional CLIs / agent ecosystem map); gitkraken_cloud_catalog + gitkraken_hosted_tool_redirect; convert_format (+ yaml↔json, toml↔json, *_top_level_keys, sha256_hex, wrap_lines, remove_empty_lines, dedupe_adjacent_lines, slugify, c_string_escape, html_escape, …); compress_gzip_base64 / decompress_gzip_base64 (binary-safe blobs).\n\
+             4) text_stats; summarize_token_estimate; compress_* (+ ws_collapse, simplify_whitespace, markdown_links, unified_diff_stats, truncate_lines, strip_tags, fenced_code_blocks, redact_urls/emails, markdown_frontmatter, double_slash_line_comments, drop_lines_matching_regex, dedent, lines head/tail, collapse_blank, truncate_middle); summarize_* (+ top_terms, identifier_frequency, duplicate_lines, line_histogram, line_prefix_groups, rank_lines_by_keywords, bullets, headings, markdown_toc, json_structure, delimited_header, diff_file_list, first_lines); text_levenshtein_distance; text_token_jaccard; text_longest_common_substring; text_djb2_hash; format_prefix_lines; pack_context (segment_labels).\n\
              5) git_* and gk_git_* (GitKraken names); gh_pr_list/view + glab_mr_list/show when gh/glab are in MINT_TERMINAL_ALLOW; git_push needs MINT_GIT_PUSH_ENABLE=1; git_fetch/git_pull need MINT_GIT_REMOTE_ENABLE=1; trusted profile for remotes/terminal/PR CLI.\n\
              6) terminal_run; terminal_run_stdin (stdin from text or project file, LAN); project_cargo_test, project_cargo_check, project_pytest when MINT_PROJECT_TEST_ENABLE=1 + cargo/pytest in MINT_TERMINAL_ALLOW (bounded argv; LAN/trusted); terminal_which; terminal_program_version; ocr_tesseract + ollama_list_models on trusted hosts with tesseract/ollama in MINT_TERMINAL_ALLOW; wait_for_path (optional poll_jitter_ms_max); server_sleep / wait_until_timestamp (optional reason on sleep, jitter).\n\
              7) thinking_plan_skeleton, thinking_step_back, thinking_assumption_audit (deterministic); thinking_session_append/read on trusted hosts only.\n\
@@ -7191,12 +7362,12 @@ impl ServerHandler for MintMcp {
              Multi-agent: stable from_agent; agent_handoff + agent_subagent_task + agent_subagent_done; mcp_env_hints for gate vars; agent_coordination_playbook for serial/parallel/async patterns; async polls with since_ts_ms; sync: agent_inbox_wait, agent_topic_wait, ask_agents (trusted profile). Parallel: agent_fan_out, agent_multi_inbox, agent_coordination_snapshot. Serial: agent_send_pipeline.\n\
              Security: MINT_BUS_READ_ONLY; rate limits; paths under root. Bus: .mint-mcp/agent-bus.jsonl.\n\
              \n\
-             Tools: workspace_context, gitkraken_cloud_catalog, gitkraken_hosted_tool_redirect, mcp_env_hints, agent_coordination_playbook, ai_inference_integration_guide, ai_stack_probe, server_sleep, wait_until_timestamp, wait_for_path, terminal_run, terminal_run_stdin, project_cargo_test, project_cargo_check, project_pytest, terminal_which, terminal_program_version, screenshot_capture, workspace_temp_write, workspace_temp_read, workspace_temp_list, workspace_temp_delete, ocr_tesseract, ollama_list_models, gh_pr_list, gh_pr_view, glab_mr_list, glab_mr_show, read_file, read_file_tail, list_files, grep_code, find_files, find_files_by_name, \
+             Tools: workspace_context, gitkraken_cloud_catalog, coding_agent_toolchains_catalog, gitkraken_hosted_tool_redirect, mcp_env_hints, agent_coordination_playbook, ai_inference_integration_guide, ai_stack_probe, server_sleep, wait_until_timestamp, wait_for_path, terminal_run, terminal_run_stdin, project_cargo_test, project_cargo_check, project_pytest, terminal_which, terminal_program_version, screenshot_capture, workspace_temp_write, workspace_temp_read, workspace_temp_list, workspace_temp_delete, ocr_tesseract, ollama_list_models, gh_pr_list, gh_pr_view, glab_mr_list, glab_mr_show, read_file, read_file_tail, list_files, grep_code, find_files, find_files_by_name, \
              project_tree, codebase_index, codebase_word_index, codebase_shallow_hash, codebase_path_list, codebase_largest_files, codebase_duplicate_basenames, codebase_cargo_dependency_names, codebase_manifest_write, code_index_build, code_index_search, code_index_status, code_index_file_symbols, code_index_aggregate_stats, code_index_paths_prefix, code_index_path_substring, code_index_symbol_prefix, code_index_duplicate_symbols, code_index_paths_without_symbols, code_index_extension_histogram, code_index_symbol_frequency, file_info, file_stats, batch_file_info, json_validate_file, convert_format, compress_gzip_base64, decompress_gzip_base64, \
              git_status, gk_git_status, git_log_or_diff, gk_git_log_or_diff, git_branch, gk_git_branch, git_branches, git_worktree, gk_git_worktree, git_worktree_list, git_stash, gk_git_stash, git_stash_list, git_stash_push, git_checkout, gk_git_checkout, git_add_or_commit, gk_git_add_or_commit, git_push, gk_git_push, git_fetch, git_pull, git_remote_list, git_tag_list, git_ls_files, git_diff_stat, git_merge_base, git_describe, git_shortlog, git_reflog, git_last_commit, \
              git_diff, git_log, git_show, git_blame, gk_git_blame, git_rev_parse, repository_get_file_content, \
-             compress_context, text_stats, compress_ws_collapse, compress_simplify_whitespace, compress_markdown_links, compress_unified_diff_stats, compress_truncate_lines, compress_strip_tags, compress_fenced_code_blocks, compress_redact_urls, compress_redact_emails, compress_markdown_frontmatter, compress_drop_lines_matching_regex, compress_paragraphs, compress_sentences, compress_unique_lines, compress_lines_head, compress_lines_tail, compress_collapse_blank_lines, compress_truncate_middle, compress_dedent, compress_file, extract_snippets, extract_snippets_from_file, grep_snippets, \
-             summarize_text, summarize_top_terms, summarize_token_estimate, summarize_duplicate_lines, summarize_line_histogram, summarize_line_prefix_groups, summarize_rank_lines_by_keywords, summarize_bullets, summarize_headings, summarize_markdown_toc, summarize_json_structure, summarize_delimited_header, summarize_diff_file_list, summarize_first_lines, summarize_segments, summarize_file, summarize_multi_file, format_prefix_lines, pack_context, git_diff_snippets, text_levenshtein_distance, text_djb2_hash, \
+             compress_context, text_stats, compress_ws_collapse, compress_simplify_whitespace, compress_markdown_links, compress_unified_diff_stats, compress_truncate_lines, compress_strip_tags, compress_fenced_code_blocks, compress_redact_urls, compress_redact_emails, compress_markdown_frontmatter, compress_double_slash_line_comments, compress_drop_lines_matching_regex, compress_paragraphs, compress_sentences, compress_unique_lines, compress_lines_head, compress_lines_tail, compress_collapse_blank_lines, compress_truncate_middle, compress_dedent, compress_file, extract_snippets, extract_snippets_from_file, grep_snippets, \
+             summarize_text, summarize_top_terms, summarize_identifier_frequency, summarize_token_estimate, summarize_duplicate_lines, summarize_line_histogram, summarize_line_prefix_groups, summarize_rank_lines_by_keywords, summarize_bullets, summarize_headings, summarize_markdown_toc, summarize_json_structure, summarize_delimited_header, summarize_diff_file_list, summarize_first_lines, summarize_segments, summarize_file, summarize_multi_file, format_prefix_lines, pack_context, git_diff_snippets, text_levenshtein_distance, text_token_jaccard, text_longest_common_substring, text_djb2_hash, \
              thinking_plan_skeleton, thinking_step_back, thinking_assumption_audit, thinking_session_append, thinking_session_read, plan_execution_checklist, plan_handoff_brief, plan_work_buckets, plan_risk_register, plan_definition_of_done, plan_test_strategy, plan_retrospective, reasoning_premortem, reasoning_five_whys, reasoning_chain, reasoning_devils_advocate, reasoning_evidence_matrix, \
              agent_ping, agent_bus_compact, agent_bus_search, agent_bus_status, agent_coordination_snapshot, agent_list_topics, agent_roster, agent_get_message, \
              agent_send, agent_handoff, agent_subagent_task, agent_subagent_done, agent_fan_out, agent_send_pipeline, agent_inbox, agent_multi_inbox, agent_inbox_wait, agent_thread, agent_topic_wait, agent_recent, ask_agents."
