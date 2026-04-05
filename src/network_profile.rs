@@ -8,6 +8,11 @@ pub enum NetworkProfile {
 }
 
 impl NetworkProfile {
+    /// Create a NetworkProfile from environment variables
+    ///
+    /// Reads from `MINT_NETWORK_PROFILE` environment variable:
+    /// - "public", "internet", or "wan" → Public profile
+    /// - Any other value or unset → Local profile (default)
     pub fn from_env() -> Self {
         match std::env::var("MINT_NETWORK_PROFILE") {
             Ok(v) => match v.trim().to_ascii_lowercase().as_str() {
@@ -18,6 +23,9 @@ impl NetworkProfile {
         }
     }
 
+    /// Get the string label for this profile
+    ///
+    /// Returns "local" for Local profile, "public" for Public profile
     pub const fn label(self) -> &'static str {
         match self {
             Self::Local => "local",
@@ -25,6 +33,9 @@ impl NetworkProfile {
         }
     }
 
+    /// Check if this is a public network profile
+    ///
+    /// Returns true for Public profile, false for Local profile
     pub const fn is_public(self) -> bool {
         matches!(self, Self::Public)
     }

@@ -8,6 +8,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Relative path for the code index file under the project root
 pub const INDEX_REL_PATH: &str = ".mint-mcp/code-index.json";
 const MAX_FILES: usize = 2000;
 const MAX_READ_BYTES: u64 = 96 * 1024;
@@ -15,17 +16,26 @@ const MAX_SYMBOLS_PER_FILE: usize = 120;
 const MAX_INDEX_JSON_BYTES: usize = 12 * 1024 * 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Code index file structure containing metadata and symbol entries
 pub struct CodeIndexFile {
+    /// Index format version number
     pub version: u32,
+    /// Timestamp when the index was generated (Unix milliseconds)
     pub generated_ts_ms: u64,
+    /// Project root path that was indexed
     pub project_root: String,
+    /// Total number of files that were indexed
     pub files_indexed: usize,
+    /// List of file entries with their symbols
     pub entries: Vec<CodeIndexEntry>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Single file entry in the code index
 pub struct CodeIndexEntry {
+    /// Relative file path from project root
     pub path: String,
+    /// List of symbols found in this file
     pub symbols: Vec<String>,
 }
 
@@ -47,7 +57,8 @@ fn allowed_ext(path: &Path) -> bool {
         .map(|e| {
             matches!(
                 e.to_ascii_lowercase().as_str(),
-                "rs" | "py" | "js"
+                "rs" | "py"
+                    | "js"
                     | "ts"
                     | "tsx"
                     | "jsx"
@@ -86,9 +97,7 @@ fn compile_symbol_patterns() -> Vec<Regex> {
         r"(?m)\binterface\s+([a-zA-Z_][a-zA-Z0-9_]*)",
         r"(?m)^\s*func\s+([a-zA-Z_][a-zA-Z0-9_]*)",
     ];
-    raw.iter()
-        .filter_map(|p| Regex::new(p).ok())
-        .collect()
+    raw.iter().filter_map(|p| Regex::new(p).ok()).collect()
 }
 
 fn extract_symbols(text: &str, patterns: &[Regex]) -> Vec<String> {
@@ -360,6 +369,10 @@ pub fn code_index_search_work(
     out
 }
 
+/// Get the status of the code index for a project
+///
+/// Returns information about whether the index exists, its size, version,
+/// generation timestamp, number of files indexed, and project root.
 pub fn code_index_status_work(project_root: PathBuf) -> String {
     let path = index_path(&project_root);
     if !path.exists() {
@@ -468,11 +481,7 @@ pub fn code_index_aggregate_stats_work(project_root: PathBuf) -> String {
 }
 
 /// List indexed file paths whose relative path starts with `prefix` (path prefix match only).
-pub fn code_index_paths_prefix_work(
-    project_root: PathBuf,
-    prefix: String,
-    limit: usize,
-) -> String {
+pub fn code_index_paths_prefix_work(project_root: PathBuf, prefix: String, limit: usize) -> String {
     let limit = limit.clamp(1, 500);
     let pre = prefix.trim().replace('\\', "/");
 
@@ -598,7 +607,11 @@ pub fn code_index_symbol_frequency_work(project_root: PathBuf, limit: usize) -> 
     v.truncate(limit);
 
     let mut out = String::from("CODE_INDEX_SYMBOL_FREQUENCY\n");
-    out.push_str(&format!("unique_symbols_shown: {} (max {})\n\n", v.len(), limit));
+    out.push_str(&format!(
+        "unique_symbols_shown: {} (max {})\n\n",
+        v.len(),
+        limit
+    ));
     for (name, n) in v {
         out.push_str(&format!("{n:6}  {name}\n"));
     }
