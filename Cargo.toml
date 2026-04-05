@@ -1,23 +1,222 @@
 [package]
 name = "pb-mcp-server"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
+authors = ["PanosBiazis <panosbiazis2003@gmail.com>"]
+description = "Profile-based IDE agent MCP server for Zed/Cursor with multi-agent bus, code intelligence, and execution tools"
+license = "MIT"
+repository = "https://github.com/PanosBiazis/pb-mcp-server"
+readme = "README.md"
+keywords = ["mcp", "zed", "cursor", "ai", "agent", "code-intelligence"]
+categories = ["development-tools", "development-tools::testing"]
+
+[lib]
+name = "pb_mcp_server"
+path = "src/lib.rs"
+
+[[bin]]
+name = "pb-mcp-server"
+path = "src/main.rs"
+
+[[bin]]
+name = "pb-gateway"
+path = "src/bin/pb-gateway.rs"
 
 [dependencies]
+# MCP Protocol
 rmcp = { version = "1.2.0", features = ["server"] }
-tokio = { version = "1", features = ["full"] }
+
+# Async Runtime
+tokio = { version = "1", features = ["full", "tracing"] }
+
+# Serialization
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
 toml = "0.8"
 schemars = "1"
+
+# File System & Walking
 ignore = "0.4"
 globset = "0.4"
-regex = "1"
+walkdir = "2"
 fs4 = "0.13"
+
+# Pattern Matching
+regex = "1"
+
+# System Information & Health Monitoring
+sysinfo = "0.30"
+
+# Concurrent Programming
+crossbeam = "0.8"
+crossbeam-channel = "0.5"
+
+# Memory Mapping (for large file optimization)
+memmap2 = { version = "0.9", optional = true }
+
+# HTTP Server (Gateway)
 axum = "0.8"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace", "limit", "compression-gzip"] }
+hyper = "1"
+
+# Security & Cryptography
 subtle = "2"
 hmac = "0.12"
 sha2 = "0.10"
 base64 = { version = "0.22", default-features = false, features = ["std"] }
+
+# Compression
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+zstd = "0.13"
+
+# Error Handling
+thiserror = "2"
+anyhow = "1"
+
+# Logging & Tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Date/Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Async Utilities
+futures = "0.3"
+async-trait = "0.1"
+parking_lot = "0.12"
+dashmap = "6"
+
+# Text Processing
+unicode-segmentation = "1"
+html-escape = "0.2"
+
+# ML/AI Integration (optional, behind feature flags)
+[dependencies.tesseract]
+version = "0.15"
+optional = true
+
+[dependencies.ort]
+version = "2.0.0-rc.12"
+optional = true
+
+[dependencies.ndarray]
+version = "0.15"
+optional = true
+
+[dependencies.tokenizers]
+version = "0.19"
+optional = true
+
+# Image Processing (for OCR/Screenshots)
+[dependencies.image]
+version = "0.25"
+optional = true
+
+# Web Tools
+[dependencies.reqwest]
+version = "0.12"
+features = ["json", "gzip", "brotli", "stream"]
+optional = true
+
+[dependencies.scraper]
+version = "0.19"
+optional = true
+
+[dependencies.select]
+version = "0.6"
+optional = true
+
+[dependencies.url]
+version = "2"
+features = ["serde"]
+optional = true
+
+[dependencies.tokio-tungstenite]
+version = "0.24"
+features = ["native-tls"]
+optional = true
+
+[dependencies.futures-util]
+version = "0.3"
+optional = true
+
+[dependencies.mime]
+version = "0.3"
+optional = true
+
+[dependencies.mime_guess]
+version = "2"
+optional = true
+
+[dependencies.robotstxt]
+version = "0.3"
+optional = true
+
+[dev-dependencies]
+tempfile = "3"
+proptest = "1"
+criterion = "0.5"
+tokio-test = "0.4"
+wiremock = "0.6"
+mockito = "1"
+
+[features]
+default = ["core-code", "agent-orchestration", "review-refactor"]
+
+
+
+# Core Profiles
+core-code = []
+review-refactor = ["core-code"]
+agent-orchestration = ["core-code"]
+local-power = ["dep:tesseract", "dep:image", "web-tools"]
+public-safe = ["web-tools-safe"]
+experimental-lab = ["local-power", "dep:ort", "dep:ndarray", "dep:tokenizers", "web-tools"]
+
+# Web Tool Features
+web-tools = ["dep:reqwest", "dep:scraper", "dep:url", "dep:mime", "dep:mime_guess", "dep:robotstxt"]
+perf-mmap = ["dep:memmap2"]
+web-tools-safe = ["web-tools"]
+web-websocket = ["dep:tokio-tungstenite", "dep:futures-util"]
+web-scraping = ["web-tools", "dep:select"]
+
+# Feature Groups
+full = ["default", "local-power", "experimental-lab"]
+
+# Individual tool categories
+git-write = []
+terminal-exec = []
+ocr-tools = ["dep:tesseract", "dep:image"]
+ml-tools = ["dep:ort", "dep:ndarray", "dep:tokenizers"]
+screenshot-tools = ["dep:image"]
+web-fetch = ["web-tools"]
+web-search = ["web-tools"]
+web-scrape = ["web-tools", "web-scraping"]
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[profile.test]
+opt-level = 2
+
+# Benchmarks (uncomment when benchmark files are created)
+# [[bench]]
+# name = "bus_performance"
+# harness = false
+
+# [[bench]]
+# name = "code_index"
+# harness = false
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
