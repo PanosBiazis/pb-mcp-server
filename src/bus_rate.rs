@@ -25,6 +25,11 @@ pub struct BusSendRateLimiter {
 }
 
 impl BusSendRateLimiter {
+    /// Create a new BusRateLimiter from environment variables
+    ///
+    /// Reads configuration from:
+    /// - `MINT_BUS_MAX_SENDS_PER_WINDOW`: Maximum sends per time window (default: 120)
+    /// - `MINT_BUS_RATE_WINDOW_MS`: Time window in milliseconds (default: 60000, min: 1000)
     pub fn from_env() -> Self {
         let max_per_window = std::env::var("MINT_BUS_MAX_SENDS_PER_WINDOW")
             .ok()
@@ -63,12 +68,10 @@ impl BusSendRateLimiter {
             .lock()
             .map_err(|_| "bus rate limiter lock poisoned".to_string())?;
 
-        let w = g
-            .entry(key.to_string())
-            .or_insert(WindowState {
-                window_id: wid,
-                count: 0,
-            });
+        let w = g.entry(key.to_string()).or_insert(WindowState {
+            window_id: wid,
+            count: 0,
+        });
 
         if w.window_id != wid {
             w.window_id = wid;

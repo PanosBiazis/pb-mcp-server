@@ -8,6 +8,7 @@ use std::fs::{self, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
+/// Directory name for the MCP bus storage under the project root
 pub const BUS_DIR: &str = ".mint-mcp";
 const BUS_FILE: &str = "agent-bus.jsonl";
 const LOCK_FILE: &str = "agent-bus.lock";
@@ -80,19 +81,25 @@ fn load_messages_tail(path: &Path, min_messages: usize) -> Result<Vec<AgentMessa
     }
 }
 
+/// Message structure for agent-to-agent communication via the bus
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentMessage {
+    /// Unique message identifier
     pub id: String,
-    /// Unix time in milliseconds.
+    /// Unix time in milliseconds when the message was created
     pub ts: u64,
+    /// Sender agent identifier
     pub from_agent: String,
+    /// Optional recipient agent for direct messages
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub to_agent: Option<String>,
+    /// Optional topic for pub/sub messaging
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub topic: Option<String>,
-    /// e.g. note, question, suggestion, handoff
+    /// Message kind (e.g., note, question, suggestion, handoff)
     #[serde(default)]
     pub kind: String,
+    /// Message body content
     pub body: String,
 }
 
@@ -211,7 +218,9 @@ fn with_shared_lock<T>(root: &Path, f: impl FnOnce() -> Result<T, String>) -> Re
         .write(true)
         .open(&lp)
         .map_err(|e| format!("bus lock open: {e}"))?;
-    lockf.lock_shared().map_err(|e| format!("bus lock shared: {e}"))?;
+    lockf
+        .lock_shared()
+        .map_err(|e| format!("bus lock shared: {e}"))?;
     let out = f();
     let _ = lockf.unlock();
     out
@@ -226,7 +235,9 @@ fn with_exclusive_lock<T>(root: &Path, f: impl FnOnce() -> Result<T, String>) ->
         .write(true)
         .open(&lp)
         .map_err(|e| format!("bus lock open: {e}"))?;
-    lockf.lock_exclusive().map_err(|e| format!("bus lock exclusive: {e}"))?;
+    lockf
+        .lock_exclusive()
+        .map_err(|e| format!("bus lock exclusive: {e}"))?;
     let out = f();
     let _ = lockf.unlock();
     out
@@ -326,7 +337,9 @@ pub fn agent_fan_out(
         }
     }
     if recipients.is_empty() {
-        return Err("to_agents must contain at least one valid recipient distinct from from_agent".into());
+        return Err(
+            "to_agents must contain at least one valid recipient distinct from from_agent".into(),
+        );
     }
     if recipients.len() > MAX_FAN_OUT_RECIPIENTS {
         return Err(format!(
@@ -478,7 +491,8 @@ pub fn agent_multi_inbox(
 
         for agent in agents {
             out.push_str(&format!("===== inbox for_agent={agent} =====\n"));
-            let picked = collect_inbox_messages(&all, &agent, limit, skip_own_broadcasts, since_ts_ms);
+            let picked =
+                collect_inbox_messages(&all, &agent, limit, skip_own_broadcasts, since_ts_ms);
             if picked.is_empty() {
                 out.push_str("No messages for this agent (with current filters).\n\n");
             } else {
@@ -653,11 +667,18 @@ pub fn agent_inbox(
         }
         let s = fs::read_to_string(&path).map_err(|e| e.to_string())?;
         let all = parse_all_lines(&s);
-        let picked = collect_inbox_messages(&all, &for_agent, limit, skip_own_broadcasts, since_ts_ms);
+        let picked =
+            collect_inbox_messages(&all, &for_agent, limit, skip_own_broadcasts, since_ts_ms);
         if picked.is_empty() {
-            return Ok("No messages for this agent (try `agent_recent` or a different for_agent).".into());
+            return Ok(
+                "No messages for this agent (try `agent_recent` or a different for_agent).".into(),
+            );
         }
-        let block: String = picked.iter().map(|m| format_message(m)).collect::<Vec<_>>().join("\n");
+        let block: String = picked
+            .iter()
+            .map(|m| format_message(m))
+            .collect::<Vec<_>>()
+            .join("\n");
         Ok(block)
     })
 }
@@ -701,7 +722,11 @@ pub fn agent_thread(
         if picked.is_empty() {
             return Ok(format!("No messages with topic \"{topic}\"."));
         }
-        let block: String = picked.iter().map(|m| format_message(m)).collect::<Vec<_>>().join("\n");
+        let block: String = picked
+            .iter()
+            .map(|m| format_message(m))
+            .collect::<Vec<_>>()
+            .join("\n");
         Ok(block)
     })
 }
@@ -734,11 +759,7 @@ pub fn agent_recent(
         };
         let filtered: Vec<&AgentMessage> = all
             .iter()
-            .filter(|m| {
-                since_ts_ms
-                    .map(|t0| m.ts > t0)
-                    .unwrap_or(true)
-            })
+            .filter(|m| since_ts_ms.map(|t0| m.ts > t0).unwrap_or(true))
             .collect();
         let start = filtered.len().saturating_sub(limit);
         let slice = &filtered[start..];
@@ -748,11 +769,22 @@ pub fn agent_recent(
                 None => "Log is empty.".into(),
             });
         }
-        let block: String = slice.iter().map(|m| format_message(m)).collect::<Vec<_>>().join("\n");
+        let block: String = slice
+            .iter()
+            .map(|m| format_message(m))
+            .collect::<Vec<_>>()
+            .join("\n");
         Ok(block)
     })
 }
 
+/// Get the current status of the agent bus for a project
+///
+/// Returns information about the bus file including:
+/// - Whether it exists
+/// - File size
+/// - Number of messages
+/// - Last modified time
 pub fn agent_bus_status(project_root: PathBuf) -> Result<String, String> {
     let path = log_path(&project_root);
     let rel = Path::new(BUS_DIR).join(BUS_FILE);
@@ -902,11 +934,7 @@ pub fn agent_bus_compact(
     })
 }
 
-fn format_message_search(
-    m: &AgentMessage,
-    show_bodies: bool,
-    max_body_chars: usize,
-) -> String {
+fn format_message_search(m: &AgentMessage, show_bodies: bool, max_body_chars: usize) -> String {
     let to = m
         .to_agent
         .as_deref()
@@ -976,9 +1004,7 @@ pub fn agent_bus_search(
             Some(sanitize_kind(t))
         }
     });
-    let topic = topic
-        .map(|s| sanitize_topic(&s))
-        .filter(|s| !s.is_empty());
+    let topic = topic.map(|s| sanitize_topic(&s)).filter(|s| !s.is_empty());
 
     with_shared_lock(&project_root, || {
         if !path.exists() {
@@ -1271,7 +1297,7 @@ pub fn agent_roster(project_root: PathBuf) -> Result<String, String> {
 
         if !dm_to.is_empty() {
             let mut dm_rows: Vec<_> = dm_to.into_iter().collect();
-            dm_rows.sort_by(|a, b| b.1.1.cmp(&a.1.1));
+            dm_rows.sort_by(|a, b| b.1 .1.cmp(&a.1 .1));
             out.push_str("\nDM recipients (by recent inbound DM):\n");
             for (to, (n, ts)) in dm_rows.into_iter().take(30) {
                 out.push_str(&format!("  @{to} | dms: {n} | last_ts_ms: {ts}\n"));
@@ -1293,8 +1319,13 @@ pub fn agent_get_message(project_root: PathBuf, message_id: String) -> Result<St
     if id.len() > 120 {
         return Err("message_id too long".into());
     }
-    if !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
-        return Err("message_id must contain only ASCII letters, digits, hyphen, underscore".into());
+    if !id
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        return Err(
+            "message_id must contain only ASCII letters, digits, hyphen, underscore".into(),
+        );
     }
 
     let path = log_path(&project_root);
@@ -1373,12 +1404,7 @@ pub fn agent_topic_has_reply_from_others(
     since_ts_ms: u64,
     exclude_from_agent: String,
 ) -> Result<bool, String> {
-    let msgs = agent_collect_topic_replies(
-        project_root,
-        topic,
-        since_ts_ms,
-        exclude_from_agent,
-        1,
-    )?;
+    let msgs =
+        agent_collect_topic_replies(project_root, topic, since_ts_ms, exclude_from_agent, 1)?;
     Ok(!msgs.is_empty())
 }
