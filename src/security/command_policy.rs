@@ -33,7 +33,7 @@
 
 use crate::error::{Error, Result};
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+
 use std::time::Duration;
 
 /// Maximum command output size (1MB)
@@ -180,6 +180,7 @@ pub struct ProgramValidator {
     /// Denied subcommands (e.g., git: ["push", "reset", "clean"])
     denied_subcommands: Option<HashSet<String>>,
     /// Whether to allow file paths as arguments
+    #[allow(dead_code)]
     allow_file_paths: bool,
     /// Whether to allow URLs as arguments
     allow_urls: bool,

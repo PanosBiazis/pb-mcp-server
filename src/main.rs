@@ -1,3 +1,4 @@
+mod agent;
 mod bus;
 mod bus_rate;
 mod code_index;
@@ -6,60 +7,64 @@ mod ops;
 mod thinking;
 
 use crate::ops::{
-    batch_file_info_work, codebase_duplicate_basenames_work, codebase_index_work,
-    codebase_largest_files_work, codebase_manifest_write_work, codebase_path_list_work,
-    codebase_cargo_dependency_names_work, codebase_shallow_hash_work, codebase_word_index_work,
-    coding_agent_toolchains_catalog_work,
-    compress_collapse_blank_lines_work, compress_double_slash_line_comments_work,
-    compress_fenced_code_blocks_work, compress_context_work,
-    compress_file_work, compress_lines_head_work, compress_lines_tail_work,
-    compress_paragraphs_work, compress_sentences_work, compress_truncate_middle_work,
-    compress_dedent_work, compress_drop_lines_matching_regex_work, compress_markdown_frontmatter_work,
-    compress_redact_emails_work, compress_redact_urls_work, compress_strip_tags_work,
-    compress_unique_lines_work,
-    compress_gzip_base64_work, compress_markdown_links_work, compress_simplify_whitespace_work,
-    compress_truncate_lines_work, compress_unified_diff_stats_work, compress_ws_collapse_work,
-    convert_format_work,
-    decompress_gzip_base64_work,
-    extract_snippets_from_file_work, extract_snippets_work, file_info_work,
-    file_stats_work, find_files_by_name_work, find_files_work, format_prefix_lines_work, gh_pr_list_work,
-    gh_pr_view_work,
-    gitkraken_hosted_tool_redirect_work,
-    git_add_or_commit_work, gitkraken_cloud_catalog_work, glab_mr_list_work, glab_mr_show_work,
-    git_blame_work, git_branch_extension_work, git_branches_work, git_checkout_work,
-    git_describe_work, git_diff_snippets_work, git_diff_stat_work, git_diff_work, git_fetch_work,
-    git_last_commit_work,
-    git_log_or_diff_work, git_log_work, git_ls_files_work, git_merge_base_work, git_pull_work,
-    git_push_work, git_reflog_work, git_remote_list_work, git_shortlog_work, git_tag_list_work,
-    git_rev_parse_work, git_show_work, git_stash_list_work, git_stash_push_work, git_status_work,
-    git_worktree_extension_work, git_worktree_list_work, grep_snippets_work, grep_work,
-    agent_coordination_playbook_work, ai_inference_integration_guide_work, ai_stack_probe_work,
-    list_files_work, mcp_env_hints_work,     ocr_tesseract_file_work, ollama_list_models_work, pack_context_work, screenshot_capture_work,
-    read_file_tail_work, read_file_work,
-    read_json_file_work,
-    repository_get_file_content_work, summarize_file_work, summarize_multi_file_work,
-    summarize_bullets_work, summarize_first_lines_work, summarize_headings_work,
-    summarize_duplicate_lines_work, summarize_line_histogram_work, summarize_line_prefix_groups_work,
-    summarize_rank_lines_by_keywords_work, summarize_segments_work, summarize_text_work,
-    summarize_token_estimate_work,
-    summarize_delimited_header_work, summarize_diff_file_list_work, summarize_json_structure_work,
-    summarize_markdown_toc_work,
-    summarize_identifier_frequency_work, summarize_top_terms_work,
-    text_djb2_hash_work, text_levenshtein_distance_work, text_longest_common_substring_work,
-    text_token_jaccard_work, text_stats_work,
+    agent_coordination_playbook_work, ai_context_pack_smart_work,
+    ai_inference_integration_guide_work, ai_ollama_embed_work, ai_ollama_generate_work,
+    ai_prompt_template_work, ai_semantic_diff_work, ai_stack_probe_work, batch_file_info_work,
+    code_ast_dump_work, code_complexity_score_work, code_dead_code_hints_work,
+    code_detect_language_work, code_extract_imports_work, codebase_cargo_dependency_names_work,
+    codebase_duplicate_basenames_work, codebase_index_work, codebase_largest_files_work,
+    codebase_manifest_write_work, codebase_path_list_work, codebase_shallow_hash_work,
+    codebase_word_index_work, coding_agent_toolchains_catalog_work,
+    compress_collapse_blank_lines_work, compress_context_work, compress_dedent_work,
+    compress_double_slash_line_comments_work, compress_drop_lines_matching_regex_work,
+    compress_fenced_code_blocks_work, compress_file_work, compress_gzip_base64_work,
+    compress_lines_head_work, compress_lines_tail_work, compress_markdown_frontmatter_work,
+    compress_markdown_links_work, compress_paragraphs_work, compress_redact_emails_work,
+    compress_redact_urls_work, compress_sentences_work, compress_simplify_whitespace_work,
+    compress_strip_tags_work, compress_truncate_lines_work, compress_truncate_middle_work,
+    compress_unified_diff_stats_work, compress_unique_lines_work, compress_ws_collapse_work,
+    convert_archive_extract_work, convert_archive_list_work, convert_binary_hexdump_work,
+    convert_document_work, convert_encoding_work, convert_format_work, convert_pdf_extract_work,
+    convert_qr_generate_work, db_json_query_work, db_sqlite_exec_work, db_sqlite_query_work,
+    db_sqlite_schema_work, debug_failure_cluster_work, debug_replay_run_work,
+    debug_root_cause_report_work, debug_trace_run_work, decompress_gzip_base64_work,
+    extract_snippets_from_file_work, extract_snippets_work, file_info_work, file_stats_work,
+    find_files_by_name_work, find_files_work, format_prefix_lines_work, gh_pr_list_work,
+    gh_pr_view_work, git_add_or_commit_work, git_blame_work, git_branch_extension_work,
+    git_branches_work, git_checkout_work, git_describe_work, git_diff_snippets_work,
+    git_diff_stat_work, git_diff_work, git_fetch_work, git_last_commit_work, git_log_or_diff_work,
+    git_log_work, git_ls_files_work, git_merge_base_work, git_pull_work, git_push_work,
+    git_reflog_work, git_remote_list_work, git_rev_parse_work, git_shortlog_work, git_show_work,
+    git_stash_list_work, git_stash_push_work, git_status_work, git_tag_list_work,
+    git_worktree_extension_work, git_worktree_list_work, gitkraken_cloud_catalog_work,
+    gitkraken_hosted_tool_redirect_work, glab_mr_list_work, glab_mr_show_work, grep_snippets_work,
+    grep_work, list_files_work, mcp_env_hints_work, notify_desktop_work, notify_email_send_work,
+    notify_webhook_work, ocr_tesseract_file_work, ollama_list_models_work, pack_context_work,
     project_cargo_check_build_args, project_cargo_test_build_args, project_pytest_build_args,
-    project_test_tools_enabled,
-    terminal_program_version_work, terminal_run_precheck, MAX_TERMINAL_STDIN_BYTES,
-    terminal_which_work,
-    tree_work, workspace_temp_delete_work, workspace_temp_list_work, workspace_temp_read_work,
-    workspace_temp_write_work,
-    workspace_context_work,
+    project_test_tools_enabled, read_file_tail_work, read_file_work, read_json_file_work,
+    repository_get_file_content_work, review_diff_risk_work, review_focused_review_work,
+    review_missing_tests_work, review_pr_packet_work, review_rulebook_check_work,
+    screenshot_capture_work, summarize_bullets_work, summarize_delimited_header_work,
+    summarize_diff_file_list_work, summarize_duplicate_lines_work, summarize_file_work,
+    summarize_first_lines_work, summarize_headings_work, summarize_identifier_frequency_work,
+    summarize_json_structure_work, summarize_line_histogram_work,
+    summarize_line_prefix_groups_work, summarize_markdown_toc_work, summarize_multi_file_work,
+    summarize_rank_lines_by_keywords_work, summarize_segments_work, summarize_text_work,
+    summarize_token_estimate_work, summarize_top_terms_work, system_disk_usage_work,
+    system_env_get_work, system_network_interfaces_work, system_process_list_work,
+    terminal_program_version_work, terminal_run_precheck, terminal_which_work, text_djb2_hash_work,
+    text_levenshtein_distance_work, text_longest_common_substring_work, text_stats_work,
+    text_token_jaccard_work, tree_work, web_api_call_work, web_dns_lookup_work,
+    web_download_file_work, web_rss_fetch_work, web_screenshot_work, web_search_work,
+    web_tls_inspect_work, workspace_context_work, workspace_temp_delete_work,
+    workspace_temp_list_work, workspace_temp_read_work, workspace_temp_write_work,
+    MAX_TERMINAL_STDIN_BYTES,
 };
 use crate::thinking::{
     plan_definition_of_done_work, plan_execution_checklist_work, plan_handoff_brief_work,
-    plan_retrospective_work, plan_risk_register_work, plan_test_strategy_work, plan_work_buckets_work,
-    reasoning_chain_work, reasoning_devils_advocate_work, reasoning_evidence_matrix_work,
-    reasoning_five_whys_work, reasoning_premortem_work,
+    plan_retrospective_work, plan_risk_register_work, plan_test_strategy_work,
+    plan_work_buckets_work, reasoning_chain_work, reasoning_devils_advocate_work,
+    reasoning_evidence_matrix_work, reasoning_five_whys_work, reasoning_premortem_work,
     thinking_assumption_audit_work, thinking_plan_skeleton_work, thinking_session_append_work,
     thinking_session_read_work, thinking_step_back_work,
 };
@@ -70,6 +75,7 @@ use rmcp::{
 };
 use schemars::JsonSchema;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -82,11 +88,14 @@ struct MintMcp {
     bus_rate: Arc<bus_rate::BusSendRateLimiter>,
     bus_read_only: bool,
     network_profile: network_profile::NetworkProfile,
+    consensus_engine: Arc<std::sync::Mutex<crate::agent::ConsensusEngine>>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct PathArgs {
-    #[schemars(description = "Directory path relative to project root, or absolute under root. Empty string = project root.")]
+    #[schemars(
+        description = "Directory path relative to project root, or absolute under root. Empty string = project root."
+    )]
     path: String,
 }
 
@@ -94,10 +103,14 @@ struct PathArgs {
 struct ReadFileArgs {
     #[schemars(description = "UTF-8 text file path under the project root.")]
     path: String,
-    #[schemars(description = "1-based start line (inclusive) for a numbered slice; omit for whole file (subject to size limits).")]
+    #[schemars(
+        description = "1-based start line (inclusive) for a numbered slice; omit for whole file (subject to size limits)."
+    )]
     #[serde(default)]
     start_line: Option<usize>,
-    #[schemars(description = "1-based end line (inclusive). With start_line only, defaults to end of loaded content.")]
+    #[schemars(
+        description = "1-based end line (inclusive). With start_line only, defaults to end of loaded content."
+    )]
     #[serde(default)]
     end_line: Option<usize>,
 }
@@ -164,14 +177,20 @@ struct FileInfoArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct AgentSendArgs {
-    #[schemars(description = "Stable sender id for this session (alphanumeric, _, -, .) e.g. cursor-main, review-bot.")]
+    #[schemars(
+        description = "Stable sender id for this session (alphanumeric, _, -, .) e.g. cursor-main, review-bot."
+    )]
     from_agent: String,
     #[schemars(description = "Message body; truncated if extremely long.")]
     message: String,
-    #[schemars(description = "Recipient id for a DM; omit to broadcast to every agent polling the bus.")]
+    #[schemars(
+        description = "Recipient id for a DM; omit to broadcast to every agent polling the bus."
+    )]
     #[serde(default)]
     to_agent: Option<String>,
-    #[schemars(description = "Thread key; use the same string on every agent_send in a thread, then read with agent_thread.")]
+    #[schemars(
+        description = "Thread key; use the same string on every agent_send in a thread, then read with agent_thread."
+    )]
     #[serde(default)]
     topic: Option<String>,
     #[schemars(description = "Short label: note, question, suggestion, handoff, …")]
@@ -188,7 +207,9 @@ struct AgentInboxArgs {
     limit: usize,
     #[serde(default = "default_true")]
     skip_own_broadcasts: bool,
-    #[schemars(description = "If set, only messages with ts_ms strictly greater than this value (incremental polling; store last seen ts from output headers).")]
+    #[schemars(
+        description = "If set, only messages with ts_ms strictly greater than this value (incremental polling; store last seen ts from output headers)."
+    )]
     #[serde(default)]
     since_ts_ms: Option<u64>,
 }
@@ -200,7 +221,9 @@ struct AgentThreadArgs {
     #[schemars(description = "Max messages in the thread window (1–200).")]
     #[serde(default = "default_thread_limit")]
     limit: usize,
-    #[schemars(description = "If set, only messages with ts_ms >= this value (slice the tail of the thread after this time).")]
+    #[schemars(
+        description = "If set, only messages with ts_ms >= this value (slice the tail of the thread after this time)."
+    )]
     #[serde(default)]
     since_ts_ms: Option<u64>,
 }
@@ -210,7 +233,9 @@ struct AgentRecentArgs {
     #[schemars(description = "Tail size of the global bus (1–150), after optional since filter.")]
     #[serde(default = "default_recent_limit")]
     limit: usize,
-    #[schemars(description = "If set, only messages newer than this ts_ms are eligible, then take the last `limit` of those.")]
+    #[schemars(
+        description = "If set, only messages newer than this ts_ms are eligible, then take the last `limit` of those."
+    )]
     #[serde(default)]
     since_ts_ms: Option<u64>,
 }
@@ -224,7 +249,9 @@ struct AgentListTopicsArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct AgentGetMessageArgs {
-    #[schemars(description = "Exact message id from agent_send OK line or bus listing (e.g. 1775308370692-144329).")]
+    #[schemars(
+        description = "Exact message id from agent_send OK line or bus listing (e.g. 1775308370692-144329)."
+    )]
     message_id: String,
 }
 
@@ -238,7 +265,9 @@ struct AgentInboxWaitArgs {
     skip_own_broadcasts: bool,
     #[serde(default)]
     since_ts_ms: Option<u64>,
-    #[schemars(description = "Max time for this single MCP call (100–120000ms). Server sleeps between polls—async agents prefer agent_inbox + since_ts_ms instead.")]
+    #[schemars(
+        description = "Max time for this single MCP call (100–120000ms). Server sleeps between polls—async agents prefer agent_inbox + since_ts_ms instead."
+    )]
     #[serde(default = "default_inbox_wait_timeout_ms")]
     timeout_ms: u64,
     #[schemars(description = "Delay between inbox polls (50–2000ms).")]
@@ -250,9 +279,13 @@ struct AgentInboxWaitArgs {
 struct AgentTopicWaitArgs {
     #[schemars(description = "Thread key to watch (same as agent_send topic).")]
     topic: String,
-    #[schemars(description = "Your from_agent id; their posts are ignored so you wait for other agents.")]
+    #[schemars(
+        description = "Your from_agent id; their posts are ignored so you wait for other agents."
+    )]
     exclude_from_agent: String,
-    #[schemars(description = "Only consider messages with ts_ms >= this. Omit to use server time at call start (wait for new replies only).")]
+    #[schemars(
+        description = "Only consider messages with ts_ms >= this. Omit to use server time at call start (wait for new replies only)."
+    )]
     #[serde(default)]
     since_ts_ms: Option<u64>,
     #[serde(default = "default_inbox_wait_timeout_ms")]
@@ -264,9 +297,13 @@ struct AgentTopicWaitArgs {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct AgentFanOutArgs {
     from_agent: String,
-    #[schemars(description = "Identical body for each DM (parallel fan-out: one exclusive lock, many lines).")]
+    #[schemars(
+        description = "Identical body for each DM (parallel fan-out: one exclusive lock, many lines)."
+    )]
     message: String,
-    #[schemars(description = "Recipient agent ids (max 32, deduped); each must differ from from_agent.")]
+    #[schemars(
+        description = "Recipient agent ids (max 32, deduped); each must differ from from_agent."
+    )]
     to_agents: Vec<String>,
     #[serde(default)]
     topic: Option<String>,
@@ -288,13 +325,17 @@ struct AgentPipelineStep {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct AgentSendPipelineArgs {
     from_agent: String,
-    #[schemars(description = "Ordered steps (max 24). Serial: rows appended in sequence under one lock (handoff / multi-part).")]
+    #[schemars(
+        description = "Ordered steps (max 24). Serial: rows appended in sequence under one lock (handoff / multi-part)."
+    )]
     steps: Vec<AgentPipelineStep>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct AgentMultiInboxArgs {
-    #[schemars(description = "Up to 16 agent ids; one shared bus read, sections per id (parallel fan-in).")]
+    #[schemars(
+        description = "Up to 16 agent ids; one shared bus read, sections per id (parallel fan-in)."
+    )]
     for_agents: Vec<String>,
     #[serde(default = "default_inbox_limit")]
     limit: usize,
@@ -317,7 +358,9 @@ struct EmptyArgs {}
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct GitLogArgs {
-    #[schemars(description = "Git repo directory (subfolder of project root); omit for project root.")]
+    #[schemars(
+        description = "Git repo directory (subfolder of project root); omit for project root."
+    )]
     #[serde(default)]
     path: Option<String>,
     #[schemars(description = "Max commits (1–150).")]
@@ -325,7 +368,9 @@ struct GitLogArgs {
     limit: usize,
     #[serde(default = "default_true")]
     oneline: bool,
-    #[schemars(description = "Only history touching this path, relative to project root (e.g. src/main.rs).")]
+    #[schemars(
+        description = "Only history touching this path, relative to project root (e.g. src/main.rs)."
+    )]
     #[serde(default)]
     path_filter: Option<String>,
 }
@@ -334,7 +379,9 @@ struct GitLogArgs {
 struct GitShowArgs {
     #[serde(default)]
     path: Option<String>,
-    #[schemars(description = "Commit-ish or object (e.g. HEAD, main~1, abc123, or rev:path for a blob).")]
+    #[schemars(
+        description = "Commit-ish or object (e.g. HEAD, main~1, abc123, or rev:path for a blob)."
+    )]
     rev: String,
     #[schemars(description = "If false: diffstat only. If true: full patch (truncated).")]
     #[serde(default)]
@@ -381,13 +428,17 @@ struct ReadFileTailArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct FileStatsArgs {
-    #[schemars(description = "File path; counts newlines in a scan window and shows a short preview.")]
+    #[schemars(
+        description = "File path; counts newlines in a scan window and shows a short preview."
+    )]
     path: String,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct FindFilesByNameArgs {
-    #[schemars(description = "Substring matched against each file path relative to search root (e.g. \"test\", \"Cargo\").")]
+    #[schemars(
+        description = "Substring matched against each file path relative to search root (e.g. \"test\", \"Cargo\")."
+    )]
     substring: String,
     #[serde(default)]
     path: String,
@@ -467,10 +518,14 @@ struct AgentBusCompactArgs {
 struct CompressFileArgs {
     #[schemars(description = "File path under the project root.")]
     path: String,
-    #[schemars(description = "1-based start line (inclusive) for a numbered slice; omit for whole file (loaded chunk).")]
+    #[schemars(
+        description = "1-based start line (inclusive) for a numbered slice; omit for whole file (loaded chunk)."
+    )]
     #[serde(default)]
     start_line: Option<usize>,
-    #[schemars(description = "1-based end line (inclusive). With start_line only, defaults to end of loaded content.")]
+    #[schemars(
+        description = "1-based end line (inclusive). With start_line only, defaults to end of loaded content."
+    )]
     #[serde(default)]
     end_line: Option<usize>,
     #[schemars(description = "Max output characters (server cap is MAX_RESPONSE_CHARS).")]
@@ -575,7 +630,9 @@ struct AgentBusSearchArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct SummarizeTextArgs {
-    #[schemars(description = "Input text to summarize (deterministic TF-style extractive summary; no external models).")]
+    #[schemars(
+        description = "Input text to summarize (deterministic TF-style extractive summary; no external models)."
+    )]
     text: String,
     #[schemars(description = "Max output characters (server cap is MAX_RESPONSE_CHARS).")]
     #[serde(default = "default_summarize_max_chars")]
@@ -608,7 +665,9 @@ struct CodebaseIndexArgs {
     #[schemars(description = "Stop after this many files (200–20000) for speed.")]
     #[serde(default = "default_codebase_max_files")]
     max_files_scan: usize,
-    #[schemars(description = "If true, collect heuristic definition-like lines (Rust/TS/Py/Go…); bounded.")]
+    #[schemars(
+        description = "If true, collect heuristic definition-like lines (Rust/TS/Py/Go…); bounded."
+    )]
     #[serde(default)]
     symbol_sketch: bool,
     #[schemars(description = "Max symbol sketch lines (0–300).")]
@@ -625,10 +684,14 @@ struct ConvertFormatArgs {
     #[schemars(description = "Inline payload: JSON text, base64, or hex. For decode operations.")]
     #[serde(default)]
     text: Option<String>,
-    #[schemars(description = "Read input file (encode) or required for some JSON-from-file flows; max 256 KiB.")]
+    #[schemars(
+        description = "Read input file (encode) or required for some JSON-from-file flows; max 256 KiB."
+    )]
     #[serde(default)]
     input_path: Option<String>,
-    #[schemars(description = "Write binary output for base64_decode / hex_decode (must stay under project root).")]
+    #[schemars(
+        description = "Write binary output for base64_decode / hex_decode (must stay under project root)."
+    )]
     #[serde(default)]
     output_path: Option<String>,
     #[schemars(description = "Tab stop width for tabs_to_spaces (1–16).")]
@@ -644,26 +707,36 @@ struct ConvertFormatArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct ServerSleepArgs {
-    #[schemars(description = "Block this MCP worker (0–30000ms requested; capped lower on MINT_NETWORK_PROFILE=public). Prefer agent_inbox_wait / agent_topic_wait for coordination.")]
+    #[schemars(
+        description = "Block this MCP worker (0–30000ms requested; capped lower on MINT_NETWORK_PROFILE=public). Prefer agent_inbox_wait / agent_topic_wait for coordination."
+    )]
     #[serde(default = "default_sleep_ms")]
     duration_ms: u64,
-    #[schemars(description = "Extra random delay 0..=jitter_ms_max (capped by profile sleep cap) to desynchronize agents; 0 disables.")]
+    #[schemars(
+        description = "Extra random delay 0..=jitter_ms_max (capped by profile sleep cap) to desynchronize agents; 0 disables."
+    )]
     #[serde(default)]
     jitter_ms_max: u64,
-    #[schemars(description = "Optional short label echoed in output for agent logs (max ~200 chars, newlines stripped).")]
+    #[schemars(
+        description = "Optional short label echoed in output for agent logs (max ~200 chars, newlines stripped)."
+    )]
     #[serde(default)]
     reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct TerminalWhichArgs {
-    #[schemars(description = "Bare executable name (same allowlist as terminal_run). Resolves via which (Unix) or where (Windows).")]
+    #[schemars(
+        description = "Bare executable name (same allowlist as terminal_run). Resolves via which (Unix) or where (Windows)."
+    )]
     program: String,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct TerminalRunArgs {
-    #[schemars(description = "Bare executable name only (e.g. git, cargo). No paths. Requires MINT_TERMINAL_ENABLE=1 and allowlist MINT_TERMINAL_ALLOW. On trusted/local deployments the child may read/write anything your argv allows (e.g. file editors, package installs); keep cwd under the project root.")]
+    #[schemars(
+        description = "Bare executable name only (e.g. git, cargo). No paths. Requires MINT_TERMINAL_ENABLE=1 and allowlist MINT_TERMINAL_ALLOW. On trusted/local deployments the child may read/write anything your argv allows (e.g. file editors, package installs); keep cwd under the project root."
+    )]
     program: String,
     #[schemars(description = "Argv after program name (no shell interpolation).")]
     #[serde(default)]
@@ -689,14 +762,18 @@ struct TerminalRunStdinArgs {
     #[schemars(description = "UTF-8 stdin body; max 512 KiB. Omit if stdin_path is set.")]
     #[serde(default)]
     stdin_text: Option<String>,
-    #[schemars(description = "Project-relative file read as raw stdin bytes; max 512 KiB. Omit if stdin_text is set.")]
+    #[schemars(
+        description = "Project-relative file read as raw stdin bytes; max 512 KiB. Omit if stdin_text is set."
+    )]
     #[serde(default)]
     stdin_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct ProjectCargoTestArgs {
-    #[schemars(description = "Working directory under project root (Rust package / workspace root); empty = project root.")]
+    #[schemars(
+        description = "Working directory under project root (Rust package / workspace root); empty = project root."
+    )]
     #[serde(default)]
     directory: String,
     #[schemars(description = "Cargo package name for `-p`; omit for default package.")]
@@ -804,7 +881,9 @@ struct GitWorktreeListArgs {
 struct GitCheckoutArgs {
     #[schemars(description = "Git repo path under project root; omit for project root.")]
     path: Option<String>,
-    #[schemars(description = "Branch, tag, or commit ref for `git checkout`. Requires MINT_GIT_WRITE_ENABLE=1.")]
+    #[schemars(
+        description = "Branch, tag, or commit ref for `git checkout`. Requires MINT_GIT_WRITE_ENABLE=1."
+    )]
     target: String,
 }
 
@@ -812,7 +891,9 @@ struct GitCheckoutArgs {
 struct GitStashPushArgs {
     #[schemars(description = "Git repo path under project root; omit for project root.")]
     path: Option<String>,
-    #[schemars(description = "Optional stash message for `git stash push -m`. Requires MINT_GIT_WRITE_ENABLE=1.")]
+    #[schemars(
+        description = "Optional stash message for `git stash push -m`. Requires MINT_GIT_WRITE_ENABLE=1."
+    )]
     #[serde(default)]
     message: Option<String>,
 }
@@ -831,7 +912,9 @@ struct CompressParagraphsArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct CodebaseManifestArgs {
-    #[schemars(description = "Subtree root to walk; empty = project root. Writes .mint-mcp/file-manifest.jsonl under that root.")]
+    #[schemars(
+        description = "Subtree root to walk; empty = project root. Writes .mint-mcp/file-manifest.jsonl under that root."
+    )]
     #[serde(default)]
     path: String,
     #[schemars(description = "Max file lines in manifest (server clamps 100–25000).")]
@@ -841,7 +924,9 @@ struct CodebaseManifestArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct SummarizeSegmentsArgs {
-    #[schemars(description = "Parallel text chunks merged then summarized (max 24 segments per call).")]
+    #[schemars(
+        description = "Parallel text chunks merged then summarized (max 24 segments per call)."
+    )]
     segments: Vec<String>,
     #[schemars(description = "Max output characters (server cap is MAX_RESPONSE_CHARS).")]
     #[serde(default = "default_summarize_max_chars")]
@@ -871,7 +956,9 @@ struct AgentSubagentTaskArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct AgentSubagentDoneArgs {
-    #[schemars(description = "Sub-agent id sending the completion (must match recipient of the original task).")]
+    #[schemars(
+        description = "Sub-agent id sending the completion (must match recipient of the original task)."
+    )]
     from_agent: String,
     #[schemars(description = "Coordinator / parent agent id (DM recipient).")]
     parent_agent: String,
@@ -887,7 +974,9 @@ struct AgentSubagentDoneArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct CompressUniqueLinesArgs {
-    #[schemars(description = "Input text; keeps first occurrence of each line in order, then caps.")]
+    #[schemars(
+        description = "Input text; keeps first occurrence of each line in order, then caps."
+    )]
     text: String,
     #[schemars(description = "Max unique lines to keep (server clamps).")]
     #[serde(default = "default_unique_lines_max")]
@@ -952,7 +1041,9 @@ struct CompressDedentArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct SummarizeBulletsArgs {
-    #[schemars(description = "Source text (e.g. markdown); extracts bullet / numbered list lines in order.")]
+    #[schemars(
+        description = "Source text (e.g. markdown); extracts bullet / numbered list lines in order."
+    )]
     text: String,
     #[schemars(description = "Max bullet lines to keep.")]
     #[serde(default = "default_summarize_bullets_max")]
@@ -1082,7 +1173,9 @@ struct CompressUnifiedDiffStatsArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct CompressTruncateLinesArgs {
-    #[schemars(description = "Multiline text; each line capped to max_line_chars Unicode scalars (suffix …).")]
+    #[schemars(
+        description = "Multiline text; each line capped to max_line_chars Unicode scalars (suffix …)."
+    )]
     text: String,
     #[schemars(description = "Max Unicode scalars per line before ellipsis (clamped 16–512).")]
     #[serde(default = "default_truncate_line_width")]
@@ -1118,7 +1211,9 @@ struct SummarizeDelimitedHeaderArgs {
 struct SummarizeJsonStructureArgs {
     #[schemars(description = "Raw JSON document (object or array at root).")]
     text: String,
-    #[schemars(description = "Max recursion depth for nested objects (0 = types at current level only).")]
+    #[schemars(
+        description = "Max recursion depth for nested objects (0 = types at current level only)."
+    )]
     #[serde(default = "default_json_structure_depth")]
     max_depth: usize,
     #[schemars(description = "Max object keys enumerated per nesting level.")]
@@ -1148,13 +1243,17 @@ struct TextTokenJaccardArgs {
     text_a: String,
     #[schemars(description = "Second text.")]
     text_b: String,
-    #[schemars(description = "Lowercase tokens before comparing (recommended for natural language).")]
+    #[schemars(
+        description = "Lowercase tokens before comparing (recommended for natural language)."
+    )]
     #[serde(default = "default_true")]
     fold_case: bool,
     #[schemars(description = "Max Unicode scalars read per side (256–500000).")]
     #[serde(default = "default_token_jaccard_max_chars")]
     max_chars_each: usize,
-    #[schemars(description = "Max whitespace tokens processed per side before stopping (50–200000); if EOF not reached, jaccard is approximate.")]
+    #[schemars(
+        description = "Max whitespace tokens processed per side before stopping (50–200000); if EOF not reached, jaccard is approximate."
+    )]
     #[serde(default = "default_token_jaccard_max_scan")]
     max_tokens_scanned_per_text: usize,
 }
@@ -1209,7 +1308,9 @@ struct CodebasePathListArgs {
     #[schemars(description = "Max file paths to return (200–50000).")]
     #[serde(default = "default_path_list_max_paths")]
     max_paths: usize,
-    #[schemars(description = "If set, skip files deeper than this many path segments (relative to path).")]
+    #[schemars(
+        description = "If set, skip files deeper than this many path segments (relative to path)."
+    )]
     #[serde(default)]
     max_depth: Option<usize>,
 }
@@ -1239,7 +1340,9 @@ struct CodebaseDuplicateBasenamesArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct CodeIndexBuildArgs {
-    #[schemars(description = "Subtree to scan for symbols; empty = project root. Writes project_root/.mint-mcp/code-index.json.")]
+    #[schemars(
+        description = "Subtree to scan for symbols; empty = project root. Writes project_root/.mint-mcp/code-index.json."
+    )]
     #[serde(default)]
     path: String,
     #[serde(default = "default_true")]
@@ -1261,7 +1364,9 @@ struct CodeIndexSearchArgs {
     #[schemars(description = "If set, only paths starting with this relative prefix.")]
     #[serde(default)]
     path_prefix: Option<String>,
-    #[schemars(description = "If true, needle is a Rust regex; case_sensitive maps to case_insensitive flag on the regex.")]
+    #[schemars(
+        description = "If true, needle is a Rust regex; case_sensitive maps to case_insensitive flag on the regex."
+    )]
     #[serde(default)]
     use_regex: bool,
 }
@@ -1274,7 +1379,9 @@ struct TextStatsArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct SummarizeTokenEstimateArgs {
-    #[schemars(description = "UTF-8 text for deterministic token budget heuristics (not a real BPE count).")]
+    #[schemars(
+        description = "UTF-8 text for deterministic token budget heuristics (not a real BPE count)."
+    )]
     text: String,
     #[serde(default = "default_summarize_token_max_chars")]
     max_chars: usize,
@@ -1290,7 +1397,9 @@ struct PrivacyRedactTextArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct CompressWsCollapseArgs {
-    #[schemars(description = "Source text; each line gets internal whitespace collapsed to single spaces.")]
+    #[schemars(
+        description = "Source text; each line gets internal whitespace collapsed to single spaces."
+    )]
     text: String,
     #[serde(default = "default_compress_max_chars")]
     max_chars: usize,
@@ -1298,7 +1407,9 @@ struct CompressWsCollapseArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct SummarizeTopTermsArgs {
-    #[schemars(description = "Source prose or logs for bag-of-words counts (English stopwords removed).")]
+    #[schemars(
+        description = "Source prose or logs for bag-of-words counts (English stopwords removed)."
+    )]
     text: String,
     #[schemars(description = "Minimum token length (2–32).")]
     #[serde(default = "default_top_terms_min_len")]
@@ -1312,7 +1423,9 @@ struct SummarizeTopTermsArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct SummarizeIdentifierFrequencyArgs {
-    #[schemars(description = "Source code or logs; counts tokens matching [A-Za-z_][A-Za-z0-9_]*.")]
+    #[schemars(
+        description = "Source code or logs; counts tokens matching [A-Za-z_][A-Za-z0-9_]*."
+    )]
     text: String,
     #[schemars(description = "Minimum identifier length (1–64).")]
     #[serde(default = "default_identifier_min_len")]
@@ -1351,7 +1464,9 @@ struct TextLongestCommonSubstringArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct CompressStripTagsArgs {
-    #[schemars(description = "HTML/XML-ish text; strips tags that look like markup (<!…, <?…, </…, <letter…>).")]
+    #[schemars(
+        description = "HTML/XML-ish text; strips tags that look like markup (<!…, <?…, </…, <letter…>)."
+    )]
     text: String,
     #[serde(default = "default_compress_max_chars")]
     max_chars: usize,
@@ -1373,7 +1488,9 @@ struct SummarizeDuplicateLinesArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct CompressFencedCodeBlocksArgs {
-    #[schemars(description = "Source text; ```fenced``` blocks become a single placeholder line each.")]
+    #[schemars(
+        description = "Source text; ```fenced``` blocks become a single placeholder line each."
+    )]
     text: String,
     #[serde(default = "default_compress_max_chars")]
     max_chars: usize,
@@ -1400,14 +1517,18 @@ struct FormatPrefixLinesArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct CodebaseCargoDepsArgs {
-    #[schemars(description = "Cargo.toml path under project root; empty = ./Cargo.toml at project root.")]
+    #[schemars(
+        description = "Cargo.toml path under project root; empty = ./Cargo.toml at project root."
+    )]
     #[serde(default)]
     manifest_path: String,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct CodeIndexPathsPrefixArgs {
-    #[schemars(description = "Relative path prefix (forward slashes, e.g. src/); empty matches all indexed paths.")]
+    #[schemars(
+        description = "Relative path prefix (forward slashes, e.g. src/); empty matches all indexed paths."
+    )]
     #[serde(default)]
     prefix: String,
     #[serde(default = "default_code_index_paths_limit")]
@@ -1416,7 +1537,9 @@ struct CodeIndexPathsPrefixArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct CodeIndexAnalyticsLimitArgs {
-    #[schemars(description = "Max rows to return (extensions or symbol names, depending on tool).")]
+    #[schemars(
+        description = "Max rows to return (extensions or symbol names, depending on tool)."
+    )]
     #[serde(default = "default_code_index_analytics_limit")]
     limit: usize,
 }
@@ -1453,7 +1576,9 @@ struct ThinkingAssumptionArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct ThinkingSessionAppendArgs {
-    #[schemars(description = "Single-line note (newlines collapsed); appended to .mint-mcp/agent-thinking.log on trusted deployments.")]
+    #[schemars(
+        description = "Single-line note (newlines collapsed); appended to .mint-mcp/agent-thinking.log on trusted deployments."
+    )]
     note: String,
 }
 
@@ -1537,7 +1662,9 @@ struct ReasoningEvidenceMatrixArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct WorkspaceTempWriteArgs {
-    #[schemars(description = "Filename only (ASCII alnum, -, _, .); stored under .mint-mcp/agent-temp/.")]
+    #[schemars(
+        description = "Filename only (ASCII alnum, -, _, .); stored under .mint-mcp/agent-temp/."
+    )]
     name: String,
     #[schemars(description = "UTF-8 text body.")]
     content: String,
@@ -1571,7 +1698,9 @@ struct WorkspaceTempDeleteArgs {
 struct ScreenshotCaptureArgs {
     #[schemars(description = "grim (Wayland) | screencapture (macOS full screen).")]
     backend: String,
-    #[schemars(description = "Basename ending in .png (e.g. ui-1.png); written under .mint-mcp/screenshots/.")]
+    #[schemars(
+        description = "Basename ending in .png (e.g. ui-1.png); written under .mint-mcp/screenshots/."
+    )]
     output_name: String,
 }
 
@@ -1639,7 +1768,9 @@ struct SummarizeLinePrefixGroupsArgs {
 struct SummarizeRankLinesByKeywordsArgs {
     #[schemars(description = "Multiline text to scan.")]
     text: String,
-    #[schemars(description = "Keywords matched as whole tokens (case-insensitive, alnum/underscore tokens).")]
+    #[schemars(
+        description = "Keywords matched as whole tokens (case-insensitive, alnum/underscore tokens)."
+    )]
     keywords: Vec<String>,
     #[schemars(description = "Max lines to return after sorting by hit count.")]
     #[serde(default = "default_rank_keyword_top_lines")]
@@ -1661,7 +1792,9 @@ struct OcrTesseractArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct CodeIndexFileSymbolsPathArgs {
-    #[schemars(description = "File path relative to project root (as in code index, forward slashes).")]
+    #[schemars(
+        description = "File path relative to project root (as in code index, forward slashes)."
+    )]
     path: String,
 }
 
@@ -1703,9 +1836,13 @@ struct SummarizeMultiFileArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct WaitUntilArgs {
-    #[schemars(description = "Unix epoch milliseconds to wait toward. Sleeps at most one profile cap per call; re-call if remaining_ms > 0.")]
+    #[schemars(
+        description = "Unix epoch milliseconds to wait toward. Sleeps at most one profile cap per call; re-call if remaining_ms > 0."
+    )]
     target_ts_ms: u64,
-    #[schemars(description = "Random extra 0..=jitter (capped by profile sleep cap) added to this slice—reduces synchronized wakeups across agents.")]
+    #[schemars(
+        description = "Random extra 0..=jitter (capped by profile sleep cap) added to this slice—reduces synchronized wakeups across agents."
+    )]
     #[serde(default)]
     jitter_ms_max: u64,
 }
@@ -1714,16 +1851,22 @@ struct WaitUntilArgs {
 struct WaitForPathArgs {
     #[schemars(description = "Path under project root to wait for (file or directory).")]
     path: String,
-    #[schemars(description = "If true, require a regular file; if false, any path existence suffices.")]
+    #[schemars(
+        description = "If true, require a regular file; if false, any path existence suffices."
+    )]
     #[serde(default)]
     must_be_file: bool,
     #[schemars(description = "Poll interval between existence checks (50–2000ms).")]
     #[serde(default = "default_wait_poll_ms")]
     poll_interval_ms: u64,
-    #[schemars(description = "Extra random 0..=poll_jitter_ms_max added to each sleep (desync pollers); capped at 5000ms effective slice.")]
+    #[schemars(
+        description = "Extra random 0..=poll_jitter_ms_max added to each sleep (desync pollers); capped at 5000ms effective slice."
+    )]
     #[serde(default)]
     poll_jitter_ms_max: u64,
-    #[schemars(description = "Total wait budget (capped by server per-call sync limit; lower on public profile).")]
+    #[schemars(
+        description = "Total wait budget (capped by server per-call sync limit; lower on public profile)."
+    )]
     #[serde(default = "default_wait_path_timeout_ms")]
     timeout_ms: u64,
 }
@@ -1746,7 +1889,9 @@ struct AgentHandoffArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct GitLogOrDiffLensArgs {
-    #[schemars(description = "Repo directory under project root; empty = project root (GitLens-compatible `directory`).")]
+    #[schemars(
+        description = "Repo directory under project root; empty = project root (GitLens-compatible `directory`)."
+    )]
     #[serde(default)]
     directory: String,
     #[schemars(description = "log | diff")]
@@ -1799,7 +1944,9 @@ struct GitAddOrCommitLensArgs {
     directory: String,
     #[schemars(description = "add | commit")]
     action: String,
-    #[schemars(description = "Paths relative to repo; omit add→all (`git add -A`), omit commit→all staged.")]
+    #[schemars(
+        description = "Paths relative to repo; omit add→all (`git add -A`), omit commit→all staged."
+    )]
     #[serde(default)]
     files: Option<Vec<String>>,
     #[schemars(description = "Commit message (required for commit).")]
@@ -1856,7 +2003,9 @@ struct GitDiffStatArgs {
     #[schemars(description = "If true, `git diff --stat --staged` (omit revision_range).")]
     #[serde(default)]
     staged: bool,
-    #[schemars(description = "Single rev/ref or range (e.g. HEAD, main..feature); validated. Omit for unstaged working tree vs index.")]
+    #[schemars(
+        description = "Single rev/ref or range (e.g. HEAD, main..feature); validated. Omit for unstaged working tree vs index."
+    )]
     #[serde(default)]
     revision_range: Option<String>,
 }
@@ -1926,20 +2075,26 @@ struct RepositoryGetFileContentArgs {
     directory: String,
     #[schemars(description = "File path relative to repo.")]
     file_path: String,
-    #[schemars(description = "Optional git ref for `git show ref:path` (omit = read working tree file).")]
+    #[schemars(
+        description = "Optional git ref for `git show ref:path` (omit = read working tree file)."
+    )]
     #[serde(default)]
     git_ref: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct GkGitStatusArgs {
-    #[schemars(description = "GitKraken MCP-compatible: repo directory under project root (empty = project root).")]
+    #[schemars(
+        description = "GitKraken MCP-compatible: repo directory under project root (empty = project root)."
+    )]
     directory: String,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct GkGitCheckoutArgs {
-    #[schemars(description = "GitKraken MCP-compatible: repo directory under project root (empty = project root).")]
+    #[schemars(
+        description = "GitKraken MCP-compatible: repo directory under project root (empty = project root)."
+    )]
     directory: String,
     #[schemars(description = "GitKraken `branch` argument: branch, tag, or ref for git checkout.")]
     branch: String,
@@ -1947,10 +2102,57 @@ struct GkGitCheckoutArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct GkGitBlameArgs {
-    #[schemars(description = "GitKraken MCP-compatible: repo directory under project root (empty = project root).")]
+    #[schemars(
+        description = "GitKraken MCP-compatible: repo directory under project root (empty = project root)."
+    )]
     directory: String,
     #[schemars(description = "File path under project root (resolved then relativized to repo).")]
     file: String,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct ConsensusProposeArgs {
+    #[schemars(description = "Stable proposer id (alphanumeric, _.-).")]
+    from_agent: String,
+    #[schemars(description = "Short topic / title for the proposal.")]
+    topic: String,
+    #[schemars(description = "Longer description of what is being proposed.")]
+    description: String,
+    #[schemars(description = "Comma-separated voting options (e.g. 'yes,no,abstain').")]
+    options: String,
+    #[schemars(description = "Voting window in milliseconds (e.g. 60000 for 1 minute).")]
+    deadline_ms: u64,
+    #[schemars(
+        description = "Strategy name: SimpleMajority, SuperMajority, Unanimous, WeightedVoting, RankedChoice, Delegation."
+    )]
+    strategy: String,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct ConsensusVoteArgs {
+    #[schemars(description = "ID of the proposal to vote on.")]
+    proposal_id: String,
+    #[schemars(description = "Stable voter id (alphanumeric, _.-).")]
+    voter: String,
+    #[schemars(description = "The chosen option (must match one of the proposal's options).")]
+    choice: String,
+    #[schemars(description = "Confidence level 0.0–1.0.")]
+    confidence: f64,
+    #[schemars(description = "Optional free-text rationale for the vote.")]
+    #[serde(default)]
+    rationale: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct ConsensusTallyArgs {
+    #[schemars(description = "ID of the proposal to tally.")]
+    proposal_id: String,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct ConsensusCloseArgs {
+    #[schemars(description = "ID of the proposal to close and finalize.")]
+    proposal_id: String,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -1965,7 +2167,9 @@ struct AskAgentsArgs {
     )]
     #[serde(default)]
     topic: Option<String>,
-    #[schemars(description = "How long to wait for replies (clamped; lower cap when MINT_NETWORK_PROFILE=public).")]
+    #[schemars(
+        description = "How long to wait for replies (clamped; lower cap when MINT_NETWORK_PROFILE=public)."
+    )]
     #[serde(default = "default_ask_timeout_ms")]
     timeout_ms: u64,
     #[schemars(description = "Max replies returned (1–50).")]
@@ -1975,15 +2179,21 @@ struct AskAgentsArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct PackContextArgs {
-    #[schemars(description = "Context segments to pack (file excerpts, agent bus text, notes—useful before agent_send_pipeline or long prompts).")]
+    #[schemars(
+        description = "Context segments to pack (file excerpts, agent bus text, notes—useful before agent_send_pipeline or long prompts)."
+    )]
     segments: Vec<String>,
-    #[schemars(description = "Optional labels, one per segment (same length as segments); shown in segment headers for parallel/serial handoffs.")]
+    #[schemars(
+        description = "Optional labels, one per segment (same length as segments); shown in segment headers for parallel/serial handoffs."
+    )]
     #[serde(default)]
     segment_labels: Option<Vec<String>>,
     #[schemars(description = "Max output characters (server cap is MAX_RESPONSE_CHARS).")]
     #[serde(default = "default_pack_max_chars")]
     max_chars: usize,
-    #[schemars(description = "Same as compress_context: truncate | head_tail | lines_only | dense.")]
+    #[schemars(
+        description = "Same as compress_context: truncate | head_tail | lines_only | dense."
+    )]
     #[serde(default = "default_compress_mode")]
     mode: String,
     #[schemars(description = "Remove consecutive duplicate lines (helps when context repeats).")]
@@ -1996,10 +2206,14 @@ struct PackContextArgs {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct GitDiffSnippetsArgs {
-    #[schemars(description = "Git repo directory (subfolder of project root); omit for project root.")]
+    #[schemars(
+        description = "Git repo directory (subfolder of project root); omit for project root."
+    )]
     #[serde(default)]
     path: Option<String>,
-    #[schemars(description = "If true, use --staged diff. If false, compare working tree to index.")]
+    #[schemars(
+        description = "If true, use --staged diff. If false, compare working tree to index."
+    )]
     #[serde(default)]
     staged: bool,
     #[schemars(description = "Regex pattern (or literal=true for fixed string matches).")]
@@ -2021,8 +2235,167 @@ struct GitDiffSnippetsArgs {
     max_chars: usize,
 }
 
+// ---- Review Args ----
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct ReviewDiffRiskArgs {
+    #[schemars(
+        description = "If true, analyze staged changes; if false, analyze working tree vs index."
+    )]
+    #[serde(default)]
+    staged: bool,
+    #[schemars(
+        description = "Git revision range (e.g. main..HEAD); omit for unstaged/staged diff."
+    )]
+    #[serde(default)]
+    revision_range: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct ReviewFocusedReviewArgs {
+    #[schemars(
+        description = "Review focus: security, performance, correctness, maintainability, or style."
+    )]
+    focus: String,
+    #[schemars(
+        description = "If true, review staged changes; if false, review working tree vs index."
+    )]
+    #[serde(default)]
+    staged: bool,
+    #[schemars(
+        description = "Git revision range (e.g. main..HEAD); omit for unstaged/staged diff."
+    )]
+    #[serde(default)]
+    revision_range: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct ReviewMissingTestsArgs {
+    #[schemars(
+        description = "If true, check staged changes; if false, check working tree vs index."
+    )]
+    #[serde(default)]
+    staged: bool,
+    #[schemars(
+        description = "Git revision range (e.g. main..HEAD); omit for unstaged/staged diff."
+    )]
+    #[serde(default)]
+    revision_range: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct ReviewPrPacketArgs {
+    #[schemars(description = "Git revision range for the PR (e.g. main..feature).")]
+    revision_range: String,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct ReviewRulebookCheckArgs {
+    #[schemars(description = "Path to the rulebook file under the project root.")]
+    rulebook_path: String,
+    #[schemars(
+        description = "If true, check staged changes; if false, check working tree vs index."
+    )]
+    #[serde(default)]
+    staged: bool,
+    #[schemars(
+        description = "Git revision range (e.g. main..HEAD); omit for unstaged/staged diff."
+    )]
+    #[serde(default)]
+    revision_range: Option<String>,
+}
+
+// ---- Debug Args ----
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct DebugTraceRunArgs {
+    #[schemars(description = "Unique identifier for this trace (alphanumeric, _.-).")]
+    trace_id: String,
+    #[schemars(description = "Bare executable name to run under trace.")]
+    command: String,
+    #[schemars(description = "Argv after the command name.")]
+    #[serde(default)]
+    args: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct DebugReplayRunArgs {
+    #[schemars(description = "Trace id from a previous debug_trace_run.")]
+    trace_id: String,
+    #[schemars(description = "If true, preview the replay without executing (default true).")]
+    #[serde(default = "default_true")]
+    dry_run: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct DebugFailureClusterArgs {
+    #[schemars(
+        description = "Directory containing trace files; omit for default .mint-mcp/traces/."
+    )]
+    #[serde(default)]
+    trace_dir: Option<String>,
+    #[schemars(description = "Minimum traces to form a cluster (default 2).")]
+    #[serde(default = "default_min_cluster_size")]
+    min_cluster_size: usize,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct DebugRootCauseReportArgs {
+    #[schemars(description = "Trace id to generate the root-cause report for.")]
+    trace_id: String,
+}
+
+// ---- Code intelligence Args ----
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct CodeAstDumpArgs {
+    #[schemars(description = "Source file path under the project root.")]
+    path: String,
+    #[schemars(
+        description = "Language hint (e.g. rust, python, typescript); omit for auto-detection."
+    )]
+    #[serde(default)]
+    language: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct CodeExtractImportsArgs {
+    #[schemars(description = "Source file path under the project root.")]
+    path: String,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct CodeDetectLanguageArgs {
+    #[schemars(description = "File path under the project root.")]
+    path: String,
+    #[schemars(description = "Optional file content override for language detection heuristics.")]
+    #[serde(default)]
+    content: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct CodeComplexityScoreArgs {
+    #[schemars(description = "Source file path under the project root.")]
+    path: String,
+    #[schemars(description = "Optional file content override for complexity scoring.")]
+    #[serde(default)]
+    content: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+struct CodeDeadCodeHintsArgs {
+    #[schemars(
+        description = "File or directory path under the project root to scan for dead code."
+    )]
+    path: String,
+}
+
 fn default_true() -> bool {
     true
+}
+
+fn default_min_cluster_size() -> usize {
+    2
 }
 
 fn default_grep_max() -> usize {
@@ -2399,12 +2772,13 @@ fn default_ask_limit() -> usize {
 
 impl MintMcp {
     fn new() -> Self {
-        let root = std::env::var("MINT_PROJECT_ROOT")
+        let root = std::env::var("PB_PROJECT_ROOT")
+            .or_else(|_| std::env::var("MINT_PROJECT_ROOT"))
             .or_else(|_| std::env::var("PROJECT_ROOT"))
             .map(PathBuf::from)
             .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
-
-        let bus_read_only = std::env::var("MINT_BUS_READ_ONLY")
+        let bus_read_only = std::env::var("PB_BUS_READ_ONLY")
+            .or_else(|_| std::env::var("MINT_BUS_READ_ONLY"))
             .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "yes" | "YES"))
             .unwrap_or(false);
 
@@ -2416,14 +2790,15 @@ impl MintMcp {
             bus_rate: Arc::new(bus_rate::BusSendRateLimiter::from_env()),
             bus_read_only,
             network_profile,
+            consensus_engine: Arc::new(std::sync::Mutex::new(crate::agent::ConsensusEngine::new())),
         }
     }
 
-    /// Internet / `MINT_NETWORK_PROFILE=public` blocks bus mutations, terminal, risky git, and file writes from converters.
+    /// Internet / `PB_NETWORK_PROFILE` / `MINT_NETWORK_PROFILE=public` blocks bus mutations, terminal, risky git, and file writes from converters.
     fn require_trusted_deployment(&self) -> Result<(), String> {
         if self.network_profile.is_public() {
             Err(
-                "Error: tool blocked when MINT_NETWORK_PROFILE=public. Use local/LAN (default) or read-only tools."
+                "Error: tool blocked when PB_NETWORK_PROFILE / MINT_NETWORK_PROFILE=public. Use local/LAN (default) or read-only tools."
                     .to_string(),
             )
         } else {
@@ -2460,7 +2835,10 @@ impl MintMcp {
     }
 
     fn resolve_path(&self, input: &str) -> Result<PathBuf, String> {
-        let base = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
+        let base = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
 
         let candidate = if input.trim().is_empty() {
             base.clone()
@@ -2480,7 +2858,7 @@ impl MintMcp {
         if resolved.starts_with(&base) {
             Ok(resolved)
         } else {
-            Err("Path escapes project root (set MINT_PROJECT_ROOT or PROJECT_ROOT)".to_string())
+            Err("Path escapes project root (set PB_PROJECT_ROOT, MINT_PROJECT_ROOT, or PROJECT_ROOT)".to_string())
         }
     }
 
@@ -2494,14 +2872,20 @@ impl MintMcp {
     fn git_working_dir(&self, path: &Option<String>) -> Result<PathBuf, String> {
         match path {
             Some(p) if !p.trim().is_empty() => self.resolve_path(p),
-            _ => Ok(self.root.canonicalize().unwrap_or_else(|_| self.root.clone())),
+            _ => Ok(self
+                .root
+                .canonicalize()
+                .unwrap_or_else(|_| self.root.clone())),
         }
     }
 
     /// GitLens-style `directory` argument: empty string = project root.
     fn git_directory_arg(&self, directory: &str) -> Result<PathBuf, String> {
         if directory.trim().is_empty() {
-            Ok(self.root.canonicalize().unwrap_or_else(|_| self.root.clone()))
+            Ok(self
+                .root
+                .canonicalize()
+                .unwrap_or_else(|_| self.root.clone()))
         } else {
             self.resolve_path(directory)
         }
@@ -2549,9 +2933,7 @@ impl MintMcp {
                 Self::tool_text(s)
             }
             Ok(Err(e)) => Self::tool_text(format!("Error: spawn {e}")),
-            Err(_) => Self::tool_text(
-                "Error: command timed out (increase timeout_ms)".to_string(),
-            ),
+            Err(_) => Self::tool_text("Error: command timed out (increase timeout_ms)".to_string()),
         }
     }
 
@@ -2582,11 +2964,10 @@ impl MintMcp {
         let net = self.network_profile.label().to_string();
         let cap = self.network_profile.server_sleep_cap_ms();
         let is_pub = self.network_profile.is_public();
-        let out = tokio::task::spawn_blocking(move || {
-            workspace_context_work(root, net, cap, is_pub)
-        })
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || workspace_context_work(root, net, cap, is_pub))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -2627,15 +3008,14 @@ impl MintMcp {
         Parameters(args): Parameters<GitkrakenHostedToolNameArgs>,
     ) -> Result<CallToolResult, McpError> {
         let name = args.tool_name.clone();
-        let out =
-            tokio::task::spawn_blocking(move || gitkraken_hosted_tool_redirect_work(&name))
-                .await
-                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || gitkraken_hosted_tool_redirect_work(&name))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
     #[tool(
-        description = "Read-only snapshot of MINT_* gate variables (PROJECT_ROOT values redacted to length only). Safe on MINT_NETWORK_PROFILE=public.",
+        description = "Read-only snapshot of PB_* / MINT_* gate variables (PROJECT_ROOT values redacted to length only). Safe on PB_NETWORK_PROFILE / MINT_NETWORK_PROFILE=public.",
         annotations(title = "MCP env hints", read_only_hint = true)
     )]
     async fn mcp_env_hints(
@@ -2836,7 +3216,10 @@ impl MintMcp {
                 Ok(pb) => pb,
                 Err(e) => return Self::tool_text(format!("Error: {e}")),
             },
-            _ => self.root.canonicalize().unwrap_or_else(|_| self.root.clone()),
+            _ => self
+                .root
+                .canonicalize()
+                .unwrap_or_else(|_| self.root.clone()),
         };
         let timeout_ms = args.timeout_ms.clamp(1, 120_000);
         let program = args.program.clone();
@@ -2934,7 +3317,10 @@ impl MintMcp {
                 Ok(pb) => pb,
                 Err(e) => return Self::tool_text(format!("Error: {e}")),
             },
-            _ => self.root.canonicalize().unwrap_or_else(|_| self.root.clone()),
+            _ => self
+                .root
+                .canonicalize()
+                .unwrap_or_else(|_| self.root.clone()),
         };
         let timeout_ms = args.timeout_ms.clamp(1, 120_000);
         let program = args.program.clone();
@@ -3146,7 +3532,10 @@ impl MintMcp {
 
     #[tool(
         description = "Full-screen capture to `.mint-mcp/screenshots/<output_name>.png` using `grim` (Wayland) or `screencapture` (macOS). Blocked on public profile. Requires MINT_TERMINAL_ENABLE=1 and grim/screencapture in MINT_TERMINAL_ALLOW. Chain ocr_tesseract on the saved path.",
-        annotations(title = "Screenshot capture (grim / screencapture)", read_only_hint = false)
+        annotations(
+            title = "Screenshot capture (grim / screencapture)",
+            read_only_hint = false
+        )
     )]
     async fn screenshot_capture(
         &self,
@@ -3155,11 +3544,24 @@ impl MintMcp {
         if let Err(e) = self.require_trusted_deployment() {
             return Self::tool_text(e);
         }
-        let root = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
+        let root = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
         let backend = args.backend.clone();
         let output_name = args.output_name.clone();
         let out = tokio::task::spawn_blocking(move || {
-            screenshot_capture_work(root, &backend, output_name)
+            let output_path = if output_name.is_empty() {
+                None
+            } else {
+                Some(root.join(&output_name))
+            };
+            let display_env = if backend.is_empty() {
+                None
+            } else {
+                Some(backend)
+            };
+            screenshot_capture_work(output_path, display_env)
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -3177,7 +3579,10 @@ impl MintMcp {
         if let Err(e) = self.require_trusted_deployment() {
             return Self::tool_text(e);
         }
-        let root = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
+        let root = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
         let name = args.name.clone();
         let content = args.content.clone();
         let maxb = args.max_store_bytes;
@@ -3200,7 +3605,10 @@ impl MintMcp {
         if let Err(e) = self.require_trusted_deployment() {
             return Self::tool_text(e);
         }
-        let root = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
+        let root = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
         let name = args.name.clone();
         let maxr = args.max_read_bytes;
         let out = tokio::task::spawn_blocking(move || workspace_temp_read_work(root, name, maxr))
@@ -3220,7 +3628,10 @@ impl MintMcp {
         if let Err(e) = self.require_trusted_deployment() {
             return Self::tool_text(e);
         }
-        let root = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
+        let root = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
         let limit = args.limit;
         let out = tokio::task::spawn_blocking(move || workspace_temp_list_work(root, limit))
             .await
@@ -3239,7 +3650,10 @@ impl MintMcp {
         if let Err(e) = self.require_trusted_deployment() {
             return Self::tool_text(e);
         }
-        let root = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
+        let root = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
         let name = args.name.clone();
         let out = tokio::task::spawn_blocking(move || workspace_temp_delete_work(root, name))
             .await
@@ -3429,10 +3843,9 @@ impl MintMcp {
 
         let glob = args.glob.clone();
         let max_f = args.max_files;
-        let out =
-            tokio::task::spawn_blocking(move || find_files_work(search_root, glob, max_f))
-                .await
-                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || find_files_work(search_root, glob, max_f))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
 
         Self::tool_text(out)
     }
@@ -3628,7 +4041,10 @@ impl MintMcp {
         if let Err(e) = self.require_trusted_deployment() {
             return Self::tool_text(e);
         }
-        let base = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
+        let base = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
         let subtree = match self.resolve_path(&args.path) {
             Ok(p) => p,
             Err(e) => return Self::tool_text(format!("Error: {e}")),
@@ -3651,7 +4067,10 @@ impl MintMcp {
         &self,
         Parameters(args): Parameters<CodeIndexSearchArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let base = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
+        let base = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
         let needle = args.needle.clone();
         let cs = args.case_sensitive;
         let limit = args.limit;
@@ -3673,10 +4092,14 @@ impl MintMcp {
         &self,
         Parameters(_args): Parameters<EmptyArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let base = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
-        let out = tokio::task::spawn_blocking(move || crate::code_index::code_index_status_work(base))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let base = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
+        let out =
+            tokio::task::spawn_blocking(move || crate::code_index::code_index_status_work(base))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -3688,7 +4111,10 @@ impl MintMcp {
         &self,
         Parameters(args): Parameters<CodeIndexFileSymbolsPathArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let base = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
+        let base = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
         let rel = args.path.clone();
         let out = tokio::task::spawn_blocking(move || {
             crate::code_index::code_index_file_symbols_work(base, rel)
@@ -3706,7 +4132,10 @@ impl MintMcp {
         &self,
         Parameters(_args): Parameters<EmptyArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let base = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
+        let base = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
         let out = tokio::task::spawn_blocking(move || {
             crate::code_index::code_index_aggregate_stats_work(base)
         })
@@ -3723,7 +4152,10 @@ impl MintMcp {
         &self,
         Parameters(args): Parameters<CodeIndexPathsPrefixArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let base = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
+        let base = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
         let prefix = args.prefix.clone();
         let limit = args.limit;
         let out = tokio::task::spawn_blocking(move || {
@@ -3742,7 +4174,10 @@ impl MintMcp {
         &self,
         Parameters(args): Parameters<CodeIndexAnalyticsLimitArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let base = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
+        let base = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
         let limit = args.limit;
         let out = tokio::task::spawn_blocking(move || {
             crate::code_index::code_index_extension_histogram_work(base, limit)
@@ -3760,7 +4195,10 @@ impl MintMcp {
         &self,
         Parameters(args): Parameters<CodeIndexAnalyticsLimitArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let base = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
+        let base = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
         let limit = args.limit;
         let out = tokio::task::spawn_blocking(move || {
             crate::code_index::code_index_symbol_frequency_work(base, limit)
@@ -3778,7 +4216,10 @@ impl MintMcp {
         &self,
         Parameters(args): Parameters<CodeIndexPathSubstringArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let base = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
+        let base = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
         let needle = args.needle.clone();
         let limit = args.limit;
         let cs = args.case_sensitive;
@@ -3798,7 +4239,10 @@ impl MintMcp {
         &self,
         Parameters(args): Parameters<CodeIndexSymbolPrefixArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let base = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
+        let base = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
         let prefix = args.prefix.clone();
         let limit = args.limit;
         let cs = args.case_sensitive;
@@ -3818,7 +4262,10 @@ impl MintMcp {
         &self,
         Parameters(args): Parameters<CodeIndexDuplicateSymbolsArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let base = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
+        let base = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
         let minf = args.min_files;
         let limit = args.limit;
         let out = tokio::task::spawn_blocking(move || {
@@ -3837,7 +4284,10 @@ impl MintMcp {
         &self,
         Parameters(args): Parameters<CodeIndexPathsWithoutSymbolsArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let base = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
+        let base = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
         let limit = args.limit;
         let out = tokio::task::spawn_blocking(move || {
             crate::code_index::code_index_paths_without_symbols_work(base, limit)
@@ -4359,9 +4809,10 @@ impl MintMcp {
         };
         let fp = args.file_path.clone();
         let gr = args.git_ref.clone();
-        let out = tokio::task::spawn_blocking(move || repository_get_file_content_work(dir, fp, gr))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || repository_get_file_content_work(dir, fp, gr))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -4455,11 +4906,9 @@ impl MintMcp {
                 );
             }
         };
-        let out = tokio::task::spawn_blocking(move || {
-            git_blame_work(repo, file_rel, 1, 400, None)
-        })
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || git_blame_work(repo, file_rel, 1, 400, None))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -4621,11 +5070,10 @@ impl MintMcp {
         };
         let limit = args.limit;
         let oneline = args.oneline;
-        let out = tokio::task::spawn_blocking(move || {
-            git_log_work(repo, limit, path_in_repo, oneline)
-        })
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || git_log_work(repo, limit, path_in_repo, oneline))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -4970,11 +5418,9 @@ impl MintMcp {
         let text = args.text.clone();
         let ml = args.max_line_chars;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || {
-            compress_truncate_lines_work(text, ml, mc)
-        })
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || compress_truncate_lines_work(text, ml, mc))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -4989,11 +5435,9 @@ impl MintMcp {
         let text = args.text.clone();
         let mp = args.max_paths;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || {
-            summarize_diff_file_list_work(text, mp, mc)
-        })
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || summarize_diff_file_list_work(text, mp, mc))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5009,11 +5453,10 @@ impl MintMcp {
         let minl = args.min_token_len;
         let maxt = args.max_terms;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || {
-            summarize_top_terms_work(text, minl, maxt, mc)
-        })
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || summarize_top_terms_work(text, minl, maxt, mc))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5169,11 +5612,10 @@ impl MintMcp {
         let mo = args.min_occurrences;
         let me = args.max_entries;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || {
-            summarize_duplicate_lines_work(text, mo, me, mc)
-        })
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || summarize_duplicate_lines_work(text, mo, me, mc))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5244,11 +5686,9 @@ impl MintMcp {
         let text = args.text.clone();
         let prefix = args.prefix.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || {
-            format_prefix_lines_work(text, prefix, mc)
-        })
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || format_prefix_lines_work(text, prefix, mc))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5263,11 +5703,9 @@ impl MintMcp {
         let text = args.text.clone();
         let mp = args.max_paragraphs;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || {
-            compress_paragraphs_work(text, mp, mc)
-        })
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || compress_paragraphs_work(text, mp, mc))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5332,10 +5770,9 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let text = args.text.clone();
         let mc = args.max_chars;
-        let out =
-            tokio::task::spawn_blocking(move || compress_collapse_blank_lines_work(text, mc))
-                .await
-                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || compress_collapse_blank_lines_work(text, mc))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5350,11 +5787,10 @@ impl MintMcp {
         let text = args.text.clone();
         let mx = args.max_chars;
         let margin = args.margin_chars;
-        let out = tokio::task::spawn_blocking(move || {
-            compress_truncate_middle_work(text, mx, margin)
-        })
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || compress_truncate_middle_work(text, mx, margin))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5731,11 +6167,10 @@ impl MintMcp {
         let fold = args.fold_case;
         let mc = args.max_chars_each;
         let ms = args.max_tokens_scanned_per_text;
-        let out = tokio::task::spawn_blocking(move || {
-            text_token_jaccard_work(ta, tb, fold, mc, ms)
-        })
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || text_token_jaccard_work(ta, tb, fold, mc, ms))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5800,11 +6235,9 @@ impl MintMcp {
         segs.truncate(24);
         let max_c = args.max_chars;
         let max_s = args.max_sentences;
-        let out = tokio::task::spawn_blocking(move || {
-            summarize_segments_work(segs, max_c, max_s)
-        })
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || summarize_segments_work(segs, max_c, max_s))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5960,18 +6393,19 @@ impl MintMcp {
         };
         match (&text, &path_opt) {
             (Some(_), Some(_)) => {
-                return Self::tool_text("Error: provide only one of text or input_path".to_string());
+                return Self::tool_text(
+                    "Error: provide only one of text or input_path".to_string(),
+                );
             }
             (None, None) => {
                 return Self::tool_text("Error: provide text or input_path".to_string());
             }
             _ => {}
         }
-        let out = tokio::task::spawn_blocking(move || {
-            compress_gzip_base64_work(text, path_opt.as_ref())
-        })
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || compress_gzip_base64_work(text, path_opt.as_ref()))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -6058,13 +6492,14 @@ impl MintMcp {
         }
         if self.bus_read_only {
             return Self::tool_text(
-                "Error: bus is read-only (unset MINT_BUS_READ_ONLY or set to 0/false to allow agent_send)."
+                "Error: bus is read-only (unset PB_BUS_READ_ONLY / MINT_BUS_READ_ONLY or set to 0/false to allow agent_send)."
                     .to_string(),
             );
         }
         if !crate::bus::from_agent_acceptable(&args.from_agent) {
             return Self::tool_text(
-                "Error: from_agent must be a non-empty identifier (letters, digits, _.-)".to_string(),
+                "Error: from_agent must be a non-empty identifier (letters, digits, _.-)"
+                    .to_string(),
             );
         }
         if let Err(e) = self.bus_rate.try_record_send(&args.from_agent) {
@@ -6115,13 +6550,14 @@ impl MintMcp {
         }
         if self.bus_read_only {
             return Self::tool_text(
-                "Error: bus is read-only (unset MINT_BUS_READ_ONLY or set to 0/false to allow agent_handoff)."
+                "Error: bus is read-only (unset PB_BUS_READ_ONLY / MINT_BUS_READ_ONLY or set to 0/false to allow agent_handoff)."
                     .to_string(),
             );
         }
         if !crate::bus::from_agent_acceptable(&args.from_agent) {
             return Self::tool_text(
-                "Error: from_agent must be a non-empty identifier (letters, digits, _.-)".to_string(),
+                "Error: from_agent must be a non-empty identifier (letters, digits, _.-)"
+                    .to_string(),
             );
         }
         if !crate::bus::from_agent_acceptable(&args.to_agent) {
@@ -6206,26 +6642,26 @@ impl MintMcp {
         }
         if self.bus_read_only {
             return Self::tool_text(
-                "Error: bus is read-only (unset MINT_BUS_READ_ONLY or set to 0/false to allow agent_subagent_task)."
+                "Error: bus is read-only (unset PB_BUS_READ_ONLY / MINT_BUS_READ_ONLY or set to 0/false to allow agent_subagent_task)."
                     .to_string(),
             );
         }
         if !crate::bus::from_agent_acceptable(&args.from_agent) {
             return Self::tool_text(
-                "Error: from_agent must be a non-empty identifier (letters, digits, _.-)".to_string(),
+                "Error: from_agent must be a non-empty identifier (letters, digits, _.-)"
+                    .to_string(),
             );
         }
         if !crate::bus::from_agent_acceptable(&args.sub_agent) {
             return Self::tool_text(
-                "Error: sub_agent must be a non-empty identifier (letters, digits, _.-)".to_string(),
+                "Error: sub_agent must be a non-empty identifier (letters, digits, _.-)"
+                    .to_string(),
             );
         }
         let parent = crate::bus::normalized_agent_id(&args.from_agent);
         let sub = crate::bus::normalized_agent_id(&args.sub_agent);
         if sub == parent {
-            return Self::tool_text(
-                "Error: sub_agent must differ from from_agent".to_string(),
-            );
+            return Self::tool_text("Error: sub_agent must differ from from_agent".to_string());
         }
         if let Err(e) = self.bus_rate.try_record_send(&args.from_agent) {
             return Self::tool_text(format!("Error: {e}"));
@@ -6300,26 +6736,26 @@ impl MintMcp {
         }
         if self.bus_read_only {
             return Self::tool_text(
-                "Error: bus is read-only (unset MINT_BUS_READ_ONLY or set to 0/false to allow agent_subagent_done)."
+                "Error: bus is read-only (unset PB_BUS_READ_ONLY / MINT_BUS_READ_ONLY or set to 0/false to allow agent_subagent_done)."
                     .to_string(),
             );
         }
         if !crate::bus::from_agent_acceptable(&args.from_agent) {
             return Self::tool_text(
-                "Error: from_agent must be a non-empty identifier (letters, digits, _.-)".to_string(),
+                "Error: from_agent must be a non-empty identifier (letters, digits, _.-)"
+                    .to_string(),
             );
         }
         if !crate::bus::from_agent_acceptable(&args.parent_agent) {
             return Self::tool_text(
-                "Error: parent_agent must be a non-empty identifier (letters, digits, _.-)".to_string(),
+                "Error: parent_agent must be a non-empty identifier (letters, digits, _.-)"
+                    .to_string(),
             );
         }
         let sub_n = crate::bus::normalized_agent_id(&args.from_agent);
         let par_n = crate::bus::normalized_agent_id(&args.parent_agent);
         if sub_n == par_n {
-            return Self::tool_text(
-                "Error: parent_agent must differ from from_agent".to_string(),
-            );
+            return Self::tool_text("Error: parent_agent must differ from from_agent".to_string());
         }
         if let Err(e) = self.bus_rate.try_record_send(&args.from_agent) {
             return Self::tool_text(format!("Error: {e}"));
@@ -6381,12 +6817,14 @@ impl MintMcp {
         }
         if self.bus_read_only {
             return Self::tool_text(
-                "Error: bus is read-only; unset MINT_BUS_READ_ONLY to allow agent_fan_out.".to_string(),
+                "Error: bus is read-only; unset PB_BUS_READ_ONLY / MINT_BUS_READ_ONLY to allow agent_fan_out."
+                    .to_string(),
             );
         }
         if !crate::bus::from_agent_acceptable(&args.from_agent) {
             return Self::tool_text(
-                "Error: from_agent must be a non-empty identifier (letters, digits, _.-)".to_string(),
+                "Error: from_agent must be a non-empty identifier (letters, digits, _.-)"
+                    .to_string(),
             );
         }
         if args.to_agents.is_empty() {
@@ -6442,13 +6880,14 @@ impl MintMcp {
         }
         if self.bus_read_only {
             return Self::tool_text(
-                "Error: bus is read-only; unset MINT_BUS_READ_ONLY to allow agent_send_pipeline."
+                "Error: bus is read-only; unset PB_BUS_READ_ONLY / MINT_BUS_READ_ONLY to allow agent_send_pipeline."
                     .to_string(),
             );
         }
         if !crate::bus::from_agent_acceptable(&args.from_agent) {
             return Self::tool_text(
-                "Error: from_agent must be a non-empty identifier (letters, digits, _.-)".to_string(),
+                "Error: from_agent must be a non-empty identifier (letters, digits, _.-)"
+                    .to_string(),
             );
         }
         if args.steps.is_empty() {
@@ -6462,10 +6901,7 @@ impl MintMcp {
         }
         for (i, st) in args.steps.iter().enumerate() {
             if st.message.trim().is_empty() {
-                return Self::tool_text(format!(
-                    "Error: step {} has an empty message",
-                    i + 1
-                ));
+                return Self::tool_text(format!("Error: step {} has an empty message", i + 1));
             }
         }
         let n = args.steps.len() as u32;
@@ -6481,11 +6917,10 @@ impl MintMcp {
             .map(|s| (s.message, s.to_agent, s.topic, s.kind))
             .collect();
 
-        let out = tokio::task::spawn_blocking(move || {
-            crate::bus::agent_send_pipeline(root, from, steps)
-        })
-        .await
-        .unwrap_or_else(|e| Err(format!("task failed: {e}")));
+        let out =
+            tokio::task::spawn_blocking(move || crate::bus::agent_send_pipeline(root, from, steps))
+                .await
+                .unwrap_or_else(|e| Err(format!("task failed: {e}")));
 
         let out = match out {
             Ok(s) => s,
@@ -6528,7 +6963,10 @@ impl MintMcp {
 
     #[tool(
         description = "Fan-in: one bus read, then inboxes for up to 16 for_agents (same limit/since/skip for all). Safer and faster than many agent_inbox calls when polling a team.",
-        annotations(title = "Agent bus: multi-inbox (parallel read)", read_only_hint = true)
+        annotations(
+            title = "Agent bus: multi-inbox (parallel read)",
+            read_only_hint = true
+        )
     )]
     async fn agent_multi_inbox(
         &self,
@@ -6596,9 +7034,11 @@ impl MintMcp {
         let limit = args.limit;
         let since = args.since_ts_ms;
 
-        let out = tokio::task::spawn_blocking(move || match crate::bus::agent_recent(root, limit, since) {
-            Ok(s) => s,
-            Err(e) => format!("Error: {e}"),
+        let out = tokio::task::spawn_blocking(move || {
+            match crate::bus::agent_recent(root, limit, since) {
+                Ok(s) => s,
+                Err(e) => format!("Error: {e}"),
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -6766,11 +7206,10 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let claims = args.claims.clone();
         let max_chars = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || {
-            thinking_assumption_audit_work(claims, max_chars)
-        })
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || thinking_assumption_audit_work(claims, max_chars))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -6785,7 +7224,10 @@ impl MintMcp {
         if let Err(e) = self.require_trusted_deployment() {
             return Self::tool_text(e);
         }
-        let root = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
+        let root = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
         let note = args.note.clone();
         let out = tokio::task::spawn_blocking(move || thinking_session_append_work(root, note))
             .await
@@ -6804,7 +7246,10 @@ impl MintMcp {
         if let Err(e) = self.require_trusted_deployment() {
             return Self::tool_text(e);
         }
-        let root = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
+        let root = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
         let tail = args.tail_lines;
         let out = tokio::task::spawn_blocking(move || thinking_session_read_work(root, tail))
             .await
@@ -6943,11 +7388,10 @@ impl MintMcp {
         let project = args.project.clone();
         let timeframe = args.timeframe.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || {
-            reasoning_premortem_work(project, timeframe, mc)
-        })
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || reasoning_premortem_work(project, timeframe, mc))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -6979,11 +7423,9 @@ impl MintMcp {
         let st = args.steps.clone();
         let oq = args.open_question.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || {
-            reasoning_chain_work(pr, st, oq, mc)
-        })
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || reasoning_chain_work(pr, st, oq, mc))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -6998,11 +7440,9 @@ impl MintMcp {
         let c = args.claim.clone();
         let ctx = args.context.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || {
-            reasoning_devils_advocate_work(c, ctx, mc)
-        })
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || reasoning_devils_advocate_work(c, ctx, mc))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -7036,8 +7476,12 @@ impl MintMcp {
             .unwrap_or_else(|_| self.root.clone());
         let ts = Self::now_ms();
         let bus_present = root.join(".mint-mcp").join("agent-bus.jsonl").exists();
-        let max_send = std::env::var("MINT_BUS_MAX_SENDS_PER_WINDOW").unwrap_or_else(|_| "120".to_string());
-        let win_ms = std::env::var("MINT_BUS_RATE_WINDOW_MS").unwrap_or_else(|_| "60000".to_string());
+        let max_send = std::env::var("PB_BUS_MAX_SENDS_PER_WINDOW")
+            .or_else(|_| std::env::var("MINT_BUS_MAX_SENDS_PER_WINDOW"))
+            .unwrap_or_else(|_| "120".to_string());
+        let win_ms = std::env::var("PB_BUS_RATE_WINDOW_MS")
+            .or_else(|_| std::env::var("MINT_BUS_RATE_WINDOW_MS"))
+            .unwrap_or_else(|_| "60000".to_string());
         let term_on = crate::ops::terminal_enabled();
         let pt = crate::ops::project_test_tools_enabled();
         let gitw = crate::ops::git_write_enabled();
@@ -7054,24 +7498,28 @@ impl MintMcp {
         s.push_str(&format!("server_ts_ms: {ts}\n"));
         s.push_str(&format!("platform: os={os} arch={arch} family={family}\n"));
         s.push_str(&format!("project_root: {}\n", root.display()));
-        s.push_str(&format!("MINT_NETWORK_PROFILE: {net} (server_sleep_cap_ms={sleep_cap})\n"));
+        s.push_str(&format!(
+            "PB_NETWORK_PROFILE / MINT_NETWORK_PROFILE: {net} (server_sleep_cap_ms={sleep_cap})\n"
+        ));
         s.push_str(&format!("bus_file_present: {bus_present}\n"));
         s.push_str(&format!("bus_read_only: {}\n", self.bus_read_only));
         s.push_str(&format!(
-            "rate_limit: MINT_BUS_MAX_SENDS_PER_WINDOW={max_send} (0=off), MINT_BUS_RATE_WINDOW_MS={win_ms}\n"
+        "rate_limit: PB_BUS_MAX_SENDS_PER_WINDOW / MINT_BUS_MAX_SENDS_PER_WINDOW={max_send} (0=off), PB_BUS_RATE_WINDOW_MS / MINT_BUS_RATE_WINDOW_MS={win_ms}\n"
         ));
         s.push_str(&format!(
-            "gates: MINT_TERMINAL_ENABLE active={term_on} (terminal_run, terminal_run_stdin, terminal_which); MINT_PROJECT_TEST_ENABLE active={pt} (project_cargo_test, project_cargo_check, project_pytest); MINT_GIT_WRITE_ENABLE active={gitw}; MINT_GIT_PUSH_ENABLE active={push_on}; MINT_GIT_REMOTE_ENABLE active={remote_on} (git_fetch, git_pull)\n"
+        "gates: PB_TERMINAL_ENABLE / MINT_TERMINAL_ENABLE active={term_on} (terminal_run, terminal_run_stdin, terminal_which); PB_PROJECT_TEST_ENABLE / MINT_PROJECT_TEST_ENABLE active={pt} (project_cargo_test, project_cargo_check, project_pytest); PB_GIT_WRITE_ENABLE / MINT_GIT_WRITE_ENABLE active={gitw}; PB_GIT_PUSH_ENABLE / MINT_GIT_PUSH_ENABLE active={push_on}; PB_GIT_REMOTE_ENABLE / MINT_GIT_REMOTE_ENABLE active={remote_on} (git_fetch, git_pull)\n"
         ));
         s.push_str("thinking_session_append/read touch .mint-mcp/agent-thinking.log (same trusted-profile gate as other local writes).\n");
         s.push_str("\nAsync: agent_send + agent_inbox / agent_recent with since_ts_ms (low latency per call).\n");
         s.push_str("Subagent flow: agent_subagent_task -> agent_subagent_done (DM parent).\n");
-        s.push_str("Parallel batch: agent_fan_out, agent_multi_inbox, agent_coordination_snapshot.\n");
+        s.push_str(
+            "Parallel batch: agent_fan_out, agent_multi_inbox, agent_coordination_snapshot.\n",
+        );
         s.push_str("Serial batch: agent_send_pipeline (ordered posts, one lock).\n");
         s.push_str("Sync wait: agent_inbox_wait, agent_topic_wait, ask_agents.\n");
-        s.push_str("Diagnostics: mcp_env_hints (MINT_* gates; root paths redacted).\n");
-        s.push_str("Security: paths under project root; MINT_BUS_READ_ONLY; rate limits; MINT_NETWORK_PROFILE=public blocks bus writes, terminal/PR CLI, risky git, manifest, code_index_build, convert file output, and tightens waits.\n");
-        s.push_str("Default MINT_TERMINAL_ALLOW includes gh,glab for optional PR/MR tools when MINT_TERMINAL_ENABLE=1.\n");
+        s.push_str("Diagnostics: mcp_env_hints (PB_* / MINT_* gates; root paths redacted).\n");
+        s.push_str("Security: paths under project root; PB_BUS_READ_ONLY / MINT_BUS_READ_ONLY; rate limits; PB_NETWORK_PROFILE / MINT_NETWORK_PROFILE=public blocks bus writes, terminal/PR CLI, risky git, manifest, code_index_build, convert file output, and tightens waits.\n");
+        s.push_str("Default PB_TERMINAL_ALLOW / MINT_TERMINAL_ALLOW includes gh,glab for optional PR/MR tools when PB_TERMINAL_ENABLE / MINT_TERMINAL_ENABLE=1.\n");
         Self::tool_text(s)
     }
 
@@ -7230,20 +7678,25 @@ impl MintMcp {
         }
         if self.bus_read_only {
             return Self::tool_text(
-                "Error: bus is read-only; ask_agents posts to the bus. Unset MINT_BUS_READ_ONLY."
+                "Error: bus is read-only; ask_agents posts to the bus. Unset PB_BUS_READ_ONLY / MINT_BUS_READ_ONLY."
                     .to_string(),
             );
         }
         if !crate::bus::from_agent_acceptable(&from_agent) {
             return Self::tool_text(
-                "Error: from_agent must be a non-empty identifier (letters, digits, _.-)".to_string(),
+                "Error: from_agent must be a non-empty identifier (letters, digits, _.-)"
+                    .to_string(),
             );
         }
         if let Err(e) = self.bus_rate.try_record_send(&from_agent) {
             return Self::tool_text(format!("Error: {e}"));
         }
 
-        let topic = args.topic.clone().filter(|t| !t.trim().is_empty()).unwrap_or_else(Self::new_topic);
+        let topic = args
+            .topic
+            .clone()
+            .filter(|t| !t.trim().is_empty())
+            .unwrap_or_else(Self::new_topic);
         let ask_cap = self.ask_agents_timeout_cap_ms();
         let timeout_ms = args.timeout_ms.clamp(250, ask_cap);
         let limit = args.limit.clamp(1, 50);
@@ -7254,7 +7707,16 @@ impl MintMcp {
             let from_agent = from_agent.clone();
             let topic = topic.clone();
             let query = query.clone();
-            move || crate::bus::agent_send(root, from_agent, query, None, Some(topic), Some("question".to_string()))
+            move || {
+                crate::bus::agent_send(
+                    root,
+                    from_agent,
+                    query,
+                    None,
+                    Some(topic),
+                    Some("question".to_string()),
+                )
+            }
         })
         .await
         .unwrap_or_else(|e| Err(format!("task failed: {e}")));
@@ -7299,8 +7761,13 @@ impl MintMcp {
 
         let mut out = String::new();
         out.push_str("ASK_AGENTS\n");
-        out.push_str(&format!("topic: {topic}\nmessage_id: {msg_id}\nfrom_agent: {from_agent}\n"));
-        out.push_str(&format!("timeout_ms: {timeout_ms}\nreplies: {}\n\n", replies.len()));
+        out.push_str(&format!(
+            "topic: {topic}\nmessage_id: {msg_id}\nfrom_agent: {from_agent}\n"
+        ));
+        out.push_str(&format!(
+            "timeout_ms: {timeout_ms}\nreplies: {}\n\n",
+            replies.len()
+        ));
         out.push_str("question:\n");
         out.push_str(&query);
         out.push_str("\n\n---\n\n");
@@ -7316,6 +7783,486 @@ impl MintMcp {
             }
         }
 
+        Self::tool_text(out)
+    }
+
+    // ---- Consensus tools ----
+
+    #[tool(
+        description = "Create a new consensus proposal. Other agents can then vote on it using consensus_vote. Returns the proposal ID and details.",
+        annotations(title = "Consensus: propose", read_only_hint = false)
+    )]
+    async fn consensus_propose(
+        &self,
+        Parameters(args): Parameters<ConsensusProposeArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let options: Vec<String> = args
+            .options
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        if options.len() < 2 {
+            return Self::tool_text(
+                "Error: options must contain at least 2 comma-separated choices.".to_string(),
+            );
+        }
+        let strategy = match args.strategy.to_lowercase().as_str() {
+            "simplemajority" | "simple_majority" | "simple-majority" => crate::agent::consensus::ConsensusStrategy::SimpleMajority,
+            "supermajority" | "super_majority" | "super-majority" => crate::agent::consensus::ConsensusStrategy::SuperMajority,
+            "unanimous" => crate::agent::consensus::ConsensusStrategy::Unanimous,
+            "weightedvoting" | "weighted_voting" | "weighted-voting" | "weighted" => crate::agent::consensus::ConsensusStrategy::WeightedVoting,
+            "rankedchoice" | "ranked_choice" | "ranked-choice" | "ranked" => crate::agent::consensus::ConsensusStrategy::RankedChoice,
+            "delegation" => crate::agent::consensus::ConsensusStrategy::Delegation,
+            _ => return Self::tool_text(format!("Error: unknown strategy '{}'. Valid: SimpleMajority, SuperMajority, Unanimous, WeightedVoting, RankedChoice, Delegation.", args.strategy)),
+        };
+        let engine = self.consensus_engine.clone();
+        let from = args.from_agent.clone();
+        let topic = args.topic.clone();
+        let desc = args.description.clone();
+        let deadline = args.deadline_ms;
+        let out = tokio::task::spawn_blocking(move || {
+            let mut eng = engine.lock().unwrap();
+            let p = eng.create_proposal(from, topic, desc, options, deadline, strategy);
+            format!(
+                "CONSENSUS_PROPOSE\nid: {}\nproposer: {}\ntopic: {}\nstrategy: {:?}\ndeadline_ms: {}\nstatus: {:?}\noptions: {}\ncreated_at: {}",
+                p.id, p.proposer, p.topic, p.strategy, p.deadline_ms, p.status,
+                p.options.join(", "), p.created_at
+            )
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Cast a vote on an open consensus proposal. Each agent may vote only once per proposal.",
+        annotations(title = "Consensus: vote", read_only_hint = false)
+    )]
+    async fn consensus_vote(
+        &self,
+        Parameters(args): Parameters<ConsensusVoteArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let engine = self.consensus_engine.clone();
+        let pid = args.proposal_id.clone();
+        let voter = args.voter.clone();
+        let choice = args.choice.clone();
+        let conf = args.confidence.clamp(0.0, 1.0);
+        let rationale = args.rationale.clone();
+        let out = tokio::task::spawn_blocking(move || {
+            let mut eng = engine.lock().unwrap();
+            match eng.cast_vote(&pid, voter.clone(), choice.clone(), conf, rationale) {
+                Ok(()) => format!("CONSENSUS_VOTE\nproposal: {}\nvoter: {}\nchoice: {}\nconfidence: {:.2}\nstatus: recorded", pid, voter, choice, conf),
+                Err(e) => format!("Error: {e}"),
+            }
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Tally the current votes on a proposal without closing it. Shows per-option counts, participation rate, and whether consensus has been reached.",
+        annotations(title = "Consensus: tally", read_only_hint = true)
+    )]
+    async fn consensus_tally(
+        &self,
+        Parameters(args): Parameters<ConsensusTallyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let engine = self.consensus_engine.clone();
+        let pid = args.proposal_id.clone();
+        let out = tokio::task::spawn_blocking(move || {
+            let eng = engine.lock().unwrap();
+            match eng.tally(&pid) {
+                Ok(r) => {
+                    let mut tally_lines: Vec<String> = r.tally.iter().map(|(k, v)| format!("  {k}: {v}")).collect();
+                    tally_lines.sort();
+                    format!(
+                        "CONSENSUS_TALLY\nproposal: {}\nwinning_option: {}\nconsensus_reached: {}\nparticipation_rate: {:.1}%\ntally:\n{}\ndeciding_voters: {}",
+                        pid,
+                        r.winning_option.as_deref().unwrap_or("(none)"),
+                        r.consensus_reached,
+                        r.participation_rate * 100.0,
+                        tally_lines.join("\n"),
+                        r.deciding_voters.join(", ")
+                    )
+                }
+                Err(e) => format!("Error: {e}"),
+            }
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "List all open proposals that are still accepting votes.",
+        annotations(title = "Consensus: list open proposals", read_only_hint = true)
+    )]
+    async fn consensus_list(
+        &self,
+        Parameters(_args): Parameters<EmptyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let engine = self.consensus_engine.clone();
+        let out = tokio::task::spawn_blocking(move || {
+            let eng = engine.lock().unwrap();
+            let open = eng.list_open();
+            if open.is_empty() {
+                return "CONSENSUS_LIST\nNo open proposals.".to_string();
+            }
+            let mut s = format!("CONSENSUS_LIST\nOpen proposals: {}\n\n", open.len());
+            for p in open {
+                s.push_str(&format!(
+                    "id: {} | proposer: {} | topic: {} | strategy: {:?} | options: {} | votes: {} | deadline_ms: {}\n",
+                    p.id, p.proposer, p.topic, p.strategy, p.options.join(", "), p.votes.len(), p.deadline_ms
+                ));
+            }
+            s
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Close a proposal, tally the final results, and persist the outcome. No further votes will be accepted.",
+        annotations(title = "Consensus: close proposal", read_only_hint = false)
+    )]
+    async fn consensus_close(
+        &self,
+        Parameters(args): Parameters<ConsensusCloseArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let engine = self.consensus_engine.clone();
+        let pid = args.proposal_id.clone();
+        let out = tokio::task::spawn_blocking(move || {
+            let mut eng = engine.lock().unwrap();
+            match eng.close_proposal(&pid) {
+                Ok(r) => {
+                    let mut tally_lines: Vec<String> = r.tally.iter().map(|(k, v)| format!("  {k}: {v}")).collect();
+                    tally_lines.sort();
+                    format!(
+                        "CONSENSUS_CLOSE\nproposal: {}\nwinning_option: {}\nconsensus_reached: {}\nparticipation_rate: {:.1}%\ntally:\n{}\ndeciding_voters: {}\nstatus: Closed",
+                        pid,
+                        r.winning_option.as_deref().unwrap_or("(none)"),
+                        r.consensus_reached,
+                        r.participation_rate * 100.0,
+                        tally_lines.join("\n"),
+                        r.deciding_voters.join(", ")
+                    )
+                }
+                Err(e) => format!("Error: {e}"),
+            }
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    // ---- Review tools ----
+
+    #[tool(
+        description = "Analyze diff for risk patterns (large diffs, risky file types, complex changes).",
+        annotations(title = "Review: diff risk", read_only_hint = true)
+    )]
+    async fn review_diff_risk(
+        &self,
+        Parameters(args): Parameters<ReviewDiffRiskArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let root = self.root.clone();
+        let staged = args.staged;
+        let revision_range = args.revision_range.clone();
+        let out: String = tokio::task::spawn_blocking(move || {
+            review_diff_risk_work(root, staged, revision_range)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Focused review of diff changes for a specific concern (security, performance, correctness, maintainability, or style).",
+        annotations(title = "Review: focused review", read_only_hint = true)
+    )]
+    async fn review_focused_review(
+        &self,
+        Parameters(args): Parameters<ReviewFocusedReviewArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let root = self.root.clone();
+        let focus = args.focus.clone();
+        let staged = args.staged;
+        let revision_range = args.revision_range.clone();
+        let out: String = tokio::task::spawn_blocking(move || {
+            review_focused_review_work(root, focus, staged, revision_range)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Scan diff for functions or modules that changed but lack corresponding test changes.",
+        annotations(title = "Review: missing tests", read_only_hint = true)
+    )]
+    async fn review_missing_tests(
+        &self,
+        Parameters(args): Parameters<ReviewMissingTestsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let root = self.root.clone();
+        let staged = args.staged;
+        let revision_range = args.revision_range.clone();
+        let out: String = tokio::task::spawn_blocking(move || {
+            review_missing_tests_work(root, staged, revision_range)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Generate a PR packet (summary, changed files, risk notes) from a revision range.",
+        annotations(title = "Review: PR packet", read_only_hint = true)
+    )]
+    async fn review_pr_packet(
+        &self,
+        Parameters(args): Parameters<ReviewPrPacketArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let root = self.root.clone();
+        let revision_range = args.revision_range.clone();
+        let out: String =
+            tokio::task::spawn_blocking(move || review_pr_packet_work(root, revision_range))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Check diff against a custom rulebook file for policy or convention violations.",
+        annotations(title = "Review: rulebook check", read_only_hint = true)
+    )]
+    async fn review_rulebook_check(
+        &self,
+        Parameters(args): Parameters<ReviewRulebookCheckArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let root = self.root.clone();
+        let rulebook_path = match self.resolve_path(&args.rulebook_path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let staged = args.staged;
+        let revision_range = args.revision_range.clone();
+        let out: String = tokio::task::spawn_blocking(move || {
+            review_rulebook_check_work(root, rulebook_path, staged, revision_range)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    // ---- Debug tools ----
+
+    #[tool(
+        description = "Execute a command under a trace, recording invocation and output for later replay.",
+        annotations(title = "Debug: trace run", read_only_hint = false)
+    )]
+    async fn debug_trace_run(
+        &self,
+        Parameters(args): Parameters<DebugTraceRunArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let root = self.root.clone();
+        let trace_id = args.trace_id.clone();
+        let command = args.command.clone();
+        let trace_args = args.args.clone();
+        let out: String = tokio::task::spawn_blocking(move || {
+            debug_trace_run_work(root, trace_id, command, trace_args)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Replay a previously traced run; use dry_run=true to preview without execution.",
+        annotations(title = "Debug: replay run", read_only_hint = true)
+    )]
+    async fn debug_replay_run(
+        &self,
+        Parameters(args): Parameters<DebugReplayRunArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let root = self.root.clone();
+        let trace_id = args.trace_id.clone();
+        let dry_run = args.dry_run;
+        let out: String =
+            tokio::task::spawn_blocking(move || debug_replay_run_work(root, trace_id, dry_run))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Cluster past trace failures by similarity to find recurring error patterns.",
+        annotations(title = "Debug: failure cluster", read_only_hint = true)
+    )]
+    async fn debug_failure_cluster(
+        &self,
+        Parameters(args): Parameters<DebugFailureClusterArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let root = self.root.clone();
+        let trace_dir = args.trace_dir.clone();
+        let min_cluster_size = args.min_cluster_size;
+        let out: String = tokio::task::spawn_blocking(move || {
+            debug_failure_cluster_work(root, trace_dir, min_cluster_size)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Generate a root-cause analysis report from a specific trace.",
+        annotations(title = "Debug: root cause report", read_only_hint = true)
+    )]
+    async fn debug_root_cause_report(
+        &self,
+        Parameters(args): Parameters<DebugRootCauseReportArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let root = self.root.clone();
+        let trace_id = args.trace_id.clone();
+        let out: String =
+            tokio::task::spawn_blocking(move || debug_root_cause_report_work(root, trace_id))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    // ---- Code intelligence tools ----
+
+    #[tool(
+        description = "Dump a lightweight AST outline for a source file (language-agnostic heuristic parser).",
+        annotations(title = "Code: AST dump", read_only_hint = true)
+    )]
+    async fn code_ast_dump(
+        &self,
+        Parameters(args): Parameters<CodeAstDumpArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let language = args.language.clone();
+        let out: String = tokio::task::spawn_blocking(move || code_ast_dump_work(path, language))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Extract import/include/use statements from a source file.",
+        annotations(title = "Code: extract imports", read_only_hint = true)
+    )]
+    async fn code_extract_imports(
+        &self,
+        Parameters(args): Parameters<CodeExtractImportsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out: String = tokio::task::spawn_blocking(move || code_extract_imports_work(path))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Detect the programming language of a file (by extension and optional content heuristics).",
+        annotations(title = "Code: detect language", read_only_hint = true)
+    )]
+    async fn code_detect_language(
+        &self,
+        Parameters(args): Parameters<CodeDetectLanguageArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let content = args.content.clone();
+        let out: String =
+            tokio::task::spawn_blocking(move || code_detect_language_work(path, content))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Compute a cyclomatic-style complexity score for a source file.",
+        annotations(title = "Code: complexity score", read_only_hint = true)
+    )]
+    async fn code_complexity_score(
+        &self,
+        Parameters(args): Parameters<CodeComplexityScoreArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let content = args.content.clone();
+        let out: String =
+            tokio::task::spawn_blocking(move || code_complexity_score_work(path, content))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Scan a file or directory for likely dead code (unreachable, unused exports).",
+        annotations(title = "Code: dead code hints", read_only_hint = true)
+    )]
+    async fn code_dead_code_hints(
+        &self,
+        Parameters(args): Parameters<CodeDeadCodeHintsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let root = self.root.clone();
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out: String =
+            tokio::task::spawn_blocking(move || code_dead_code_hints_work(root, path))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 }
@@ -7341,9 +8288,9 @@ impl ServerHandler for MintMcp {
                 ),
         )
         .with_instructions(format!(
-            "Workspace root: {root_hint} (env: MINT_PROJECT_ROOT or PROJECT_ROOT; all paths must stay inside this directory).\n\
+            "Workspace root: {root_hint} (env: PB_PROJECT_ROOT / MINT_PROJECT_ROOT or PROJECT_ROOT; all paths must stay inside this directory).\n\
              \n\
-             MINT_NETWORK_PROFILE=local (default) vs public|internet|wan: on **public**, bus writes (agent_send, agent_handoff, fan_out, pipeline, ask_agents, subagent_task, subagent_done), terminal_run, terminal_run_stdin, gh_pr_*, glab_mr_*, git_checkout/stash/push/fetch/pull/add/commit/branch-create/worktree-add, gk_git_* write tools, codebase_manifest_write, code_index_build, thinking_session_append/read, workspace_temp_*, screenshot_capture, ocr_tesseract, ollama_list_models, and convert_format output_path are **blocked**; server_sleep, wait_until_timestamp, wait_for_path, agent_inbox_wait, agent_topic_wait, and ask_agents use **lower time caps**.\n\
+             PB_NETWORK_PROFILE / MINT_NETWORK_PROFILE=local (default) vs public|internet|wan: on **public**, bus writes (agent_send, agent_handoff, fan_out, pipeline, ask_agents, subagent_task, subagent_done), terminal_run, terminal_run_stdin, gh_pr_*, glab_mr_*, git_checkout/stash/push/fetch/pull/add/commit/branch-create/worktree-add, gk_git_* write tools, codebase_manifest_write, code_index_build, thinking_session_append/read, workspace_temp_*, screenshot_capture, ocr_tesseract, ollama_list_models, and convert_format output_path are **blocked**; server_sleep, wait_until_timestamp, wait_for_path, agent_inbox_wait, agent_topic_wait, and ask_agents use **lower time caps**.\n\
              \n\
              **GitKraken/GitLens cloud tools** (pull_request_*, issues_*, gitkraken_workspace_*, gitlens_launchpad/start_work/review, hosted APIs) are listed in `gitkraken_cloud_catalog` and require the official GitLens MCP + provider auth. This server implements **local-repo** git tools, **gk_*** aliases matching GitKraken parameter shapes, and optional **gh** / **glab** PR/MR helpers (local CLI, not hosted HTTP) when those binaries are allowlisted.\n\
              \n\
@@ -7352,15 +8299,15 @@ impl ServerHandler for MintMcp {
              2) project_tree, codebase_index, codebase_word_index, codebase_shallow_hash, codebase_path_list, codebase_largest_files, codebase_duplicate_basenames, codebase_cargo_dependency_names, codebase_manifest_write (local only), code_index_build/search/status/file_symbols/aggregate_stats/paths_prefix/path_substring/symbol_prefix/duplicate_symbols/paths_without_symbols/extension_histogram/symbol_frequency, find_files, grep_code.\n\
              3) read_file / read_file_tail; json_validate_file; mcp_env_hints; agent_coordination_playbook (bus patterns); ai_inference_integration_guide + ai_stack_probe + coding_agent_toolchains_catalog (optional CLIs / agent ecosystem map); gitkraken_cloud_catalog + gitkraken_hosted_tool_redirect; convert_format (+ yaml↔json, toml↔json, *_top_level_keys, sha256_hex, wrap_lines, remove_empty_lines, dedupe_adjacent_lines, slugify, c_string_escape, html_escape, …); compress_gzip_base64 / decompress_gzip_base64 (binary-safe blobs).\n\
              4) text_stats; summarize_token_estimate; compress_* (+ ws_collapse, simplify_whitespace, markdown_links, unified_diff_stats, truncate_lines, strip_tags, fenced_code_blocks, redact_urls/emails, markdown_frontmatter, double_slash_line_comments, drop_lines_matching_regex, dedent, lines head/tail, collapse_blank, truncate_middle); summarize_* (+ top_terms, identifier_frequency, duplicate_lines, line_histogram, line_prefix_groups, rank_lines_by_keywords, bullets, headings, markdown_toc, json_structure, delimited_header, diff_file_list, first_lines); text_levenshtein_distance; text_token_jaccard; text_longest_common_substring; text_djb2_hash; format_prefix_lines; pack_context (segment_labels).\n\
-             5) git_* and gk_git_* (GitKraken names); gh_pr_list/view + glab_mr_list/show when gh/glab are in MINT_TERMINAL_ALLOW; git_push needs MINT_GIT_PUSH_ENABLE=1; git_fetch/git_pull need MINT_GIT_REMOTE_ENABLE=1; trusted profile for remotes/terminal/PR CLI.\n\
-             6) terminal_run; terminal_run_stdin (stdin from text or project file, LAN); project_cargo_test, project_cargo_check, project_pytest when MINT_PROJECT_TEST_ENABLE=1 + cargo/pytest in MINT_TERMINAL_ALLOW (bounded argv; LAN/trusted); terminal_which; terminal_program_version; ocr_tesseract + ollama_list_models on trusted hosts with tesseract/ollama in MINT_TERMINAL_ALLOW; wait_for_path (optional poll_jitter_ms_max); server_sleep / wait_until_timestamp (optional reason on sleep, jitter).\n\
+             5) git_* and gk_git_* (GitKraken names); gh_pr_list/view + glab_mr_list/show when gh/glab are in PB_TERMINAL_ALLOW / MINT_TERMINAL_ALLOW; git_push needs PB_GIT_PUSH_ENABLE / MINT_GIT_PUSH_ENABLE=1; git_fetch/git_pull need PB_GIT_REMOTE_ENABLE / MINT_GIT_REMOTE_ENABLE=1; trusted profile for remotes/terminal/PR CLI.\n\
+             6) terminal_run; terminal_run_stdin (stdin from text or project file, LAN); project_cargo_test, project_cargo_check, project_pytest when PB_PROJECT_TEST_ENABLE / MINT_PROJECT_TEST_ENABLE=1 + cargo/pytest in PB_TERMINAL_ALLOW / MINT_TERMINAL_ALLOW (bounded argv; LAN/trusted); terminal_which; terminal_program_version; ocr_tesseract + ollama_list_models on trusted hosts with tesseract/ollama in PB_TERMINAL_ALLOW / MINT_TERMINAL_ALLOW; wait_for_path (optional poll_jitter_ms_max); server_sleep / wait_until_timestamp (optional reason on sleep, jitter).\n\
              7) thinking_plan_skeleton, thinking_step_back, thinking_assumption_audit (deterministic); thinking_session_append/read on trusted hosts only.\n\
              8) plan_execution_checklist, plan_handoff_brief (paste into subagent bodies), plan_work_buckets (parallel split), plan_risk_register, plan_definition_of_done, plan_test_strategy, plan_retrospective (test pyramid + retro scaffolds; pair with project_cargo_test / project_pytest).\n\
              9) reasoning_chain, reasoning_devils_advocate, reasoning_evidence_matrix, reasoning_premortem, reasoning_five_whys (structured argumentation / pre-mortem / root-cause ladder).\n\
              10) workspace_temp_* for scratch under .mint-mcp/agent-temp; screenshot_capture → .mint-mcp/screenshots/*.png then ocr_tesseract (trusted/LAN).\n\
              \n\
              Multi-agent: stable from_agent; agent_handoff + agent_subagent_task + agent_subagent_done; mcp_env_hints for gate vars; agent_coordination_playbook for serial/parallel/async patterns; async polls with since_ts_ms; sync: agent_inbox_wait, agent_topic_wait, ask_agents (trusted profile). Parallel: agent_fan_out, agent_multi_inbox, agent_coordination_snapshot. Serial: agent_send_pipeline.\n\
-             Security: MINT_BUS_READ_ONLY; rate limits; paths under root. Bus: .mint-mcp/agent-bus.jsonl.\n\
+             Security: PB_BUS_READ_ONLY / MINT_BUS_READ_ONLY; rate limits; paths under root. Bus: .mint-mcp/agent-bus.jsonl.\n\
              \n\
              Tools: workspace_context, gitkraken_cloud_catalog, coding_agent_toolchains_catalog, gitkraken_hosted_tool_redirect, mcp_env_hints, agent_coordination_playbook, ai_inference_integration_guide, ai_stack_probe, server_sleep, wait_until_timestamp, wait_for_path, terminal_run, terminal_run_stdin, project_cargo_test, project_cargo_check, project_pytest, terminal_which, terminal_program_version, screenshot_capture, workspace_temp_write, workspace_temp_read, workspace_temp_list, workspace_temp_delete, ocr_tesseract, ollama_list_models, gh_pr_list, gh_pr_view, glab_mr_list, glab_mr_show, read_file, read_file_tail, list_files, grep_code, find_files, find_files_by_name, \
              project_tree, codebase_index, codebase_word_index, codebase_shallow_hash, codebase_path_list, codebase_largest_files, codebase_duplicate_basenames, codebase_cargo_dependency_names, codebase_manifest_write, code_index_build, code_index_search, code_index_status, code_index_file_symbols, code_index_aggregate_stats, code_index_paths_prefix, code_index_path_substring, code_index_symbol_prefix, code_index_duplicate_symbols, code_index_paths_without_symbols, code_index_extension_histogram, code_index_symbol_frequency, file_info, file_stats, batch_file_info, json_validate_file, convert_format, compress_gzip_base64, decompress_gzip_base64, \
@@ -7370,7 +8317,7 @@ impl ServerHandler for MintMcp {
              summarize_text, summarize_top_terms, summarize_identifier_frequency, summarize_token_estimate, summarize_duplicate_lines, summarize_line_histogram, summarize_line_prefix_groups, summarize_rank_lines_by_keywords, summarize_bullets, summarize_headings, summarize_markdown_toc, summarize_json_structure, summarize_delimited_header, summarize_diff_file_list, summarize_first_lines, summarize_segments, summarize_file, summarize_multi_file, format_prefix_lines, pack_context, git_diff_snippets, text_levenshtein_distance, text_token_jaccard, text_longest_common_substring, text_djb2_hash, \
              thinking_plan_skeleton, thinking_step_back, thinking_assumption_audit, thinking_session_append, thinking_session_read, plan_execution_checklist, plan_handoff_brief, plan_work_buckets, plan_risk_register, plan_definition_of_done, plan_test_strategy, plan_retrospective, reasoning_premortem, reasoning_five_whys, reasoning_chain, reasoning_devils_advocate, reasoning_evidence_matrix, \
              agent_ping, agent_bus_compact, agent_bus_search, agent_bus_status, agent_coordination_snapshot, agent_list_topics, agent_roster, agent_get_message, \
-             agent_send, agent_handoff, agent_subagent_task, agent_subagent_done, agent_fan_out, agent_send_pipeline, agent_inbox, agent_multi_inbox, agent_inbox_wait, agent_thread, agent_topic_wait, agent_recent, ask_agents."
+             agent_send, agent_handoff, agent_subagent_task, agent_subagent_done, agent_fan_out, agent_send_pipeline, agent_inbox, agent_multi_inbox, agent_inbox_wait, agent_thread, agent_topic_wait, agent_recent, ask_agents, consensus_propose, consensus_vote, consensus_tally, consensus_list, consensus_close."
         ))
     }
 }

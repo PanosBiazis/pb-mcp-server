@@ -181,3 +181,37 @@
   "// - Always set MINT_PROJECT_ROOT to limit file access",
   "// - Terminal tools require MINT_TERMINAL_ENABLE=1": ""
 }
+
+
+{
+  "pb-mcp-server-local": {
+    "command": "C:\\pb-mcp-server\\target\\release\\pb-mcp-server.exe",
+    "args": [],
+    "env": {
+      "PB_PROJECT_ROOT": "C:\\pb-mcp-server",
+      "PB_MCP_PROFILE": "local-power",
+      "PB_NETWORK_PROFILE": "local",
+      "PB_TERMINAL_ENABLE": "1",
+      "PB_TERMINAL_ALLOW": "git,cargo,npm,python,pytest,rustc,go",
+      "PB_GIT_PUSH_ENABLE": "1",
+      "PB_GIT_REMOTE_ENABLE": "1",
+      "PB_PROJECT_TEST_ENABLE": "1",
+      "RUST_LOG": "warn"
+    }
+  }
+}
+
+
+{
+  /// Configure an MCP server that runs locally via stdin/stdout
+  ///
+  /// The name of your MCP server
+  "pb-mcp-server": {
+    /// The command which runs the MCP server
+    "command": "/media/panosboy/ExtHD/panag/Documents/projects/AAP/tools/rust/pb-mcp-server/target/release/pb-mcp-server",
+    /// The arguments to pass to the MCP server
+    "args": [],
+    /// The environment variables to set
+    "env": {"PB_PROJECT_ROOT":"/media/panosboy/ExtHD/panag/Documents/projects/AAP"}
+  }
+}

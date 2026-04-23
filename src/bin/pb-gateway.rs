@@ -35,7 +35,8 @@ struct AppState {
 }
 
 fn project_root() -> PathBuf {
-    std::env::var("MINT_PROJECT_ROOT")
+    std::env::var("PB_PROJECT_ROOT")
+        .or_else(|_| std::env::var("MINT_PROJECT_ROOT"))
         .or_else(|_| std::env::var("PROJECT_ROOT"))
         .map(PathBuf::from)
         .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
@@ -147,7 +148,10 @@ fn require_signed_request(
     let now = now_ms();
     let delta = now.abs_diff(ts_u);
     if delta > state.signing_max_skew_ms {
-        return Err((StatusCode::UNAUTHORIZED, "signature timestamp out of window"));
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            "signature timestamp out of window",
+        ));
     }
 
     // Replay defense: reject nonce reuse inside skew window.
@@ -464,7 +468,13 @@ fn sanitize_agent_name(s: &str) -> String {
     s.trim()
         .chars()
         .take(64)
-        .map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.' { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect()
 }
 
@@ -476,7 +486,9 @@ fn append_remote_agent_message(root: &PathBuf, msg: &RemoteAgentMessage) -> Resu
         .write(true)
         .open(remote_bus_lock_path(root))
         .map_err(|e| format!("open lock: {e}"))?;
-    lockf.lock_exclusive().map_err(|e| format!("lock exclusive: {e}"))?;
+    lockf
+        .lock_exclusive()
+        .map_err(|e| format!("lock exclusive: {e}"))?;
     let line = serde_json::to_string(msg).map_err(|e| format!("serialize message: {e}"))?;
     let mut f = OpenOptions::new()
         .create(true)
@@ -498,7 +510,9 @@ fn read_remote_agent_messages(root: &PathBuf) -> Result<Vec<RemoteAgentMessage>,
         .write(true)
         .open(remote_bus_lock_path(root))
         .map_err(|e| format!("open lock: {e}"))?;
-    lockf.lock_shared().map_err(|e| format!("lock shared: {e}"))?;
+    lockf
+        .lock_shared()
+        .map_err(|e| format!("lock shared: {e}"))?;
     let s = match fs::read_to_string(remote_bus_path(root)) {
         Ok(s) => s,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -821,7 +835,11 @@ async fn search_docs(
         .unwrap_or_else(|_| state.project_root.clone());
     // docs-only scope
     let docs_root = root.join("docs");
-    let base = if docs_root.exists() { docs_root } else { root.clone() };
+    let base = if docs_root.exists() {
+        docs_root
+    } else {
+        root.clone()
+    };
     let search_root = match resolve_under_root(&base, &q.path) {
         Ok(p) => p,
         Err(e) => return (StatusCode::BAD_REQUEST, e).into_response(),
@@ -965,7 +983,11 @@ async fn exec_local(
     Json(req): Json<ExecRequest>,
 ) -> axum::response::Response {
     if !(state.trust_local_network && is_local_network_ip(peer.ip())) {
-        return (StatusCode::FORBIDDEN, "exec is only allowed for local trusted network").into_response();
+        return (
+            StatusCode::FORBIDDEN,
+            "exec is only allowed for local trusted network",
+        )
+            .into_response();
     }
     if req.command.trim().is_empty() {
         return (StatusCode::BAD_REQUEST, "command is required").into_response();
@@ -977,7 +999,8 @@ async fn exec_local(
         .arg(req.command.clone())
         .current_dir(state.project_root.clone());
 
-    let result = tokio::time::timeout(std::time::Duration::from_millis(timeout_ms), cmd.output()).await;
+    let result =
+        tokio::time::timeout(std::time::Duration::from_millis(timeout_ms), cmd.output()).await;
     match result {
         Ok(Ok(o)) => Json(ExecResponse {
             ok: true,
@@ -989,7 +1012,11 @@ async fn exec_local(
             timed_out: false,
         })
         .into_response(),
-        Ok(Err(e)) => (StatusCode::INTERNAL_SERVER_ERROR, format!("exec failed: {e}")).into_response(),
+        Ok(Err(e)) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("exec failed: {e}"),
+        )
+            .into_response(),
         Err(_) => Json(ExecResponse {
             ok: false,
             service: "pb-gateway",
@@ -1018,7 +1045,11 @@ struct ReadFileQuery {
     end_line: Option<usize>,
 }
 
-fn read_file_slice(path: &std::path::Path, start_line: Option<usize>, end_line: Option<usize>) -> Result<(String, bool), String> {
+fn read_file_slice(
+    path: &std::path::Path,
+    start_line: Option<usize>,
+    end_line: Option<usize>,
+) -> Result<(String, bool), String> {
     let max_bytes: u64 = 512 * 1024;
     let max_chars: usize = 20_000;
     let bytes = fs::read(path).map_err(|e| format!("read file: {e}"))?;
@@ -1033,7 +1064,11 @@ fn read_file_slice(path: &std::path::Path, start_line: Option<usize>, end_line: 
     let mut out = if start_line.is_some() || end_line.is_some() {
         let s = start_line.unwrap_or(1).max(1);
         let e = end_line.unwrap_or(n).max(1).min(n);
-        if s > n { String::new() } else { lines[s - 1..e].join("") }
+        if s > n {
+            String::new()
+        } else {
+            lines[s - 1..e].join("")
+        }
     } else {
         text
     };
@@ -1055,13 +1090,19 @@ async fn list_files(
     if let Err((code, msg)) = authorize_request(&state, peer.ip(), &headers, &method, &uri, b"") {
         return (code, msg).into_response();
     }
-    let root = state.project_root.canonicalize().unwrap_or_else(|_| state.project_root.clone());
+    let root = state
+        .project_root
+        .canonicalize()
+        .unwrap_or_else(|_| state.project_root.clone());
     let p = match resolve_under_root(&root, &q.path) {
         Ok(v) => v,
         Err(e) => return (StatusCode::BAD_REQUEST, e).into_response(),
     };
     let mut entries: Vec<String> = match fs::read_dir(&p) {
-        Ok(rd) => rd.flatten().map(|e| e.file_name().to_string_lossy().to_string()).collect(),
+        Ok(rd) => rd
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .collect(),
         Err(e) => return (StatusCode::BAD_REQUEST, format!("read dir: {e}")).into_response(),
     };
     entries.sort();
@@ -1072,7 +1113,8 @@ async fn list_files(
         root: root.display().to_string(),
         path: p.display().to_string(),
         entries,
-    }).into_response()
+    })
+    .into_response()
 }
 
 async fn read_file(
@@ -1089,7 +1131,10 @@ async fn read_file(
     if q.path.trim().is_empty() {
         return (StatusCode::BAD_REQUEST, "path is required").into_response();
     }
-    let root = state.project_root.canonicalize().unwrap_or_else(|_| state.project_root.clone());
+    let root = state
+        .project_root
+        .canonicalize()
+        .unwrap_or_else(|_| state.project_root.clone());
     let p = match resolve_under_root(&root, &q.path) {
         Ok(v) => v,
         Err(e) => return (StatusCode::BAD_REQUEST, e).into_response(),
@@ -1104,7 +1149,8 @@ async fn read_file(
         path: p.display().to_string(),
         text,
         truncated,
-    }).into_response()
+    })
+    .into_response()
 }
 
 async fn git_status(
@@ -1118,7 +1164,10 @@ async fn git_status(
     if let Err((code, msg)) = authorize_request(&state, peer.ip(), &headers, &method, &uri, b"") {
         return (code, msg).into_response();
     }
-    let root = state.project_root.canonicalize().unwrap_or_else(|_| state.project_root.clone());
+    let root = state
+        .project_root
+        .canonicalize()
+        .unwrap_or_else(|_| state.project_root.clone());
     let p = match resolve_under_root(&root, &q.path) {
         Ok(v) => v,
         Err(e) => return (StatusCode::BAD_REQUEST, e).into_response(),
@@ -1126,7 +1175,8 @@ async fn git_status(
     match Command::new("git")
         .current_dir(&p)
         .args(["status", "--short", "--branch"])
-        .output() {
+        .output()
+    {
         Ok(o) => Json(GitStatusResponse {
             ok: true,
             service: "pb-gateway",
@@ -1134,8 +1184,13 @@ async fn git_status(
             exit_code: o.status.code(),
             stdout: String::from_utf8_lossy(&o.stdout).to_string(),
             stderr: String::from_utf8_lossy(&o.stderr).to_string(),
-        }).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("git status failed: {e}")).into_response(),
+        })
+        .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("git status failed: {e}"),
+        )
+            .into_response(),
     }
 }
 
@@ -1153,21 +1208,46 @@ async fn agent_send(
     }
     let from = sanitize_agent_name(&req.from_agent);
     if from.is_empty() || req.message.trim().is_empty() {
-        return (StatusCode::BAD_REQUEST, "from_agent and message are required").into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            "from_agent and message are required",
+        )
+            .into_response();
     }
     let msg = RemoteAgentMessage {
         id: format!("{}-{}", now_ms(), std::process::id()),
         ts: now_ms(),
         from_agent: from,
-        to_agent: req.to_agent.map(|s| sanitize_agent_name(&s)).filter(|s| !s.is_empty()),
-        topic: req.topic.map(|s| s.trim().chars().take(120).collect()).filter(|s: &String| !s.is_empty()),
-        kind: req.kind.unwrap_or_else(|| "note".to_string()).chars().take(24).collect(),
+        to_agent: req
+            .to_agent
+            .map(|s| sanitize_agent_name(&s))
+            .filter(|s| !s.is_empty()),
+        topic: req
+            .topic
+            .map(|s| s.trim().chars().take(120).collect())
+            .filter(|s: &String| !s.is_empty()),
+        kind: req
+            .kind
+            .unwrap_or_else(|| "note".to_string())
+            .chars()
+            .take(24)
+            .collect(),
         body: req.message.chars().take(24_000).collect(),
     };
-    let root = state.project_root.canonicalize().unwrap_or_else(|_| state.project_root.clone());
+    let root = state
+        .project_root
+        .canonicalize()
+        .unwrap_or_else(|_| state.project_root.clone());
     match append_remote_agent_message(&root, &msg) {
-        Ok(_) => Json(serde_json::json!({"ok": true, "service":"pb-gateway", "message_id": msg.id})).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("agent_send failed: {e}")).into_response(),
+        Ok(_) => {
+            Json(serde_json::json!({"ok": true, "service":"pb-gateway", "message_id": msg.id}))
+                .into_response()
+        }
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("agent_send failed: {e}"),
+        )
+            .into_response(),
     }
 }
 
@@ -1182,7 +1262,10 @@ async fn agent_recent(
     if let Err((code, msg)) = authorize_request(&state, peer.ip(), &headers, &method, &uri, b"") {
         return (code, msg).into_response();
     }
-    let root = state.project_root.canonicalize().unwrap_or_else(|_| state.project_root.clone());
+    let root = state
+        .project_root
+        .canonicalize()
+        .unwrap_or_else(|_| state.project_root.clone());
     match read_remote_agent_messages(&root) {
         Ok(all) => {
             let limit = q.limit.clamp(1, 200);
@@ -1190,7 +1273,11 @@ async fn agent_recent(
             let slice = &all[start..];
             Json(serde_json::json!({"ok": true, "service":"pb-gateway", "count": slice.len(), "messages": slice})).into_response()
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("agent_recent failed: {e}")).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("agent_recent failed: {e}"),
+        )
+            .into_response(),
     }
 }
 
@@ -1209,7 +1296,10 @@ async fn agent_thread(
         return (StatusCode::BAD_REQUEST, "topic is required").into_response();
     }
     let topic = q.topic.trim().to_string();
-    let root = state.project_root.canonicalize().unwrap_or_else(|_| state.project_root.clone());
+    let root = state
+        .project_root
+        .canonicalize()
+        .unwrap_or_else(|_| state.project_root.clone());
     match read_remote_agent_messages(&root) {
         Ok(all) => {
             let mut matched: Vec<RemoteAgentMessage> = all
@@ -1222,14 +1312,20 @@ async fn agent_thread(
             }
             Json(serde_json::json!({"ok": true, "service":"pb-gateway", "topic": topic, "count": matched.len(), "messages": matched})).into_response()
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("agent_thread failed: {e}")).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("agent_thread failed: {e}"),
+        )
+            .into_response(),
     }
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let bind = std::env::var("PB_GATEWAY_BIND").unwrap_or_else(|_| "127.0.0.1:8080".to_string());
-    let token = std::env::var("PB_GATEWAY_TOKEN").ok().filter(|s| !s.trim().is_empty());
+    let token = std::env::var("PB_GATEWAY_TOKEN")
+        .ok()
+        .filter(|s| !s.trim().is_empty());
     let signing_secret = std::env::var("PB_GATEWAY_SIGNING_SECRET")
         .ok()
         .filter(|s| !s.trim().is_empty());
@@ -1277,4 +1373,3 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .await?;
     Ok(())
 }
-

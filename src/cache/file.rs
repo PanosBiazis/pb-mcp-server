@@ -245,7 +245,7 @@ impl FileCache {
 
         // For large files, consider memory mapping
         if metadata.len() as usize >= self.config.mmap_threshold {
-            #[cfg(feature = "mmap")]
+            #[cfg(feature = "perf-mmap")]
             {
                 return self.load_file_mmap(path);
             }
