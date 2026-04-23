@@ -1,7 +1,7 @@
 /// Deployment trust tier: LAN/local vs internet-exposed MCP.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NetworkProfile {
-    /// Trusted network (default): full surface subject to `MINT_*` gates.
+    /// Trusted network (default): full surface subject to `PB_*` / `MINT_*` gates.
     Local,
     /// Untrusted / public internet: block mutations (bus, terminal, risky git, disk writes from tools).
     Public,
@@ -10,11 +10,12 @@ pub enum NetworkProfile {
 impl NetworkProfile {
     /// Create a NetworkProfile from environment variables
     ///
-    /// Reads from `MINT_NETWORK_PROFILE` environment variable:
+    /// Reads from `PB_NETWORK_PROFILE` environment variable, falling back to `MINT_NETWORK_PROFILE`:
     /// - "public", "internet", or "wan" → Public profile
     /// - Any other value or unset → Local profile (default)
     pub fn from_env() -> Self {
-        match std::env::var("MINT_NETWORK_PROFILE") {
+        match std::env::var("PB_NETWORK_PROFILE").or_else(|_| std::env::var("MINT_NETWORK_PROFILE"))
+        {
             Ok(v) => match v.trim().to_ascii_lowercase().as_str() {
                 "public" | "internet" | "wan" => Self::Public,
                 _ => Self::Local,

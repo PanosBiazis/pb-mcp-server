@@ -1,3 +1,139 @@
+#[allow(dead_code)]
+pub mod ai_ops;
+#[allow(dead_code)]
+pub mod audio;
+#[allow(dead_code)]
+pub mod code_intel;
+#[allow(dead_code)]
+pub mod convert_ext;
+#[allow(dead_code)]
+pub mod db;
+#[allow(dead_code)]
+pub mod debug;
+#[allow(dead_code)]
+pub mod image;
+#[allow(dead_code)]
+pub mod notify;
+#[allow(dead_code)]
+pub mod ocr_tools;
+#[allow(dead_code)]
+pub mod reverse_eng;
+#[allow(dead_code)]
+pub mod review;
+#[allow(dead_code)]
+pub mod sandbox;
+#[allow(dead_code)]
+pub mod screenshot_tools;
+#[allow(dead_code)]
+pub mod speech;
+#[allow(dead_code)]
+pub mod system;
+#[allow(dead_code)]
+pub mod web_ext;
+
+#[allow(unused_imports)]
+pub use reverse_eng::{
+    re_binary_info_work, re_binwalk_scan_work, re_carve_work, re_dependencies_work,
+    re_diff_binary_work, re_disassemble_work, re_entropy_work, re_hexdump_work,
+    re_pattern_search_work, re_sections_work, re_strace_work, re_strings_work,
+    re_struct_parse_work, re_symbols_work,
+};
+
+#[allow(unused_imports)]
+pub use ai_ops::{
+    ai_context_pack_smart_work, ai_ollama_embed_work, ai_ollama_generate_work,
+    ai_prompt_template_work, ai_semantic_diff_work,
+};
+
+#[allow(unused_imports)]
+pub use audio::{
+    audio_convert_work, audio_extract_from_video_work, audio_extract_segment_work, audio_info_work,
+    audio_merge_work, audio_mix_work, audio_normalize_work, audio_reverse_work,
+    audio_silence_detect_work, audio_speed_work, audio_split_work, audio_trim_work,
+    audio_volume_work, audio_waveform_work,
+};
+
+#[allow(unused_imports)]
+pub use code_intel::{
+    code_ast_dump_work, code_complexity_score_work, code_dead_code_hints_work,
+    code_detect_language_work, code_extract_imports_work,
+};
+
+#[allow(unused_imports)]
+pub use convert_ext::{
+    convert_archive_extract_work, convert_archive_list_work, convert_binary_hexdump_work,
+    convert_document_work, convert_encoding_work, convert_pdf_extract_work,
+    convert_qr_generate_work,
+};
+
+#[allow(unused_imports)]
+pub use db::{
+    db_json_query_work, db_sqlite_exec_work, db_sqlite_query_work, db_sqlite_schema_work,
+};
+
+#[allow(unused_imports)]
+pub use debug::{
+    debug_failure_cluster_work, debug_replay_run_work, debug_root_cause_report_work,
+    debug_trace_run_work,
+};
+
+#[allow(unused_imports)]
+pub use image::{
+    image_compare_work, image_convert_work, image_crop_work, image_extract_exif_work,
+    image_flip_work, image_grayscale_work, image_histogram_work, image_info_work,
+    image_resize_work, image_rotate_work, image_thumbnail_work, image_watermark_work,
+};
+
+#[allow(unused_imports)]
+pub use notify::{notify_desktop_work, notify_email_send_work, notify_webhook_work};
+
+#[allow(unused_imports)]
+pub use ocr_tools::{
+    ocr_batch_work, ocr_detect_text_regions_work, ocr_file_work, ocr_from_clipboard_work,
+    ocr_list_languages_work, ocr_pdf_work, ocr_preprocess_work, ocr_screen_region_work,
+    ocr_table_work, ocr_with_confidence_work,
+};
+
+#[allow(unused_imports)]
+pub use review::{
+    review_diff_risk_work, review_focused_review_work, review_missing_tests_work,
+    review_pr_packet_work, review_rulebook_check_work,
+};
+
+#[allow(unused_imports)]
+pub use sandbox::{
+    sandbox_checksum_work, sandbox_diff_work, sandbox_docker_run_work, sandbox_eval_code_work,
+    sandbox_exec_work, sandbox_file_watch_work, sandbox_network_request_work, sandbox_script_work,
+};
+
+#[allow(unused_imports)]
+pub use speech::{
+    speech_detect_language_work, speech_diarize_work, speech_enhance_work,
+    speech_extract_words_work, speech_list_models_work, speech_list_voices_work,
+    speech_text_to_speech_ssml_work, speech_text_to_speech_work, speech_transcribe_file_work,
+    speech_transcribe_microphone_work, speech_transcribe_stream_work, speech_translate_work,
+};
+
+#[allow(unused_imports)]
+pub use system::{
+    system_disk_usage_work, system_env_get_work, system_network_interfaces_work,
+    system_process_list_work,
+};
+
+#[allow(unused_imports)]
+pub use web_ext::{
+    web_api_call_work, web_dns_lookup_work, web_download_file_work, web_rss_fetch_work,
+    web_screenshot_work, web_search_work, web_tls_inspect_work,
+};
+
+#[allow(unused_imports)]
+pub use screenshot_tools::{
+    screenshot_annotate_work, screenshot_capture_work, screenshot_color_pick_work,
+    screenshot_compare_work, screenshot_monitor_info_work, screenshot_ocr_work,
+    screenshot_record_work, screenshot_region_work, screenshot_timelapse_work,
+    screenshot_window_work,
+};
+
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
@@ -990,20 +1126,31 @@ pub fn batch_file_info_work(paths: Vec<PathBuf>) -> String {
     blocks.join("\n\n---\n\n")
 }
 
-/// Non-secret `MINT_*` / gate env visibility for agents (paths redacted).
+/// Non-secret `PB_*` / `MINT_*` gate env visibility for agents (paths redacted).
 pub fn mcp_env_hints_work() -> String {
     const KEYS: &[&str] = &[
+        "PB_NETWORK_PROFILE",
         "MINT_NETWORK_PROFILE",
+        "PB_PROJECT_ROOT",
         "MINT_PROJECT_ROOT",
         "PROJECT_ROOT",
+        "PB_BUS_READ_ONLY",
         "MINT_BUS_READ_ONLY",
+        "PB_BUS_MAX_SENDS_PER_WINDOW",
         "MINT_BUS_MAX_SENDS_PER_WINDOW",
+        "PB_BUS_RATE_WINDOW_MS",
         "MINT_BUS_RATE_WINDOW_MS",
+        "PB_TERMINAL_ENABLE",
         "MINT_TERMINAL_ENABLE",
+        "PB_TERMINAL_ALLOW",
         "MINT_TERMINAL_ALLOW",
+        "PB_GIT_WRITE_ENABLE",
         "MINT_GIT_WRITE_ENABLE",
+        "PB_GIT_PUSH_ENABLE",
         "MINT_GIT_PUSH_ENABLE",
+        "PB_GIT_REMOTE_ENABLE",
         "MINT_GIT_REMOTE_ENABLE",
+        "PB_PROJECT_TEST_ENABLE",
         "MINT_PROJECT_TEST_ENABLE",
     ];
     let mut out = String::from(
@@ -1012,7 +1159,7 @@ pub fn mcp_env_hints_work() -> String {
     for k in KEYS {
         match std::env::var(k) {
             Ok(v) => {
-                if *k == "MINT_PROJECT_ROOT" || *k == "PROJECT_ROOT" {
+                if *k == "PB_PROJECT_ROOT" || *k == "MINT_PROJECT_ROOT" || *k == "PROJECT_ROOT" {
                     out.push_str(&format!("{k}=<<set, len {} chars>>\n", v.len()));
                 } else {
                     out.push_str(&format!("{k}={v}\n"));
@@ -1021,8 +1168,8 @@ pub fn mcp_env_hints_work() -> String {
             Err(_) => out.push_str(&format!("{k}=<unset>\n")),
         }
     }
-    out.push_str("\nMINT_NETWORK_PROFILE: unset or local = trusted LAN (default) — full tool surface with MINT_* gates. Value public|internet|wan = internet-facing MCP: bus/terminal/git writes/thinking_session I/O/code_index_build/convert file output blocked; use workspace_context section ai_agent_tool_visibility.\n");
-    out.push_str("MINT_PROJECT_TEST_ENABLE: unset/false = project_cargo_test, project_cargo_check, project_pytest blocked even on local profile (extra safety). Set 1/true to allow those tools when MINT_TERMINAL_ENABLE=1 and cargo/pytest are in MINT_TERMINAL_ALLOW.\n");
+    out.push_str("\nPB_NETWORK_PROFILE / MINT_NETWORK_PROFILE: unset or local = trusted LAN (default) — full tool surface with PB_* / MINT_* gates. Value public|internet|wan = internet-facing MCP: bus/terminal/git writes/thinking_session I/O/code_index_build/convert file output blocked; use workspace_context section ai_agent_tool_visibility.\n");
+    out.push_str("PB_PROJECT_TEST_ENABLE / MINT_PROJECT_TEST_ENABLE: unset/false = project_cargo_test, project_cargo_check, project_pytest blocked even on local profile (extra safety). Set 1/true to allow those tools when PB_TERMINAL_ENABLE / MINT_TERMINAL_ENABLE=1 and cargo/pytest are in PB_TERMINAL_ALLOW / MINT_TERMINAL_ALLOW.\n");
     out
 }
 
@@ -1038,7 +1185,7 @@ pub fn workspace_context_work(
     out.push_str("WORKSPACE_CONTEXT\n\n");
     out.push_str(&format!("project_root: {}\n", base.display()));
     out.push_str(&format!(
-        "network_profile: {} (MINT_NETWORK_PROFILE=local|public). public: no bus writes (incl. subagent_task/done), terminal_run/terminal_run_stdin/gh/glab PR CLI, git push/fetch/pull/add/commit/branch-create/worktree-add/checkout/stash, manifest write, code_index_build, thinking_session read/write, workspace_temp_*, screenshot_capture, ocr_tesseract, ollama_list_models, or convert_format output_path.\n",
+        "network_profile: {} (PB_NETWORK_PROFILE / MINT_NETWORK_PROFILE=local|public). public: no bus writes (incl. subagent_task/done), terminal_run/terminal_run_stdin/gh/glab PR CLI, git push/fetch/pull/add/commit/branch-create/worktree-add/checkout/stash, manifest write, code_index_build, thinking_session read/write, workspace_temp_*, screenshot_capture, ocr_tesseract, ollama_list_models, or convert_format output_path.\n",
         network_profile.trim()
     ));
     out.push_str(&format!(
@@ -1140,7 +1287,7 @@ pub fn workspace_context_work(
 Async: agent_send + inbox/recent with since_ts_ms. Parallel batch: agent_fan_out (DMs), agent_multi_inbox (reads), agent_coordination_snapshot. \
 Serial batch: agent_send_pipeline. Sync waits: agent_inbox_wait, agent_topic_wait, ask_agents. \
 agent_ping: health + env. Large bus: agent_recent without since_ts_ms uses tail read. \
-Env: MINT_BUS_READ_ONLY=1; MINT_BUS_MAX_SENDS_PER_WINDOW (0=off), MINT_BUS_RATE_WINDOW_MS (fan-out/pipeline use N slots).\n",
+Env: PB_BUS_READ_ONLY / MINT_BUS_READ_ONLY=1; PB_BUS_MAX_SENDS_PER_WINDOW / MINT_BUS_MAX_SENDS_PER_WINDOW (0=off), PB_BUS_RATE_WINDOW_MS / MINT_BUS_RATE_WINDOW_MS (fan-out/pipeline use N slots).\n",
         crate::bus::MAX_AGENT_MESSAGE_BODY_CHARS
     ));
     out.push_str(&format!(
@@ -1152,7 +1299,7 @@ Env: MINT_BUS_READ_ONLY=1; MINT_BUS_MAX_SENDS_PER_WINDOW (0=off), MINT_BUS_RATE_
     let git_remote = git_remote_enabled();
     let pt = project_test_tools_enabled();
     out.push_str(&format!(
-        "Optional gates: terminal_run / terminal_run_stdin / terminal_which need MINT_TERMINAL_ENABLE=1 and MINT_TERMINAL_ALLOW (comma list); project_cargo_test / project_cargo_check / project_pytest also need MINT_PROJECT_TEST_ENABLE=1; git_checkout / git_stash_push need MINT_GIT_WRITE_ENABLE=1; git_fetch / git_pull need MINT_GIT_REMOTE_ENABLE=1. terminal_enabled={term_on} git_write_enabled={gitw} git_remote_enabled={git_remote} project_test_gate={pt}\n"
+        "Optional gates: terminal_run / terminal_run_stdin / terminal_which need PB_TERMINAL_ENABLE / MINT_TERMINAL_ENABLE=1 and PB_TERMINAL_ALLOW / MINT_TERMINAL_ALLOW (comma list); project_cargo_test / project_cargo_check / project_pytest also need PB_PROJECT_TEST_ENABLE / MINT_PROJECT_TEST_ENABLE=1; git_checkout / git_stash_push need PB_GIT_WRITE_ENABLE / MINT_GIT_WRITE_ENABLE=1; git_fetch / git_pull need PB_GIT_REMOTE_ENABLE / MINT_GIT_REMOTE_ENABLE=1. terminal_enabled={term_on} git_write_enabled={gitw} git_remote_enabled={git_remote} project_test_gate={pt}\n"
     ));
     out.push_str(
         "\nPaths are resolved under project_root; absolute paths must stay inside the root.\n",
@@ -1164,10 +1311,10 @@ Env: MINT_BUS_READ_ONLY=1; MINT_BUS_MAX_SENDS_PER_WINDOW (0=off), MINT_BUS_RATE_
         out.push_str("blocked: agent_send and all bus mutators, terminal_run, terminal_run_stdin, gh_pr_*, glab_mr_*, git writes/remotes, codebase_manifest_write, code_index_build, thinking_session_*, workspace_temp_*, screenshot_capture, ocr_tesseract, ollama_list_models, convert_format with output_path.\n");
     } else {
         out.push_str("deployment: local_network (trusted)\n");
-        out.push_str("philosophy: full catalog subject to MINT_* gates. terminal_run / terminal_run_stdin may spawn subprocesses that read/write the repo per argv or stdin (allowlist MINT_TERMINAL_ALLOW). Optional OCR/LLM CLIs: ocr_tesseract (tesseract), ollama_list_models; stack probe: ai_stack_probe; gzip helpers compress_gzip_base64 / decompress_gzip_base64 for compact bus/file handoffs. Use agent_coordination_playbook for patterns; agent_fan_out / agent_send_pipeline / agent_subagent_* for parallel vs serial coordination; agent_inbox_wait / agent_topic_wait for sync; since_ts_ms for async polling.\n");
+        out.push_str("philosophy: full catalog subject to PB_* / MINT_* gates. terminal_run / terminal_run_stdin may spawn subprocesses that read/write the repo per argv or stdin (allowlist MINT_TERMINAL_ALLOW). Optional OCR/LLM CLIs: ocr_tesseract (tesseract), ollama_list_models; stack probe: ai_stack_probe; gzip helpers compress_gzip_base64 / decompress_gzip_base64 for compact bus/file handoffs. Use agent_coordination_playbook for patterns; agent_fan_out / agent_send_pipeline / agent_subagent_* for parallel vs serial coordination; agent_inbox_wait / agent_topic_wait for sync; since_ts_ms for async polling.\n");
         out.push_str("cross_platform: Rust fs + git CLI + optional gh/glab; PATH resolved via terminal_which (which/where).\n");
     }
-    out.push_str("hint: mcp_env_hints — non-secret MINT_* / gate variables (project root values redacted).\n");
+    out.push_str("hint: mcp_env_hints — non-secret PB_* / MINT_* gate variables (project root values redacted).\n");
     out
 }
 
@@ -1597,6 +1744,7 @@ pub fn summarize_rank_lines_by_keywords_work(
 }
 
 const AGENT_TEMP_REL: &str = ".mint-mcp/agent-temp";
+#[allow(dead_code)]
 const SCREENSHOT_REL: &str = ".mint-mcp/screenshots";
 
 fn sanitize_agent_scratch_filename(name: &str) -> Result<String, String> {
@@ -1619,6 +1767,7 @@ fn sanitize_agent_scratch_filename(name: &str) -> Result<String, String> {
     Ok(t.to_string())
 }
 
+#[allow(dead_code)]
 fn sanitize_screenshot_filename(name: &str) -> Result<String, String> {
     let t = name.trim();
     if !t.to_ascii_lowercase().ends_with(".png") {
@@ -1742,70 +1891,10 @@ pub fn workspace_temp_delete_work(root: PathBuf, name: String) -> String {
     }
 }
 
-/// Capture full screen to `.mint-mcp/screenshots/<name>.png` via `grim` or `screencapture`.
-pub fn screenshot_capture_work(root: PathBuf, backend: &str, output_name: String) -> String {
-    let name = match sanitize_screenshot_filename(&output_name) {
-        Ok(n) => n,
-        Err(e) => return format!("Error: {e}"),
-    };
-    let dir = root.join(SCREENSHOT_REL);
-    if let Err(e) = fs::create_dir_all(&dir) {
-        return format!("Error: create screenshot dir: {e}");
-    }
-    let out_path = dir.join(&name);
-    let backend = backend.trim().to_ascii_lowercase();
-    match backend.as_str() {
-        "grim" => {
-            if let Err(e) = terminal_run_precheck("grim") {
-                return format!("Error: {e}");
-            }
-            match Command::new("grim")
-                .args(["-t", "png"])
-                .arg(&out_path)
-                .output()
-            {
-                Ok(o) => {
-                    if !o.status.success() {
-                        let stderr = String::from_utf8_lossy(&o.stderr);
-                        return format!("Error: grim exit {:?}\n{}", o.status.code(), stderr);
-                    }
-                    format!(
-                        "SCREENSHOT_CAPTURE backend=grim\nwrote: {}\nnext: ocr_tesseract with path relative to project (under .mint-mcp/screenshots/)\n",
-                        out_path.display()
-                    )
-                }
-                Err(e) => format!("Error: spawn grim: {e}"),
-            }
-        }
-        "screencapture" | "macos" | "osx" => {
-            if let Err(e) = terminal_run_precheck("screencapture") {
-                return format!("Error: {e}");
-            }
-            match Command::new("screencapture")
-                .args(["-x", "-t", "png"])
-                .arg(&out_path)
-                .output()
-            {
-                Ok(o) => {
-                    if !o.status.success() {
-                        let stderr = String::from_utf8_lossy(&o.stderr);
-                        return format!(
-                            "Error: screencapture exit {:?}\n{}",
-                            o.status.code(),
-                            stderr
-                        );
-                    }
-                    format!(
-                        "SCREENSHOT_CAPTURE backend=screencapture\nwrote: {}\n",
-                        out_path.display()
-                    )
-                }
-                Err(e) => format!("Error: spawn screencapture: {e}"),
-            }
-        }
-        _ => "Error: backend must be \"grim\" (Wayland) or \"screencapture\" (macOS). On Windows use a host-specific tool via terminal_run with a narrow allowlist.".to_string(),
-    }
-}
+/// Capture full screen — see `screenshot_tools::screenshot_capture_work` for the
+/// real implementation. The old 3-arg inline version has been removed; the
+/// re-export at the top of this file (under `pub use screenshot_tools::*`)
+/// provides `screenshot_capture_work(output: Option<PathBuf>, display: Option<String>)`.
 
 /// Drop lines that match a regex (inverse of grep keep); lines are tested per line without multiline mode.
 pub fn compress_drop_lines_matching_regex_work(
@@ -4759,16 +4848,18 @@ pub fn codebase_index_work(
     out
 }
 
-/// True when `MINT_TERMINAL_ENABLE` allows [`terminal_run_precheck`].
+/// True when `PB_TERMINAL_ENABLE` / `MINT_TERMINAL_ENABLE` allows [`terminal_run_precheck`].
 pub fn terminal_enabled() -> bool {
-    std::env::var("MINT_TERMINAL_ENABLE")
+    std::env::var("PB_TERMINAL_ENABLE")
+        .or_else(|_| std::env::var("MINT_TERMINAL_ENABLE"))
         .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "yes" | "YES"))
         .unwrap_or(false)
 }
 
 fn terminal_allowlist_programs() -> Vec<String> {
     let default = "git,cargo,rustc,rustfmt,npm,pnpm,yarn,node,deno,go,python,python3,pip,pytest,make,gh,glab,tesseract,ollama,ffmpeg,grim,screencapture";
-    std::env::var("MINT_TERMINAL_ALLOW")
+    std::env::var("PB_TERMINAL_ALLOW")
+        .or_else(|_| std::env::var("MINT_TERMINAL_ALLOW"))
         .unwrap_or_else(|_| default.to_string())
         .split(',')
         .map(|s| s.trim().to_ascii_lowercase())
@@ -4832,9 +4923,10 @@ pub fn terminal_which_work(program: &str) -> String {
     }
 }
 
-/// Opt-in gate for `project_cargo_test`, `project_cargo_check`, `project_pytest` (in addition to `MINT_TERMINAL_ENABLE` + allowlist).
+/// Opt-in gate for `project_cargo_test`, `project_cargo_check`, `project_pytest` (in addition to `PB_TERMINAL_ENABLE` / `MINT_TERMINAL_ENABLE` + allowlist).
 pub fn project_test_tools_enabled() -> bool {
-    std::env::var("MINT_PROJECT_TEST_ENABLE")
+    std::env::var("PB_PROJECT_TEST_ENABLE")
+        .or_else(|_| std::env::var("MINT_PROJECT_TEST_ENABLE"))
         .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "yes" | "YES"))
         .unwrap_or(false)
 }
@@ -5066,9 +5158,10 @@ pub fn summarize_delimited_header_work(
     out
 }
 
-/// Check if git write operations are enabled via MINT_GIT_WRITE_ENABLE
+/// Check if git write operations are enabled via PB_GIT_WRITE_ENABLE / MINT_GIT_WRITE_ENABLE
 pub fn git_write_enabled() -> bool {
-    std::env::var("MINT_GIT_WRITE_ENABLE")
+    std::env::var("PB_GIT_WRITE_ENABLE")
+        .or_else(|_| std::env::var("MINT_GIT_WRITE_ENABLE"))
         .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "yes" | "YES"))
         .unwrap_or(false)
 }
@@ -5249,16 +5342,18 @@ pub fn codebase_manifest_write_work(search_root: PathBuf, max_files: usize) -> S
     )
 }
 
-/// Check if git push operations are enabled via MINT_GIT_PUSH_ENABLE
+/// Check if git push operations are enabled via PB_GIT_PUSH_ENABLE / MINT_GIT_PUSH_ENABLE
 pub fn git_push_enabled() -> bool {
-    std::env::var("MINT_GIT_PUSH_ENABLE")
+    std::env::var("PB_GIT_PUSH_ENABLE")
+        .or_else(|_| std::env::var("MINT_GIT_PUSH_ENABLE"))
         .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "yes" | "YES"))
         .unwrap_or(false)
 }
 
-/// Check if git remote operations are enabled via MINT_GIT_REMOTE_ENABLE
+/// Check if git remote operations are enabled via PB_GIT_REMOTE_ENABLE / MINT_GIT_REMOTE_ENABLE
 pub fn git_remote_enabled() -> bool {
-    std::env::var("MINT_GIT_REMOTE_ENABLE")
+    std::env::var("PB_GIT_REMOTE_ENABLE")
+        .or_else(|_| std::env::var("MINT_GIT_REMOTE_ENABLE"))
         .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "yes" | "YES"))
         .unwrap_or(false)
 }

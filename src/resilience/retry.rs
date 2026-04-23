@@ -311,7 +311,6 @@ impl RetryPolicy {
     }
 
     /// Execute an async operation with retry logic
-    #[cfg(feature = "async")]
     pub async fn execute_async<F, T, Fut>(&self, mut operation: F) -> Result<T>
     where
         F: FnMut() -> Fut,

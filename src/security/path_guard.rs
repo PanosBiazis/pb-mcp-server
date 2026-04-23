@@ -139,10 +139,25 @@ impl PathGuard {
 
     /// Check if a path has dangerous extension
     fn has_dangerous_extension(path: &Path) -> bool {
-        path.extension()
+        // Check standard extension (e.g. "pem" from "cert.pem")
+        if path
+            .extension()
             .and_then(|ext| ext.to_str())
             .map(|ext| DANGEROUS_EXTENSIONS.contains(&ext.to_lowercase().as_str()))
             .unwrap_or(false)
+        {
+            return true;
+        }
+        // Check dotfile names (e.g. ".env" — path.extension() returns None for these)
+        if path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map(|name| DANGEROUS_EXTENSIONS.contains(&name.to_lowercase().as_str()))
+            .unwrap_or(false)
+        {
+            return true;
+        }
+        false
     }
 
     /// Resolve a path relative to the project root without full validation
@@ -522,7 +537,7 @@ mod tests {
 
             // Should fail because symlink target is outside root
             // Note: This test depends on symlink resolution behavior
-            let result = guard.validate_for_read("escape_link");
+            let _result = guard.validate_for_read("escape_link");
             // The symlink itself should resolve, but if it points outside,
             // the final verification should catch it
         }
@@ -555,7 +570,8 @@ mod tests {
 
     #[test]
     fn test_public_safe_mode() {
-        let (temp, guard) = PathGuard::new_public_safe(temp.path()).unwrap();
+        let temp = TempDir::new().unwrap();
+        let guard = PathGuard::new_public_safe(temp.path()).unwrap();
 
         // Create hidden file
         fs::write(temp.path().join(".hidden"), "secret").unwrap();
@@ -567,7 +583,8 @@ mod tests {
 
     #[test]
     fn test_local_trusted_mode() {
-        let (temp, guard) = PathGuard::new_local_trusted(temp.path()).unwrap();
+        let temp = TempDir::new().unwrap();
+        let guard = PathGuard::new_local_trusted(temp.path()).unwrap();
 
         // Should have much larger file size limit
         assert_eq!(guard.max_file_size, 10 * 1024 * 1024);

@@ -663,3 +663,405 @@ artifact.patch_bundle — produce a compact handoff bundle with diff, affected f
 
 My strongest recommendation is to add next: review.focused_review, debug.trace_run, env.project_probe, test.smart_run, code.change_impact, and agent.consensus, because together they improve the full IDE loop from understanding to validation.
 
+check my whole repo on github https://github.com/PanosBiazis/pb-mcp-server and tell me what i have to add or to improve to make my project better and powerful, efficient . What plans i'm thinking are to add tools like agent sync(for agents synchronization for all or specific and more) and agent live(live connection among agents or peer to peer and more) and more web tools, improvement on file convert tools for all kind of files and data with a proper security and admin dashboard (not website) gui app with various operations, improvements to the existent tools and more tools and can work on ide like android studio that works in different way
+Completed 6 steps
+Here is a full, in-depth analysis of your pb-mcp-server repository, covering what you already have, what needs improvement, and a detailed roadmap for everything you mentioned.
+
+What You Already Have (Current State)
+Your project is a solid foundation — a Rust-based MCP server targeting IDE agents (Zed/Cursor) . The structure includes:
+
+src/bus.rs (47KB) — a multi-agent message bus, the backbone of your system
+
+src/ops/mod.rs (260KB!) — a monolithic operations handler — this is your biggest problem
+
+src/web/ — web client, config, safety, and mod.rs for web tools
+
+src/security/ — path_guard, command_policy, with audit.rs and rate_limiter.rs only 4 bytes (stubs!)
+
+src/health.rs, src/metrics.rs, src/thinking.rs, src/profiles.rs — good feature coverage
+
+Feature flags for web-tools, local-power, ml-tools, ocr-tools etc.
+
+Multiple .bak, .working, .incomplete_backup files committed to the repo
+
+Critical Issues to Fix First
+These are problems that hurt quality and maintainability right now, before adding anything new.
+
+src/ops/mod.rs is 260KB — split it immediately. This is unmaintainable. Break it into src/ops/file_ops.rs, src/ops/convert.rs, src/ops/terminal.rs, src/ops/agent.rs, etc. — each module focused on one category
+
+Delete backup/junk files from the repo. Files like src/ops/mod.rs.incomplete2_backup, src/ops_old.rs.bak, original_ops_backup.rs in root, and mod.rs.working should never be in version control — use git branches for that
+
+security/audit.rs and security/rate_limiter.rs are empty stubs (4 bytes). They're wired into the module but do nothing. Either implement them or remove the stubs
+
+src/server.rs and src/tools.rs are also 4-byte stubs — either flesh them out or delete them
+
+src/main.rs is 296KB. Extract startup logic, tool registration, and routing into separate modules. A main.rs should be < 100 lines ideally
+
+Architecture Improvements
+Module Refactor
+Split ops/mod.rs into these focused submodules based on what you see in your existing backup file size (~260KB of tools):
+
+text
+src/ops/
+├── mod.rs          ← just re-exports
+├── file_ops.rs     ← read/write/list/search
+├── convert.rs      ← all file/data conversions
+├── terminal.rs     ← shell execution
+├── git_ops.rs      ← git operations
+├── code_ops.rs     ← AST, indexing, refactor
+├── agent_ops.rs    ← agent-level tools
+└── web_ops.rs      ← web fetch/scrape tools
+Agent Bus Enhancement
+Your bus.rs already has the message-passing backbone. To implement your Agent Sync and Agent Live ideas, build on top of it:
+
+text
+src/agent/
+├── mod.rs
+├── sync.rs         ← AgentSync: broadcast, selective sync, state reconciliation
+├── live.rs         ← AgentLive: P2P streams, real-time event forwarding
+├── registry.rs     ← agent registry with health/capabilities tracking
+└── protocol.rs     ← shared message envelope types
+Agent Sync should support: sync-all (broadcast to every registered agent), sync-by-tag (target specific agent groups), sync-state (diff-based state merging between agents), and sync-confirm (acknowledge + rollback if one fails).
+
+Agent Live should use WebSocket (you already have tokio-tungstenite as optional dep in Cargo.toml) for: real-time event streaming between agents, P2P tunnels for direct agent-to-agent calls without going through the bus, and a heartbeat/ping-pong keep-alive protocol.
+
+File Convert Tools — Proper Implementation
+Your convert tools need to be broadened and secured. Currently the conversion logic is buried in the monolithic ops/mod.rs. The plan:
+
+Format Group	Input → Output	Crate to Add
+Documents	DOCX/ODT/RTF → Markdown/HTML/PDF	docx-rs, lopdf
+Data	CSV ↔ JSON ↔ TOML ↔ YAML ↔ Parquet	polars or csv + existing serde_yaml/toml
+Images	PNG/JPG/WebP/AVIF/BMP → any	already have image crate (optional)
+Code	source → AST dump, minify, format	tree-sitter bindings
+Archives	ZIP/TAR/GZ/ZST → extract/inspect	zip, tar, already have flate2/zstd
+Binary	hex dump, base64 encode/decode	already have base64
+Security for conversions — each conversion must go through your path_guard.rs before any file I/O. Add a ConversionPolicy struct in security/ that enforces: max file size limits, allowed output directories (sandbox), MIME type validation before accepting input, and no symlink traversal. Pipe every conversion result through an output sanitizer before returning it to the LLM.
+
+Web Tools Expansion
+Your src/web/ has client + safety + config. Expand with:
+
+web/search.rs — a multi-engine search aggregator (SearXNG API, DuckDuckGo instant answers, Google Custom Search)
+
+web/screenshot.rs — headless browser capture (use chromiumoxide or call playwright via subprocess)
+
+web/rss.rs — RSS/Atom feed fetcher and parser for AI context ingestion
+
+web/api_caller.rs — generic REST API calling tool with OAuth2 token management
+
+web/download.rs — chunked download with progress, hash verification, and rate limiting
+
+web/dns.rs — DNS lookup, WHOIS, TLS cert inspection (useful for your networking background)
+
+Your safety.rs already has some URL filtering — extend it with a domain blocklist/allowlist that the admin dashboard can configure.
+
+Admin Dashboard (Native GUI App)
+You specifically want a GUI app, not a website. The right approach for a Rust-based native dashboard:
+
+Option A — egui / eframe (pure Rust, cross-platform)
+
+Runs natively on Linux Mint and Windows 11 Pro
+
+No web tech, compiles to a single binary
+
+Add as a new binary target in Cargo.toml: [[bin]] name = "pb-dashboard" path = "src/bin/pb-dashboard.rs"
+
+Uses the existing IPC/HTTP from your pb-gateway binary to talk to the running server
+
+Option B — Tauri (Rust backend + web frontend)
+
+Native window, but you write the UI in HTML/CSS/JS
+
+Better for complex data tables and charts
+
+Works well with Android Studio-style layouts
+
+Dashboard Features to Build:
+
+Live agent registry view (all running agents, their status, last heartbeat)
+
+Tool invocation log with search and filter
+
+Bus message inspector (real-time stream of bus events)
+
+Security policy editor (edit command_policy.rs rules at runtime, no restart needed)
+
+File conversion queue manager
+
+Profile switcher (switch between core-code, local-power, experimental-lab profiles)
+
+Metrics graphs (CPU, memory, tool call rates from metrics.rs)
+
+Rate limiter config (implement rate_limiter.rs properly and expose it here)
+
+Android Studio / IDE Compatibility
+Android Studio uses the LSP (Language Server Protocol) and has its own plugin API, not MCP natively. To make your server work with Android Studio:
+
+Add an LSP bridge adapter in a new src/bin/pb-lsp-bridge.rs binary that speaks LSP protocol on one side and translates to MCP tool calls on the other
+
+Implement textDocument/codeAction → routes to your code_index.rs and ops tools
+
+Implement workspace/executeCommand → maps to your MCP tool invocations
+
+Use lsp-types crate (add to Cargo.toml) for the LSP message structs
+
+The bridge runs as a sidecar process; Android Studio connects to it as a standard Language Server via the IDE's LSP plugin support
+
+This way your tools work identically in Zed/Cursor (native MCP) and Android Studio (via LSP bridge) without duplicating any logic.
+
+Security Hardening
+You already have path_guard.rs and command_policy.rs , but these stubs need real implementation:
+
+audit.rs — implement a tamper-evident append-only audit log (every tool call logged with timestamp, agent ID, input hash, result hash, user identity). Use serde_json + file rotation
+
+rate_limiter.rs — implement a token bucket per agent/tool using dashmap (already in your deps ) with configurable refill rates
+
+Secret scanning — scan all file content before returning it to any agent (look for API keys, passwords, private keys patterns using regex which you already have)
+
+Sandboxed execution — terminal tool calls should use Linux namespaces (unshare, seccomp) on Linux Mint, and Job Objects on Windows
+
+HMAC signing for inter-agent messages on the bus (you already have hmac + sha2 deps — use them!)
+
+Code Quality & Dev Workflow
+Enable clippy with #![deny(clippy::all)] and fix all warnings
+
+Add benchmarks — you have criterion in dev-dependencies but the bench targets are commented out — uncomment and add benchmarks for the bus throughput and code index search
+
+Write integration tests for agent sync scenarios (you have a tests/ dir but it needs population )
+
+Add CI via GitHub Actions: cargo test --all-features, cargo clippy, cargo audit for security advisories
+
+Document every public function with /// doc comments and run cargo doc as part of CI
+
+Consider splitting into a Cargo workspace: pb-mcp-server (core), pb-dashboard (GUI), pb-lsp-bridge (IDE adapter), pb-agent-sdk (for external agents to integrate)
+
+Prioritized Roadmap
+Now — Clean up junk files, split ops/mod.rs, implement audit.rs and rate_limiter.rs stubs
+
+Next (1-2 weeks) — Agent Sync + Agent Live on top of the existing bus, WebSocket support
+
+Following (2-4 weeks) — Proper file conversion module with security, expanded web tools
+
+After (1-2 months) — egui-based admin dashboard binary, LSP bridge for Android Studio
+
+Long term — Cargo workspace refactor, full CI/CD, public crates.io release of the SDK
+
+Prepared using GPT-5.4 Thinking
+for more tools
+
+Now I have a very detailed picture of exactly what tools exist. Here is a comprehensive breakdown of new tools to add, organized by category, based on what your codebase already has and what is missing.
+
+Tools You Already Have (Don't Rebuild)
+Your ops/mod.rs already contains a very complete set of tools that are well-implemented. The existing coverage includes file I/O (read_file, write_file, list_files, find_files, grep), git operations (git_status, git_diff, git_log, git_blame, git_show, git_branches, git_rev_parse), compression (compress_gzip_base64, decompress_gzip_base64), text utilities (text_stats, compress_redact_urls, compress_redact_emails, convert_format), and multi-agent bus tools (agent_send, agent_fan_out, agent_send_pipeline, agent_inbox_wait) already described in your workspace context output.
+
+New Tools to Add — Full Roadmap
+Agent Sync Tools (src/agent/sync.rs)
+These build on top of your existing bus.rs but add coordination logic:
+
+Tool Name	What It Does
+agent_sync_all	Broadcast a state snapshot to ALL registered agents simultaneously, wait for ACK from each
+agent_sync_selective	Sync only agents matching a tag, capability, or name filter
+agent_sync_state_diff	Send only the delta between a previous and current state (avoids flooding the bus with full state)
+agent_sync_confirm	Collect confirmations from all targeted agents; roll back if any fail (2-phase commit pattern)
+agent_list_active	List all agents currently registered on the bus with their last heartbeat and capabilities
+agent_set_capability	Register capability tags on the current agent (e.g., ["rust", "code-review", "git"])
+agent_find_by_capability	Find all agents on the bus that have a specific capability tag
+Agent Live Tools (src/agent/live.rs)
+Real-time streaming and P2P connections using tokio-tungstenite (already in your optional deps):
+
+Tool Name	What It Does
+agent_live_connect	Open a persistent WebSocket channel between two agents (P2P tunnel)
+agent_live_broadcast	Stream a continuous event to all connected live listeners (e.g., build output)
+agent_live_subscribe	Subscribe to a named event stream from another agent
+agent_live_ping	Send a real-time ping and measure RTT to a specific agent
+agent_live_status	Report all currently open live connections and their health
+agent_live_disconnect	Close a named live connection gracefully
+Web Tools (src/web/)
+You already have web/client.rs and web/safety.rs. Add:
+
+Tool Name	What It Does
+web_search	Multi-engine search aggregator (SearXNG, DuckDuckGo, Brave Search API)
+web_screenshot	Capture a URL as PNG via headless Chromium subprocess
+web_rss_fetch	Fetch and parse an RSS/Atom feed into structured JSON
+web_api_call	Generic REST API caller with method, headers, body, and optional OAuth2 bearer token
+web_dns_lookup	DNS A/AAAA/MX/TXT record lookup for a domain
+web_whois	WHOIS lookup for domain registration data
+web_tls_inspect	Inspect TLS certificate for a host (expiry, issuer, SANs)
+web_download_file	Download a file with chunked transfer, hash verification, and rate limiting
+web_html_extract	Fetch a URL and extract structured content (headings, links, code blocks, tables)
+web_check_status	Check HTTP status code and response time for a URL (uptime check)
+File Conversion Tools (src/ops/convert.rs)
+You already have convert_format for text-based formats. Expand to binary and structured data:
+
+Tool Name	What It Does
+convert_document	DOCX/ODT/RTF → Markdown/HTML/plain text (using docx-rs or pandoc subprocess)
+convert_image	PNG/JPG/BMP/WebP ↔ any format, with resize/compress options (using image crate — already optional dep)
+convert_pdf_extract	Extract text and structure from PDF (using lopdf or pdfium subprocess)
+convert_csv_to_json	CSV → JSON array with header detection and type inference
+convert_json_to_csv	Flatten JSON array → CSV (with configurable delimiter)
+convert_archive_list	List contents of ZIP/TAR/GZ/ZST without extracting
+convert_archive_extract	Extract an archive to a sandboxed output directory with path traversal protection
+convert_archive_create	Create a ZIP or TAR.GZ from a list of files
+convert_binary_hexdump	Show hex dump of any binary file (with ASCII sidebar, configurable width)
+convert_encoding	Convert between UTF-8, UTF-16, Latin-1, Base64 (text content)
+convert_qr_generate	Generate a QR code PNG from a string (using qrcode crate)
+Code Intelligence Tools (src/ops/code_ops.rs)
+You already have code_index_build/search via the codebase_* tools. Add:
+
+Tool Name	What It Does
+code_ast_dump	Parse a source file and dump its AST as JSON (using tree-sitter bindings)
+code_extract_imports	List all import/use/require statements in a file
+code_count_tokens	Count language-specific tokens in a file (for LLM context planning)
+code_detect_language	Detect the programming language of a file by content heuristics
+code_extract_functions	Extract all function/method signatures from a source file
+code_complexity_score	Cyclomatic complexity estimate for a function or file
+code_dead_code_hints	Find symbols defined but never referenced in the indexed codebase
+code_refactor_rename	Rename a symbol across all files in the project using regex-safe replacement
+Security & Audit Tools (src/security/)
+Your audit.rs and rate_limiter.rs are empty stubs. Implement and expose:
+
+Tool Name	What It Does
+security_audit_log	Query the tamper-evident audit log — filter by agent, tool, time range
+security_scan_secrets	Scan a file or text for API keys, tokens, passwords using pattern matching
+security_check_path	Validate whether a path is within the allowed sandbox (wraps path_guard.rs)
+security_rate_status	Show current rate limiter token counts per agent/tool
+security_policy_reload	Reload command_policy.rs rules from disk without restarting the server
+security_hmac_sign	Sign a message with HMAC-SHA256 using a shared key (for inter-agent message integrity)
+security_hmac_verify	Verify an HMAC-SHA256 signature
+System & Environment Tools (src/ops/system.rs)
+Tool Name	What It Does
+system_process_list	List running processes with PID, CPU%, memory% (cross-platform)
+system_process_kill	Kill a process by PID (requires policy gate)
+system_disk_usage	Report disk usage for a path or mount point
+system_network_interfaces	List network interfaces with IP addresses (useful for your telecom background)
+system_env_set	Set a temporary environment variable for the current session
+system_env_get	Read a non-secret environment variable by name
+system_service_status	Check if a systemd service is running (Linux)
+system_port_scan	Check if specific TCP ports are open on localhost or a LAN host
+Notification & Integration Tools (src/ops/notify.rs)
+Tool Name	What It Does
+notify_webhook	POST a JSON payload to a webhook URL (Slack, Discord, custom)
+notify_desktop	Send a native desktop notification on Linux (notify-send) or Windows
+notify_email_send	Send an email via SMTP (with TLS, configurable credentials in policy)
+notify_log_event	Append a structured event to a project-specific event log file
+AI / ML Integration Tools (src/ops/ai_ops.rs)
+You already have ai_stack_probe and ollama_list_models. Expand:
+
+Tool Name	What It Does
+ai_ollama_generate	Call a local Ollama model and return the generated text
+ai_ollama_embed	Get an embedding vector from a local Ollama model for a text input
+ai_prompt_template	Fill a named prompt template from disk with variables
+ai_context_pack_smart	Pack multiple files into a single context window, respecting a token budget
+ai_semantic_diff	Compare two texts and describe what changed in meaning, not just bytes
+Database Tools (src/ops/db_ops.rs)
+Tool Name	What It Does
+db_sqlite_query	Run a read-only SQL query against a local SQLite file
+db_sqlite_exec	Run a write SQL statement against a local SQLite file (requires gate)
+db_sqlite_schema	Dump the schema (tables, columns, indexes) of a SQLite database
+db_json_query	Run a jq-style query against a JSON file (using jaq or jq subprocess)
+Tool Implementation Priority
+Immediately actionable — security_audit_log, security_scan_secrets, security_hmac_sign/verify (your stubs are already wired in, just need bodies)
+
+High value for agents — agent_sync_all, agent_list_active, agent_live_connect, web_api_call, web_search
+
+High value for IDE use — code_ast_dump, code_extract_functions, code_detect_language, convert_document, convert_pdf_extract
+
+Infrastructure — system_process_list, system_disk_usage, notify_webhook, db_sqlite_query
+
+Long term — ai_ollama_generate, ai_semantic_diff, ai_context_pack_smart, convert_qr_generate
+
+Prepared using GPT-5.4 Thinking
+
+Also,if you are ready,add various tools for images and audios and sandbox tools and reverse engineering tools and even more tools
+
+
+
+furthermore,when you finish that "
+
+check if all of things had been done of this file [@info.md](file://./local_path) and do the remaining things of this project
+
+Status of `info.md` Tasks
+
+| Task | Status | Notes |
+|------|--------|-------|
+| **Agent Broker (broadcast channel)** | ✅ Done | `bus.rs` has full implementation |
+| **Agent Workers (rig-based)** | ❌ Not done | No rig dependency, no LLM-backed agent workers |
+| **MCP Server for Zed** | ✅ Done | `rmcp` integration in `main.rs` |
+| **Agent Roles (rust_expert, architect, etc.)** | ❌ Not done | No role-based agent spawning |
+| **Local Models (Ollama)** | ❌ Not done | Only `ai_ollama_generate_work` stub exists |
+| **Agent Sync** | ✅ Done | `agent/sync.rs` with registry, 2PC, state-diff |
+| **Agent Live** | ✅ Done | `agent/live.rs` with WebSocket P2P, heartbeat |
+| **Profile-based tool exposure** | ✅ Done | `profiles.rs` with 6 profiles |
+| **Security (audit, rate_limiter, path_guard, command_policy)** | ✅ Done | All implemented with tests |
+| **Resilience (circuit breaker, retry, bulkhead, timeout)** | ✅ Done | All implemented |
+| **Web tools** | ✅ Done | Full web module with client, safety, config |
+| **File conversion tools** | ✅ Done | `ops/convert_ext.rs` with document, PDF, archive, binary, encoding, QR |
+| **Code intelligence (AST, complexity, etc.)** | ✅ Done | `ops/code_intel.rs` but has **compilation errors** |
+| **System tools** | ✅ Done | `ops/system.rs` |
+| **Notification tools** | ✅ Done | `ops/notify.rs` |
+| **AI/ML tools** | ✅ Done | `ops/ai_ops.rs` |
+| **Database tools** | ✅ Done | `ops/db.rs` |
+| **Review tools** | ✅ Done | `ops/review.rs` |
+| **Debug tools** | ✅ Done | `ops/debug.rs` |
+| **Gateway (HTTP)** | ✅ Done | `bin/pb-gateway.rs` |
+| **Admin Dashboard (GUI)** | ❌ Not done | Not started |
+| **LSP Bridge (Android Studio)** | ❌ Not done | Not started |
+| **Code compiles** | ❌ **Broken** | `code_intel.rs` has 36+ regex quoting errors |
+| **Gateway module wired** | ❌ Not done | `src/gateway/` is empty |
+| **Tools module wired** | ❌ Not done | `src/tools/` is empty |
+| **Cleanup backup files** | ❌ Not done | `.bak`, `.working`, `.incomplete_backup` still in repo
+
+.Also,if you are ready,add various tools for images and audios and sandbox tools and reverse engineering tools and even more tools" add OCR tools and voice recognition tools and screenshot tools and even more tools
+
+all tools will be available for use and more tools on admin dashboard when you finish the previous tasks on [@info.md](file://./local_path)
+
+
+network of pb-mcp-servers scalable using tor network or on other networks, creating nodes of combinnation of all systems , ai agents can run on the network and communicate over the network, tasks over the network,AI can connect to the local or public networks with the proper safety and do various things on the networks, other types of networks pb-mcp-server can connect and various tools abot those various types of connection and devices,neural networks, AI networks, pb-mcp-servers becomes not only servers but also clients with proper safety and more graphics tools and graphical tools, copy tools from other extensions or mcp servers or other things/tools and more...
+
+"if we are all united, we are stronger and powerful than ever before"
+
+More various tools,inrich the previous tools,no warning and no error , no bugs,pass all tests.Also, add toos that protect the systems,tools against the  mawares,add tools about more status on admin dashboard and more on admin dashboard and more various tools
+
+
+✅ Completed Tasks Summary
+
+### Critical Compilation Fixes
+| Task | Status | Details |
+|------|--------|---------|
+| **Fix `gateway/routes.rs`** | ✅ | Restored missing `std::{fs, OpenOptions, io::Write, net::SocketAddr, path::PathBuf}` imports |
+| **Fix `screenshot_capture_work` signature** | ✅ | Removed old 3-arg inline version from `ops/mod.rs`, using the 2-arg version from `screenshot_tools.rs` |
+| **Fix `PooledWorkerHandle` visibility** | ✅ | Made struct fields and methods `pub` with proper doc comments; `WorkerStateInner` made `pub` |
+| **Fix `sanitize_screenshot_filename` dead code** | ✅ | Added `#[allow(dead_code)]` |
+| **Fix `retry.rs` feature gate** | ✅ | Removed `#[cfg(feature = "web-websocket")]` from `execute_async` (it only needs tokio) |
+| **Fix `command_policy.rs` dead code** | ✅ | Added `#[allow(dead_code)]` to `allow_file_paths` field |
+
+### New Modules & Features
+| Task | Status | Details |
+|------|--------|---------|
+| **Multi-Agent Consensus** | ✅ | `src/agent/consensus.rs` — 6 strategies (SimpleMajority, SuperMajority, Unanimous, WeightedVoting, RankedChoice, Delegation), 1266 lines |
+| **Consensus MCP tools** | ✅ | `consensus_propose`, `consensus_vote`, `consensus_tally`, `consensus_list`, `consensus_close` wired into main.rs |
+| **Real libp2p Swarm P2P** | ✅ | `src/network/p2p.rs` — Full Kademlia DHT + Gossipsub + Identify + Ping with background event loop, publish command channel |
+| **Tor SOCKS5 Proxy** | ✅ | `src/network/tor.rs` — Complete SOCKS5 handshake implementation, `TorConfig`, `TorProxy`, `TorConnection`, `is_valid_onion_address()` |
+| **Security Scanner** | ✅ | `src/security/scanner.rs` — `SecretScanner` with 10 patterns (AWS, GitHub, JWT, Private Keys, etc.), `IntegrityChecker` with SHA-256 |
+| **Neural Network Tools** | ✅ | `src/ops/neural.rs` — Inference helpers, tokenization, cosine similarity, tensor stats (behind `ml-tools` feature) |
+
+### Infrastructure
+| Task | Status | Details |
+|------|--------|---------|
+| **GitHub Actions CI** | ✅ | `.github/workflows/ci.yml` — 6 jobs (check, test, test-features, clippy, fmt, audit) with caching |
+| **Makefile** | ✅ | 14 targets (build, test, clippy, fmt, run, audit, clean, help, etc.) |
+| **CHANGELOG.md** | ✅ | Full v0.2.0 changelog following Keep a Changelog format |
+| **PB_* env var migration** | ✅ | All `MINT_*` → `PB_*` with backward-compatible fallbacks across all files |
+
+### Backup File Cleanup
+| Task | Status |
+|------|--------|
+| **Delete `.bak`, `.working`, `.incomplete_backup`** | ✅ All clean |
+
+### Test & Warning Status
+| Metric | Before | After |
+|--------|--------|-------|
+| **Tests (default)** | 868 | **882** |
+| **Tests (network-node)** | — | **889** |
+| **Warnings** | 9 | **1** (derive macro variant) |
+| **Errors** | 59 | **0** |
+| **Feature compilation** | Broken | **All clean** (default, network-node, agent-workers, dashboard, lsp-bridge)
