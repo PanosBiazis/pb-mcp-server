@@ -22,6 +22,21 @@ path = "src/main.rs"
 name = "pb-gateway"
 path = "src/bin/pb-gateway.rs"
 
+[[bin]]
+name = "pb-dashboard"
+path = "src/bin/pb-dashboard.rs"
+required-features = ["dashboard"]
+
+[[bin]]
+name = "pb-lsp-bridge"
+path = "src/bin/pb-lsp-bridge.rs"
+required-features = ["lsp-bridge"]
+
+[[bin]]
+name = "pb-network-node"
+path = "src/bin/pb-network-node.rs"
+required-features = ["network-node"]
+
 [dependencies]
 # MCP Protocol
 rmcp = { version = "1.2.0", features = ["server"] }
@@ -51,6 +66,9 @@ sysinfo = "0.30"
 # Concurrent Programming
 crossbeam = "0.8"
 crossbeam-channel = "0.5"
+
+# LSP Bridge
+lsp-types = { version = "0.95", optional = true }
 
 # Memory Mapping (for large file optimization)
 memmap2 = { version = "0.9", optional = true }
@@ -91,6 +109,14 @@ dashmap = "6"
 # Text Processing
 unicode-segmentation = "1"
 html-escape = "0.2"
+
+# GUI Dashboard
+eframe = { version = "0.29", optional = true }
+egui = { version = "0.29", optional = true }
+egui_plot = { version = "0.29", optional = true }
+
+# AI Agent Framework (rig-based agent workers)
+rig-core = { version = "0.10", default-features = false, features = ["reqwest-rustls"], optional = true }
 
 # ML/AI Integration (optional, behind feature flags)
 [dependencies.tesseract]
@@ -154,6 +180,12 @@ optional = true
 version = "0.3"
 optional = true
 
+# Network & P2P
+[dependencies.libp2p]
+version = "0.54"
+features = ["tokio", "macros", "tcp", "noise", "yamux", "gossipsub", "kad", "identify", "ping"]
+optional = true
+
 [dev-dependencies]
 tempfile = "3"
 proptest = "1"
@@ -170,7 +202,7 @@ default = ["core-code", "agent-orchestration", "review-refactor"]
 # Core Profiles
 core-code = []
 review-refactor = ["core-code"]
-agent-orchestration = ["core-code"]
+agent-orchestration = ["core-code", "agent-workers"]
 local-power = ["dep:tesseract", "dep:image", "web-tools"]
 public-safe = ["web-tools-safe"]
 experimental-lab = ["local-power", "dep:ort", "dep:ndarray", "dep:tokenizers", "web-tools"]
@@ -181,9 +213,14 @@ perf-mmap = ["dep:memmap2"]
 web-tools-safe = ["web-tools"]
 web-websocket = ["dep:tokio-tungstenite", "dep:futures-util"]
 web-scraping = ["web-tools", "dep:select"]
+dashboard = ["dep:eframe", "dep:egui", "dep:egui_plot"]
+lsp-bridge = ["dep:lsp-types"]
+agent-workers = ["dep:rig-core"]
 
 # Feature Groups
-full = ["default", "local-power", "experimental-lab"]
+full = ["default", "local-power", "experimental-lab", "agent-workers", "network-node"]
+network-node = ["dep:libp2p"]
+tor-bridge = [] # Uses subprocess torsocks/tor CLI
 
 # Individual tool categories
 git-write = []

@@ -1,5 +1,6 @@
 //! Optional rate limiting for `agent_send` / orchestrated posts to reduce bus spam and abuse.
-//! Configure with `MINT_BUS_MAX_SENDS_PER_WINDOW` (0 = disabled) and `MINT_BUS_RATE_WINDOW_MS`.
+//! Configure with `PB_BUS_MAX_SENDS_PER_WINDOW` (0 = disabled) and `PB_BUS_RATE_WINDOW_MS`
+//! (`MINT_*` variants accepted as fallbacks).
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -28,15 +29,16 @@ impl BusSendRateLimiter {
     /// Create a new BusRateLimiter from environment variables
     ///
     /// Reads configuration from:
-    /// - `MINT_BUS_MAX_SENDS_PER_WINDOW`: Maximum sends per time window (default: 120)
-    /// - `MINT_BUS_RATE_WINDOW_MS`: Time window in milliseconds (default: 60000, min: 1000)
+    /// - `PB_BUS_MAX_SENDS_PER_WINDOW` / `MINT_BUS_MAX_SENDS_PER_WINDOW`: Maximum sends per time window (default: 120)
+    /// - `PB_BUS_RATE_WINDOW_MS` / `MINT_BUS_RATE_WINDOW_MS`: Time window in milliseconds (default: 60000, min: 1000)
     pub fn from_env() -> Self {
-        let max_per_window = std::env::var("MINT_BUS_MAX_SENDS_PER_WINDOW")
+        let max_per_window = std::env::var("PB_BUS_MAX_SENDS_PER_WINDOW")
+            .or_else(|_| std::env::var("MINT_BUS_MAX_SENDS_PER_WINDOW"))
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(120);
-
-        let window_ms = std::env::var("MINT_BUS_RATE_WINDOW_MS")
+        let window_ms = std::env::var("PB_BUS_RATE_WINDOW_MS")
+            .or_else(|_| std::env::var("MINT_BUS_RATE_WINDOW_MS"))
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(60_000)
@@ -81,7 +83,7 @@ impl BusSendRateLimiter {
         let next = w.count.saturating_add(n);
         if next > self.max_per_window {
             return Err(format!(
-                "Rate limit: from_agent {:?} would exceed {} sends per {}ms (need {n} slots; MINT_BUS_MAX_SENDS_PER_WINDOW / MINT_BUS_RATE_WINDOW_MS).",
+                "Rate limit: from_agent {:?} would exceed {} sends per {}ms (need {n} slots; PB_BUS_MAX_SENDS_PER_WINDOW / PB_BUS_RATE_WINDOW_MS).",
                 key, self.max_per_window, self.window_ms
             ));
         }

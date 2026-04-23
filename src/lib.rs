@@ -41,9 +41,10 @@
 // Module declarations
 // ============================================================================
 
+/// Multi-agent coordination primitives (registry, sync, 2-phase-commit)
+pub mod agent;
 /// Argument structures for MCP tool handlers
 pub mod args;
-
 /// Multi-agent message bus (JSONL append-only)
 pub mod bus;
 
@@ -75,10 +76,14 @@ pub mod server;
 pub mod cache;
 /// Error types
 pub mod error;
+/// HTTP gateway for remote/LAN access (auth, routes, state)
+pub mod gateway;
 /// Health monitoring and diagnostics
 pub mod health;
 /// Performance metrics and monitoring
 pub mod metrics;
+/// Network node — scalable pb-mcp-server networking (P2P, Tor, etc.)
+pub mod network;
 /// Output formatting utilities
 pub mod output;
 /// Resilience patterns (circuit breaker, retry, bulkhead)
