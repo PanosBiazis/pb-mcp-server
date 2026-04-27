@@ -197,8 +197,6 @@ mockito = "1"
 [features]
 default = ["core-code", "agent-orchestration", "review-refactor"]
 
-
-
 # Core Profiles
 core-code = []
 review-refactor = ["core-code"]
@@ -218,7 +216,8 @@ lsp-bridge = ["dep:lsp-types"]
 agent-workers = ["dep:rig-core"]
 
 # Feature Groups
-full = ["default", "local-power", "experimental-lab", "agent-workers", "network-node"]
+# dashboard is included here so `--features full` builds pb-dashboard too.
+full = ["default", "local-power", "experimental-lab", "agent-workers", "network-node", "dashboard"]
 network-node = ["dep:libp2p"]
 tor-bridge = [] # Uses subprocess torsocks/tor CLI
 
