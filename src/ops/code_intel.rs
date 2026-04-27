@@ -1434,7 +1434,7 @@ pub fn code_complexity_score_work(path: PathBuf, content: Option<String>) -> Str
     let mut blank_lines = 0usize;
     let mut code_lines = 0usize;
 
-    for (_idx, line) in lines.iter().enumerate() {
+    for line in lines.iter() {
         let trimmed = line.trim();
         if trimmed.is_empty() {
             blank_lines += 1;

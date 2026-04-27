@@ -291,17 +291,14 @@ impl TorProxy {
     /// that something is listening on the configured SOCKS5 address.
     pub fn check_tor_running(&self) -> bool {
         use std::net::TcpStream as StdTcpStream;
-        match StdTcpStream::connect_timeout(
+        StdTcpStream::connect_timeout(
             &self
                 .config
                 .socks5_addr
                 .parse::<SocketAddr>()
                 .unwrap_or_else(|_| "127.0.0.1:9050".parse().unwrap()),
             std::time::Duration::from_secs(2),
-        ) {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+        ).is_ok()
     }
 
     /// Send data through a Tor-proxied connection and read the response.

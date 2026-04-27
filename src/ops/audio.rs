@@ -954,7 +954,7 @@ pub fn audio_waveform_work(path: PathBuf, samples: Option<usize>) -> String {
         return e;
     }
 
-    let num_samples = samples.unwrap_or(80).max(1).min(500);
+    let num_samples = samples.unwrap_or(80).clamp(1, 500);
 
     let p_str = path.to_string_lossy().to_string();
 
@@ -1042,8 +1042,8 @@ pub fn audio_waveform_work(path: PathBuf, samples: Option<usize>) -> String {
             // Parse "mean_volume: -XX.X dB" from volumedetect output
             s.lines()
                 .find(|l| l.contains("mean_volume"))
-                .and_then(|l| l.split(':').last())
-                .and_then(|v| v.trim().split_whitespace().next())
+                .and_then(|l| l.split(':').next_back())
+                .and_then(|v| v.split_whitespace().next())
                 .and_then(|v| v.parse::<f64>().ok())
                 .unwrap_or(-60.0)
         } else {
@@ -1055,7 +1055,7 @@ pub fn audio_waveform_work(path: PathBuf, samples: Option<usize>) -> String {
         let bar_len = (normalized * max_bar_len as f64).round() as usize;
         let char_idx = ((1.0 - normalized) * (bar_chars.len() - 1) as f64).round() as usize;
         let fill_char = bar_chars.chars().nth(char_idx).unwrap_or(' ');
-        let bar: String = std::iter::repeat(fill_char).take(bar_len).collect();
+        let bar: String = std::iter::repeat_n(fill_char, bar_len).collect();
         out.push_str(&format!(
             "  [{:>7.2}s - {:>7.2}s] {}| {:.1} dB\n",
             start,
@@ -1170,8 +1170,8 @@ fn parse_silence_value(line: &str, prefix: &str) -> Option<f64> {
         // Format: "silencedetect: ... silence_start: 12.345"
         // or:     "[silencedetect @ ...] silence_start: 12.345"
         line.split(':')
-            .last()
-            .and_then(|v| v.trim().split_whitespace().next())
+            .next_back()
+            .and_then(|v| v.split_whitespace().next())
             .and_then(|v| v.parse::<f64>().ok())
     } else {
         None

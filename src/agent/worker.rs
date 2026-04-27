@@ -173,10 +173,11 @@ impl fmt::Display for AgentRole {
 // ============================================================================
 
 /// Runtime status of an [`AgentWorker`].
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentWorkerStatus {
     /// Worker is idle, waiting for the next message.
+    #[default]
     Idle,
     /// Worker is currently processing a message (payload is a short summary).
     Processing(String),
@@ -184,12 +185,6 @@ pub enum AgentWorkerStatus {
     Error(String),
     /// Worker has been stopped and will not process further messages.
     Stopped,
-}
-
-impl Default for AgentWorkerStatus {
-    fn default() -> Self {
-        Self::Idle
-    }
 }
 
 // ============================================================================

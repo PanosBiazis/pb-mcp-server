@@ -165,52 +165,43 @@ fn capture_full_screenshot(output_path: &Path, display: &Option<String>) -> Resu
 
     // Try scrot first
     if cli_exists("scrot") {
-        match Command::new("scrot")
+        if let Ok(o) = Command::new("scrot")
             .env("DISPLAY", &disp)
             .arg("-z")
             .arg(output_path)
             .output()
         {
-            Ok(o) => {
-                if o.status.success() && output_path.is_file() {
-                    return Ok("scrot".to_string());
-                }
+            if o.status.success() && output_path.is_file() {
+                return Ok("scrot".to_string());
             }
-            Err(_) => {}
         }
     }
 
     // Try gnome-screenshot
     if cli_exists("gnome-screenshot") {
-        match Command::new("gnome-screenshot")
+        if let Ok(o) = Command::new("gnome-screenshot")
             .env("DISPLAY", &disp)
             .args(["-f"])
             .arg(output_path)
             .output()
         {
-            Ok(o) => {
-                if o.status.success() && output_path.is_file() {
-                    return Ok("gnome-screenshot".to_string());
-                }
+            if o.status.success() && output_path.is_file() {
+                return Ok("gnome-screenshot".to_string());
             }
-            Err(_) => {}
         }
     }
 
     // Try import (ImageMagick)
     if cli_exists("import") {
-        match Command::new("import")
+        if let Ok(o) = Command::new("import")
             .env("DISPLAY", &disp)
             .args(["-window", "root"])
             .arg(output_path)
             .output()
         {
-            Ok(o) => {
-                if o.status.success() && output_path.is_file() {
-                    return Ok("import".to_string());
-                }
+            if o.status.success() && output_path.is_file() {
+                return Ok("import".to_string());
             }
-            Err(_) => {}
         }
     }
 
@@ -335,35 +326,29 @@ pub fn screenshot_region_work(
     // Try scrot with -a (area) flag
     if cli_exists("scrot") {
         let area = format!("{x},{y},{width},{height}");
-        match Command::new("scrot")
+        if let Ok(o) = Command::new("scrot")
             .env("DISPLAY", &disp)
             .args(["-a", &area, "-z"])
             .arg(&out_path)
             .output()
         {
-            Ok(o) => {
-                if o.status.success() && out_path.is_file() {
-                    backend = "scrot";
-                }
+            if o.status.success() && out_path.is_file() {
+                backend = "scrot";
             }
-            Err(_) => {}
         }
     }
 
     // Try import (ImageMagick) with -crop
     if backend == "none" && cli_exists("import") {
-        match Command::new("import")
+        if let Ok(o) = Command::new("import")
             .env("DISPLAY", &disp)
             .args(["-window", "root", "-crop", &geometry])
             .arg(&out_path)
             .output()
         {
-            Ok(o) => {
-                if o.status.success() && out_path.is_file() {
-                    backend = "import";
-                }
+            if o.status.success() && out_path.is_file() {
+                backend = "import";
             }
-            Err(_) => {}
         }
     }
 
@@ -449,17 +434,14 @@ pub fn screenshot_window_work(window_name: Option<String>, output: Option<PathBu
 
     // Try import (ImageMagick) with -window <wid>
     if cli_exists("import") {
-        match Command::new("import")
+        if let Ok(o) = Command::new("import")
             .args(["-window", &window_id])
             .arg(&out_path)
             .output()
         {
-            Ok(o) => {
-                if o.status.success() && out_path.is_file() {
-                    backend = "import";
-                }
+            if o.status.success() && out_path.is_file() {
+                backend = "import";
             }
-            Err(_) => {}
         }
     }
 
@@ -472,17 +454,14 @@ pub fn screenshot_window_work(window_name: Option<String>, output: Option<PathBu
         );
         std::thread::sleep(std::time::Duration::from_millis(200));
 
-        match Command::new("scrot")
+        if let Ok(o) = Command::new("scrot")
             .args(["-u", "-z"])
             .arg(&out_path)
             .output()
         {
-            Ok(o) => {
-                if o.status.success() && out_path.is_file() {
-                    backend = "scrot";
-                }
+            if o.status.success() && out_path.is_file() {
+                backend = "scrot";
             }
-            Err(_) => {}
         }
     }
 
@@ -635,7 +614,7 @@ pub fn screenshot_record_work(
         return "Error: duration_secs must be > 0".to_string();
     }
 
-    let fps = fps.unwrap_or(DEFAULT_FPS).max(1).min(120);
+    let fps = fps.unwrap_or(DEFAULT_FPS).clamp(1, 120);
     let out_path = match resolve_output_path(&output, RECORDING_PREFIX, "mp4") {
         Ok(p) => p,
         Err(e) => return e,
@@ -907,7 +886,7 @@ pub fn screenshot_compare_work(path_a: PathBuf, path_b: PathBuf, threshold: Opti
 fn parse_mae_from_output(s: &str) -> Option<f64> {
     // Try "MAE: 0.123 (1.23e-01)" format
     if let Some(rest) = s.strip_prefix("MAE:") {
-        let first_token = rest.trim().split_whitespace().next()?;
+        let first_token = rest.split_whitespace().next()?;
         return first_token.trim_end_matches(',').parse::<f64>().ok();
     }
     // Try just a plain number

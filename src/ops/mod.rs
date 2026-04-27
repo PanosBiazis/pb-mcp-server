@@ -353,7 +353,7 @@ fn read_text_file_limited(path: &Path) -> Option<String> {
     let mut buf = Vec::new();
     let mut take = f.take(MAX_GREP_FILE_BYTES);
     take.read_to_end(&mut buf).ok()?;
-    if buf.iter().any(|&b| b == 0) {
+    if buf.contains(&0) {
         return None;
     }
     String::from_utf8(buf).ok()
@@ -419,7 +419,7 @@ pub fn grep_work(
                 let line_no = i + 1;
                 let rel = path
                     .strip_prefix(&search_root)
-                    .map(|p| normalize_rel_path(p))
+                    .map(normalize_rel_path)
                     .unwrap_or_else(|_| normalize_rel_path(path));
                 out.push_str(&format!("{rel}:{line_no}:{line}\n"));
                 hits += 1;
@@ -501,7 +501,7 @@ pub fn find_files_work(search_root: PathBuf, glob_pat: String, max_files: usize)
 
 /// Generate a directory tree structure
 pub fn tree_work(search_root: PathBuf, max_depth: usize) -> String {
-    let max_depth = max_depth.max(1).min(12);
+    let max_depth = max_depth.clamp(1, 12);
     let mut lines: Vec<String> = Vec::new();
     let mut count = 0usize;
 
@@ -588,7 +588,7 @@ pub fn git_diff_work(dir: PathBuf, staged: bool) -> String {
             );
             let diff = String::from_utf8_lossy(&out.stdout);
             let (diff, clipped) = truncate_chars(diff.trim_end(), MAX_DIFF_CHARS);
-            body.push_str("\n");
+            body.push('\n');
             body.push_str(&diff);
             if !out.stderr.is_empty() {
                 body.push_str("\nSTDERR:\n");
@@ -635,10 +635,7 @@ pub fn validate_git_refspec(s: &str) -> Result<String, String> {
 
 /// Convert an absolute path to a repository-relative path
 pub fn path_rel_to_repo(repo: &Path, abs_file: &Path) -> Option<String> {
-    abs_file
-        .strip_prefix(repo)
-        .ok()
-        .map(|p| normalize_rel_path(p))
+    abs_file.strip_prefix(repo).ok().map(normalize_rel_path)
 }
 
 /// Get git log entries for a repository
@@ -956,7 +953,7 @@ pub fn file_stats_work(path: PathBuf) -> String {
             return format!("Error reading file: {e}");
         }
     }
-    let has_nul = buf.iter().any(|&b| b == 0);
+    let has_nul = buf.contains(&0);
     let newline_count = buf.iter().filter(|&&b| b == b'\n').count();
     let complete = scan >= size;
     let line_estimate = if complete {
@@ -1897,6 +1894,7 @@ pub fn workspace_temp_delete_work(root: PathBuf, name: String) -> String {
 /// provides `screenshot_capture_work(output: Option<PathBuf>, display: Option<String>)`.
 
 /// Drop lines that match a regex (inverse of grep keep); lines are tested per line without multiline mode.
+#[allow(clippy::empty_line_after_doc_comments)]
 pub fn compress_drop_lines_matching_regex_work(
     text: String,
     pattern: String,
@@ -1968,7 +1966,7 @@ pub fn summarize_top_terms_work(
         if t.len() < min_len {
             continue;
         }
-        if STOP.iter().any(|s| *s == t) {
+        if STOP.contains(&t) {
             continue;
         }
         *counts.entry(t.to_string()).or_insert(0) += 1;
@@ -2112,7 +2110,7 @@ pub fn compress_strip_tags_work(text: String, max_chars: usize) -> String {
                         buf.push(first_inner);
                     }
                     let mut closed = false;
-                    while let Some(c2) = it.next() {
+                    for c2 in it.by_ref() {
                         buf.push(c2);
                         if buf.len() > 1024 {
                             break;
@@ -2371,7 +2369,7 @@ pub fn gitkraken_hosted_tool_redirect_work(requested: &str) -> String {
         "gitlens_commit_composer",
     ];
     let lower = name.to_ascii_lowercase();
-    if !KNOWN.iter().any(|k| *k == lower.as_str()) {
+    if !KNOWN.contains(&lower.as_str()) {
         return format!(
             "Error: unknown hosted tool {name:?}. Known: {}",
             KNOWN.join(", ")
@@ -2412,7 +2410,7 @@ pub fn gh_pr_list_work(cwd: PathBuf, limit: usize, state: &str) -> String {
     match json_try {
         Ok(o) if o.status.success() => {
             let stdout = String::from_utf8_lossy(&o.stdout);
-            let (body, clipped) = truncate_chars(&stdout.trim(), MAX_RESPONSE_CHARS);
+            let (body, clipped) = truncate_chars(stdout.trim(), MAX_RESPONSE_CHARS);
             let mut s = format!(
                 "GH_PR_LIST dir={} limit={lim} state={st}\n\n{body}",
                 cwd.display()
@@ -2432,13 +2430,13 @@ pub fn gh_pr_list_work(cwd: PathBuf, limit: usize, state: &str) -> String {
             match plain {
                 Ok(p) if p.status.success() => {
                     let stdout = String::from_utf8_lossy(&p.stdout);
-                    let (body, clipped) = truncate_chars(&stdout.trim(), MAX_RESPONSE_CHARS);
+                    let (body, clipped) = truncate_chars(stdout.trim(), MAX_RESPONSE_CHARS);
                     let mut s = format!(
                         "GH_PR_LIST dir={} limit={lim} state={st} (plain)\n\n{body}",
                         cwd.display()
                     );
                     if clipped {
-                        s.push_str(&format!("\n[truncated]\n"));
+                        s.push_str("\n[truncated]\n");
                     }
                     s
                 }
@@ -2478,7 +2476,7 @@ pub fn gh_pr_view_work(cwd: PathBuf, pr_number: &str) -> String {
     {
         Ok(o) if o.status.success() => {
             let stdout = String::from_utf8_lossy(&o.stdout);
-            let (body, clipped) = truncate_chars(&stdout.trim(), MAX_RESPONSE_CHARS);
+            let (body, clipped) = truncate_chars(stdout.trim(), MAX_RESPONSE_CHARS);
             let mut s = format!("GH_PR_VIEW dir={} pr={pr}\n\n{body}", cwd.display());
             if clipped {
                 s.push_str(&format!("\n[truncated to {MAX_RESPONSE_CHARS} chars]\n"));
@@ -2507,13 +2505,13 @@ pub fn glab_mr_list_work(cwd: PathBuf, limit: usize) -> String {
     match json_try {
         Ok(o) if o.status.success() => {
             let stdout = String::from_utf8_lossy(&o.stdout);
-            let (body, clipped) = truncate_chars(&stdout.trim(), MAX_RESPONSE_CHARS);
+            let (body, clipped) = truncate_chars(stdout.trim(), MAX_RESPONSE_CHARS);
             let mut s = format!(
                 "GLAB_MR_LIST dir={} per_page={lim}\n\n{body}",
                 cwd.display()
             );
             if clipped {
-                s.push_str(&format!("\n[truncated]\n"));
+                s.push_str("\n[truncated]\n");
             }
             s
         }
@@ -2526,13 +2524,13 @@ pub fn glab_mr_list_work(cwd: PathBuf, limit: usize) -> String {
             match plain {
                 Ok(p) if p.status.success() => {
                     let stdout = String::from_utf8_lossy(&p.stdout);
-                    let (body, clipped) = truncate_chars(&stdout.trim(), MAX_RESPONSE_CHARS);
+                    let (body, clipped) = truncate_chars(stdout.trim(), MAX_RESPONSE_CHARS);
                     let mut s = format!(
                         "GLAB_MR_LIST dir={} per_page={lim} (plain)\n\n{body}",
                         cwd.display()
                     );
                     if clipped {
-                        s.push_str(&format!("\n[truncated]\n"));
+                        s.push_str("\n[truncated]\n");
                     }
                     s
                 }
@@ -2563,10 +2561,10 @@ pub fn glab_mr_show_work(cwd: PathBuf, iid: &str) -> String {
     {
         Ok(o) if o.status.success() => {
             let stdout = String::from_utf8_lossy(&o.stdout);
-            let (body, clipped) = truncate_chars(&stdout.trim(), MAX_RESPONSE_CHARS);
+            let (body, clipped) = truncate_chars(stdout.trim(), MAX_RESPONSE_CHARS);
             let mut s = format!("GLAB_MR_SHOW dir={} iid={id}\n\n{body}", cwd.display());
             if clipped {
-                s.push_str(&format!("\n[truncated]\n"));
+                s.push_str("\n[truncated]\n");
             }
             s
         }
@@ -2703,7 +2701,7 @@ pub fn compress_context_work(
             let (t, _) = truncate_chars(&s, max_chars);
             t
         }
-        "head_tail" | "lines_only" | "dense" | _ => {
+        _ => {
             let keep_each = (max_chars / 2).max(1);
             let (head, tail) = head_tail_chars_work(&s, keep_each);
             let omitted = input_chars.saturating_sub(head.chars().count() + tail.chars().count());
@@ -2816,8 +2814,8 @@ pub fn extract_snippets_work(
                 out.push_str(&format!("\n[... skipped {} lines ...]\n\n", s - pe - 1));
             }
         }
-        for i in s..=e {
-            out.push_str(&format!("{:6}| {}\n", i + 1, lines[i]));
+        for (i, line) in lines[s..=e].iter().enumerate() {
+            out.push_str(&format!("{:6}| {}\n", s + i + 1, line));
         }
         prev_end = Some(e);
     }
@@ -3029,8 +3027,8 @@ pub fn grep_snippets_work(
         // Append windows in file order until we reach max_snippets.
         let rel = path
             .strip_prefix(&search_root)
-            .map(|p| normalize_rel_path(p))
-            .unwrap_or_else(|_| normalize_rel_path(&path));
+            .map(normalize_rel_path)
+            .unwrap_or_else(|_| normalize_rel_path(path));
 
         for (s, e) in merged {
             if windows_kept >= max_snippets {
@@ -3441,7 +3439,7 @@ fn hex_encode_bytes(data: &[u8]) -> String {
 
 fn hex_decode_str(s: &str) -> Result<Vec<u8>, String> {
     let hex: String = s.chars().filter(|c| !c.is_whitespace()).collect();
-    if hex.len() % 2 != 0 {
+    if !hex.len().is_multiple_of(2) {
         return Err("hex decode: odd number of hex digits".into());
     }
     let mut out = Vec::with_capacity(hex.len() / 2);
@@ -4508,11 +4506,12 @@ fn slugify_line_token(line: &str) -> String {
         if c.is_ascii_alphanumeric() {
             out.push(c.to_ascii_lowercase());
             prev_us = false;
-        } else if c.is_whitespace() || c == '_' || c == '-' || c == '.' || c == '/' {
-            if !prev_us && !out.is_empty() {
-                out.push('_');
-                prev_us = true;
-            }
+        } else if (c.is_whitespace() || c == '_' || c == '-' || c == '.' || c == '/')
+            && !prev_us
+            && !out.is_empty()
+        {
+            out.push('_');
+            prev_us = true;
         }
     }
     out.trim_matches('_').to_string()
@@ -4548,7 +4547,7 @@ fn strip_ansi_str(s: &str) -> String {
             match it.peek() {
                 Some('[') => {
                     it.next();
-                    while let Some(x) = it.next() {
+                    for x in it.by_ref() {
                         if ('\x40'..='\x7e').contains(&x) {
                             break;
                         }
@@ -4805,7 +4804,7 @@ pub fn codebase_index_work(
                     if let Some(sym) = symbol_sketch_line(line, lang) {
                         let rel = path
                             .strip_prefix(&search_root)
-                            .map(|p| normalize_rel_path(p))
+                            .map(normalize_rel_path)
                             .unwrap_or_else(|_| normalize_rel_path(path));
                         symbols.push(format!("{rel}:{}:{sym}", i + 1));
                         symbol_hits += 1;
@@ -5315,7 +5314,7 @@ pub fn codebase_manifest_write_work(search_root: PathBuf, max_files: usize) -> S
         };
         let rel = path
             .strip_prefix(&search_root)
-            .map(|p| normalize_rel_path(p))
+            .map(normalize_rel_path)
             .unwrap_or_else(|_| normalize_rel_path(path));
         let mtime = meta
             .modified()
@@ -6369,7 +6368,7 @@ pub fn compress_markdown_links_work(text: String, max_chars: usize) -> String {
     };
     let after_img = re_img.replace_all(&text, "$1");
     let s = re_link.replace_all(&after_img, "$1");
-    let (out, clipped) = truncate_chars(&s.to_string(), max_chars);
+    let (out, clipped) = truncate_chars(s.as_ref(), max_chars);
     let mut o = format!(
         "COMPRESS_MARKDOWN_LINKS output_chars={} clipped={clipped}\n\n{out}",
         out.len()
@@ -6564,11 +6563,7 @@ pub fn text_djb2_hash_work(text: String) -> String {
     for byte in text.as_bytes() {
         h = h.wrapping_mul(33).wrapping_add(u32::from(*byte));
     }
-    format!(
-        "DJB2_HASH hex={:08x} utf8_bytes={}\n",
-        h,
-        text.as_bytes().len()
-    )
+    format!("DJB2_HASH hex={:08x} utf8_bytes={}\n", h, text.len())
 }
 
 /// Jaccard similarity on whitespace-separated tokens (cheap bag-of-words overlap for drafts, logs, or doc pairs).

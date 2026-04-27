@@ -214,6 +214,7 @@ fn with_shared_lock<T>(root: &Path, f: impl FnOnce() -> Result<T, String>) -> Re
     let lp = lock_path(root);
     let lockf = OpenOptions::new()
         .create(true)
+        .truncate(true)
         .read(true)
         .write(true)
         .open(&lp)
@@ -231,6 +232,7 @@ fn with_exclusive_lock<T>(root: &Path, f: impl FnOnce() -> Result<T, String>) ->
     let lp = lock_path(root);
     let lockf = OpenOptions::new()
         .create(true)
+        .truncate(true)
         .read(true)
         .write(true)
         .open(&lp)
@@ -382,10 +384,14 @@ pub fn agent_fan_out(
 }
 
 /// Ordered multi-post from one sender under a **single** exclusive lock (serial bus protocol).
+/// A single step in a pipeline send: (message, to_agent, topic, kind).
+pub type PipelineStep = (String, Option<String>, Option<String>, Option<String>);
+
+#[allow(clippy::too_many_arguments)]
 pub fn agent_send_pipeline(
     project_root: PathBuf,
     from_agent: String,
-    steps: Vec<(String, Option<String>, Option<String>, Option<String>)>,
+    steps: Vec<PipelineStep>,
 ) -> Result<String, String> {
     let from_agent = sanitize_agent_name(&from_agent);
     if from_agent.is_empty() {
@@ -608,13 +614,7 @@ fn collect_inbox_messages<'a>(
             }
         }
         let include = match &m.to_agent {
-            None => {
-                if skip_own_broadcasts && m.from_agent == for_agent {
-                    false
-                } else {
-                    true
-                }
-            }
+            None => !(skip_own_broadcasts && m.from_agent == for_agent),
             Some(to) => to == for_agent,
         };
         if include {
@@ -961,6 +961,7 @@ fn format_message_search(m: &AgentMessage, show_bodies: bool, max_body_chars: us
 }
 
 /// Search the durable bus for messages whose body contains `needle`, with optional filters.
+#[allow(clippy::too_many_arguments)]
 pub fn agent_bus_search(
     project_root: PathBuf,
     needle: String,
@@ -1087,7 +1088,7 @@ pub fn agent_bus_search(
         ));
 
         for m in picked {
-            out.push_str(&format_message_search(&m, show_bodies, max_body_chars));
+            out.push_str(&format_message_search(m, show_bodies, max_body_chars));
             out.push('\n');
         }
 
