@@ -28,75 +28,30 @@ use std::collections::{HashMap, HashSet};
 #[derive(Default)]
 pub enum ToolProfile {
     /// Default coding workflow in Zed/Cursor
-    ///
-    /// **Exposed tools:**
-    /// - File: `fs.read_file`, `fs.read_tail`, `fs.list`, `fs.tree`, `fs.find`, `fs.info`
-    /// - Git read: `git.read.status`, `git.read.diff`, `git.read.log`, `git.read.show`
-    /// - Code: `code.index.search`, `code.analyze.inventory`
-    /// - Text: `text.transform`, `text.summarize`, `text.stats`
-    /// - Context: `pack_context`, `workspace_context`
     #[serde(rename = "core-code")]
     #[default]
     CoreCode,
 
     /// PR review, architecture understanding, safe codebase inspection
-    ///
-    /// **Exposed tools (extends core-code):**
-    /// - Git: `git.read.blame`, `git.read.branches`, `git.diff_snippets`
-    /// - Code: `code.analyze.largest_files`, `code.analyze.duplicate_basenames`
-    /// - Review: `review.diff_risk`, `review.focused_review`, `review.missing_tests`
-    /// - Reasoning: `reasoning.evidence_matrix`, `plan.risk_register`
     #[serde(rename = "review-refactor")]
     ReviewRefactor,
 
     /// Multi-agent and subagent coordination
-    ///
-    /// **Exposed tools:**
-    /// - Bus: `agent.bus.send`, `agent.bus.inbox`, `agent.bus.thread`, `agent.bus.recent`
-    /// - Coordination: `agent.ask`, `agent.handoff`, `agent.consensus`
-    /// - Temp: `agent.temp.write`, `agent.temp.read`, `agent.temp.list`, `agent.temp.delete`
-    /// - Wait: `agent.wait.sleep`, `agent.wait.for_path`, `agent.wait.until`
     #[serde(rename = "agent-orchestration")]
     AgentOrchestration,
 
     /// Explicitly approved local execution and validation
-    ///
-    /// **Exposed tools (requires explicit enable):**
-    /// - Terminal: `local.exec.run`, `local.exec.run_stdin`
-    /// - Tests: `local.test.rust_test`, `local.test.rust_check`, `local.test.pytest`
-    /// - Git write: `git.write.commit`, `git.write.push`, `git.write.checkout`
-    /// - OCR: `local.ocr.tesseract`
-    /// - Screenshot: `local.screenshot.capture`
-    ///
-    /// **Security:** Only available when `MINT_NETWORK_PROFILE=local`
     #[serde(rename = "local-power")]
     LocalPower,
 
     /// Remote-safe HTTP subset for public/external access
-    ///
-    /// **Exposed tools (bounded, read-only):**
-    /// - Health: `health`, `status`, `security_status`
-    /// - Info: `project_info`
-    /// - Files: bounded `list_files`, bounded `read_file`
-    /// - Search: bounded `search_code`
-    /// - Bus: `agent.bus.recent`, `agent.bus.thread` (read-only)
-    ///
-    /// **Security:** Only available via HTTP gateway with authentication
     #[serde(rename = "public-safe")]
     PublicSafe,
 
     /// Advanced OCR/ML/AI/algorithm tools (optional)
-    ///
-    /// **Exposed tools:**
-    /// - OCR: `ocr.tesseract_file`, `ocr.tesseract_stream`
-    /// - ML: `ml.embeddings`, `ml.classify`, `ml.detect`
-    /// - Analysis: `algorithm.complexity`, `algorithm.dependencies`
-    ///
-    /// **Security:** Only available when `experimental-lab` feature is enabled
     #[serde(rename = "experimental-lab")]
     ExperimentalLab,
 }
-
 
 impl ToolProfile {
     /// Get all available profiles
@@ -140,17 +95,40 @@ impl ToolProfile {
         }
     }
 
+    // -----------------------------------------------------------------------
+    // BUG FIX: allows_writes / allows_execution
+    // -----------------------------------------------------------------------
+    //
+    // Previous code had two bugs:
+    //
+    // 1. `allows_writes` only matched LocalPower | AgentOrchestration, but
+    //    ExperimentalLab extends LocalPower and therefore also needs write
+    //    access (git.write.*, codebase.manifest_write, etc.).
+    //
+    // 2. `allows_execution` only matched LocalPower, leaving ExperimentalLab
+    //    unable to run local.exec.run / local.test.* even though it was
+    //    supposed to be the full-power superset profile.
+    //
+    // The registry's `is_tool_enabled()` checks these flags, so the old code
+    // silently dropped every write+exec tool from ExperimentalLab, which is
+    // exactly why Zed showed only 209 tools instead of the full set.
+
     /// Check if this profile allows write operations
     pub fn allows_writes(&self) -> bool {
         matches!(
             self,
-            ToolProfile::LocalPower | ToolProfile::AgentOrchestration
+            ToolProfile::LocalPower
+                | ToolProfile::AgentOrchestration
+                | ToolProfile::ExperimentalLab
         )
     }
 
     /// Check if this profile allows terminal execution
     pub fn allows_execution(&self) -> bool {
-        matches!(self, ToolProfile::LocalPower)
+        matches!(
+            self,
+            ToolProfile::LocalPower | ToolProfile::ExperimentalLab
+        )
     }
 
     /// Check if this profile is safe for public/remote access
@@ -202,25 +180,52 @@ impl ToolProfile {
                 "fs.find",
                 "fs.info",
                 "fs.read_json",
+                "fs.find_by_name",
+                "fs.file_stats",
+                "fs.batch_file_info",
+                "fs.read_json_validate",
                 // Git (read-only)
                 "git.read.status",
                 "git.read.diff",
                 "git.read.log",
                 "git.read.show",
                 "git.read.branches",
+                "git.read.rev_parse",
+                "git.read.ls_files",
                 // Code analysis
                 "code.index.search",
                 "code.index.paths_prefix",
                 "code.index.symbol_prefix",
                 "code.analyze.inventory",
+                "code.snippet_extract",
                 // Text processing
                 "text.transform",
                 "text.summarize",
                 "text.stats",
                 "text.extract_snippets",
+                // Compress (safe subset)
+                "compress.context",
+                "compress.file",
+                "compress.ws_collapse",
+                "compress.strip_tags",
+                "compress.fenced_code_blocks",
+                "compress.lines_head",
+                "compress.lines_tail",
+                "compress.collapse_blank_lines",
+                "compress.truncate_middle",
+                "compress.truncate_lines",
+                "compress.dedent",
+                "compress.redact_urls",
+                "compress.redact_emails",
+                // Summarize
+                "summarize.token_estimate",
+                "summarize.first_lines",
+                "summarize.rank_lines_by_keywords",
+                "summarize.text",
                 // Context
-                "pack_context",
-                "workspace_context",
+                "context.pack",
+                "context.workspace",
+                "context.project_info",
             ],
             ToolProfile::ReviewRefactor => {
                 let mut tools = Self::CoreCode.tools();
@@ -230,6 +235,11 @@ impl ToolProfile {
                     "git.read.tags",
                     "git.read.reflog",
                     "git.read.shortlog",
+                    "git.read.merge_base",
+                    "git.read.describe",
+                    "git.read.diff_stat",
+                    "git.read.last_commit",
+                    "git.read.repository_get_file",
                     "git.diff_snippets",
                     // Code analysis (additional)
                     "code.analyze.largest_files",
@@ -237,6 +247,18 @@ impl ToolProfile {
                     "code.analyze.deps",
                     "code.analyze.word_index",
                     "code.analyze.shallow_hash",
+                    "code.analyze.path_list",
+                    "code.ast_dump",
+                    "code.imports",
+                    "code.dead_code",
+                    "code.complexity",
+                    "codebase.index",
+                    "codebase.word_index",
+                    "codebase.shallow_hash",
+                    "codebase.path_list",
+                    "codebase.largest_files",
+                    "codebase.duplicate_basenames",
+                    "codebase.cargo_deps",
                     // Review tools
                     "review.diff_risk",
                     "review.focused_review",
@@ -246,6 +268,29 @@ impl ToolProfile {
                     // Summarization (advanced)
                     "summarize.multi_file",
                     "summarize.file",
+                    "summarize.line_prefix_groups",
+                    "summarize.top_terms",
+                    "summarize.identifier_frequency",
+                    "summarize.duplicate_lines",
+                    "summarize.line_histogram",
+                    "summarize.delimited_header",
+                    "summarize.json_structure",
+                    "summarize.bullets",
+                    "summarize.headings",
+                    "summarize.markdown_toc",
+                    "summarize.diff_file_list",
+                    "summarize.segments",
+                    // Compress (advanced)
+                    "compress.markdown_frontmatter",
+                    "compress.line_prefix_groups",
+                    "compress.drop_lines_matching_regex",
+                    "compress.double_slash_line_comments",
+                    "compress.unique_lines",
+                    "compress.simplify_whitespace",
+                    "compress.markdown_links",
+                    "compress.paragraphs",
+                    "compress.unified_diff_stats",
+                    "compress.sentences",
                     // Reasoning
                     "reasoning.evidence_matrix",
                     "reasoning.devils_advocate",
@@ -273,6 +318,9 @@ impl ToolProfile {
                 "agent.subagent_done",
                 "agent.roster",
                 "agent.list_topics",
+                "agent.coordination_playbook",
+                "agent.sync_all",
+                "agent.sync_confirm",
                 // Temp storage
                 "agent.temp.write",
                 "agent.temp.read",
@@ -297,7 +345,16 @@ impl ToolProfile {
                 "local.test.rust_test",
                 "local.test.rust_check",
                 "local.test.pytest",
-                // Git (write operations)
+                // Git read (full)
+                "git.read.status",
+                "git.read.diff",
+                "git.read.log",
+                "git.read.show",
+                "git.read.branches",
+                "git.read.stash_list",
+                "git.read.worktree_list",
+                "git.read.remote_list",
+                // Git write
                 "git.write.checkout",
                 "git.write.commit",
                 "git.write.push",
@@ -305,15 +362,69 @@ impl ToolProfile {
                 "git.write.fetch",
                 "git.write.stash",
                 "git.write.branch",
+                "git.write.worktree",
+                "git.write.add",
+                "git.write.tag",
+                // Codebase write
+                "codebase.manifest_write",
+                // Image
+                "image.info",
+                "image.resize",
+                "image.convert",
+                "image.crop",
+                "image.grayscale",
+                "image.blur",
+                "image.thumbnail",
+                // Audio
+                "audio.info",
+                "audio.convert",
+                "audio.trim",
+                "audio.volume",
+                "audio.merge",
+                "audio.silence_detect",
                 // OCR
                 "local.ocr.tesseract",
                 "local.ocr.tesseract_file",
+                "ocr.tesseract_file",
                 // Screenshot
                 "local.screenshot.capture",
+                "screenshot.capture",
+                "screenshot.region",
+                // Reverse engineering
+                "reverse-eng.strings",
+                "reverse-eng.hex_dump",
+                "reverse-eng.disassemble_stub",
+                // Debug
+                "debug.trace_start",
+                "debug.trace_stop",
+                "debug.trace_replay",
+                "debug.failure_cluster",
+                "debug.root_cause_analysis",
+                // Database
+                "db.query",
+                "db.schema",
+                "db.tables",
+                "db.describe",
+                "db.export",
                 // Converters
                 "convert.format",
                 "convert.gzip_compress",
                 "convert.gzip_decompress",
+                "compress.gzip_base64",
+                // Notify
+                "notify.desktop",
+                "notify.sound",
+                "notify.clipboard",
+                // System
+                "system.info",
+                "system.env_hints",
+                "system.disk_usage",
+                "system.process_list",
+                // Health
+                "health",
+                "status",
+                "security_status",
+                "project_info",
             ],
             ToolProfile::PublicSafe => vec![
                 // Health/status
@@ -330,27 +441,59 @@ impl ToolProfile {
                 "agent.bus.thread",
             ],
             ToolProfile::ExperimentalLab => {
+                // ExperimentalLab is the full-power superset:
+                // everything from LocalPower + ReviewRefactor + AgentOrchestration
+                // + experimental-only tools.
                 let mut tools = Self::LocalPower.tools();
+                // Add ReviewRefactor tools not already in LocalPower
+                for t in Self::ReviewRefactor.tools() {
+                    if !tools.contains(&t) {
+                        tools.push(t);
+                    }
+                }
+                // Add AgentOrchestration tools not already included
+                for t in Self::AgentOrchestration.tools() {
+                    if !tools.contains(&t) {
+                        tools.push(t);
+                    }
+                }
+                // Experimental-only additions
                 tools.extend(vec![
                     // OCR (advanced)
                     "ocr.tesseract_stream",
                     "ocr.tesseract_batch",
+                    // Speech
+                    "speech.tts",
+                    "speech.stt",
+                    "speech.voices_list",
                     // ML/AI
-                    "ml.embed",
-                    "ml.classify",
-                    "ml.detect",
-                    "ml.segment",
-                    "ml.transcribe",
-                    // Algorithms
-                    "algorithm.complexity",
-                    "algorithm.dependencies",
-                    "algorithm.call_graph",
-                    "algorithm.data_flow",
-                    // Integration
                     "ai.inference",
                     "ai.stack_probe",
                     "ai.model_list",
+                    "ai.context_pack",
+                    "ai.semantic_diff",
+                    // Sandbox
+                    "sandbox.python",
+                    "sandbox.js",
+                    "sandbox.bash",
+                    // Text (experimental)
+                    "text.levenshtein",
+                    "text.djb2_hash",
+                    "text.token_jaccard",
+                    "text.longest_common_substring",
+                    // Web
+                    "web.fetch",
+                    "web.search",
+                    "web.scrape",
+                    "web.screenshot",
+                    // Testing
+                    "testing.generate_unit_tests",
+                    "testing.assert_coverage",
+                    "testing.mutation_stub",
                 ]);
+                // Deduplicate while preserving order
+                let mut seen = std::collections::HashSet::new();
+                tools.retain(|t| seen.insert(*t));
                 tools
             }
         }
@@ -451,17 +594,12 @@ impl ProfileManager {
 
     /// Check if a tool is enabled
     pub fn is_tool_enabled(&self, tool_name: &str) -> bool {
-        // Check explicit overrides first
         if let Some(&enabled) = self.tool_overrides.get(tool_name) {
             return enabled;
         }
-
-        // Check profiles
         if self.additive_mode {
-            // Additive: enabled if ANY profile has it
             self.active_profiles.iter().any(|p| p.has_tool(tool_name))
         } else {
-            // Exclusive: enabled if ALL profiles have it
             !self.active_profiles.is_empty()
                 && self.active_profiles.iter().all(|p| p.has_tool(tool_name))
         }
@@ -470,16 +608,13 @@ impl ProfileManager {
     /// Get all enabled tools
     pub fn enabled_tools(&self) -> Vec<String> {
         let mut tools: HashSet<String> = HashSet::new();
-
         if self.additive_mode {
-            // Union of all profile tools
             for profile in &self.active_profiles {
                 for tool in profile.tools() {
                     tools.insert(tool.to_string());
                 }
             }
         } else {
-            // Intersection of all profile tools
             if let Some(first) = self.active_profiles.iter().next() {
                 tools = first.tools().iter().map(|s| s.to_string()).collect();
                 for profile in &self.active_profiles {
@@ -489,8 +624,6 @@ impl ProfileManager {
                 }
             }
         }
-
-        // Apply overrides
         for (tool, enabled) in &self.tool_overrides {
             if *enabled {
                 tools.insert(tool.clone());
@@ -498,7 +631,6 @@ impl ProfileManager {
                 tools.remove(tool);
             }
         }
-
         let mut tools: Vec<String> = tools.into_iter().collect();
         tools.sort();
         tools
@@ -507,7 +639,6 @@ impl ProfileManager {
     /// Get tools grouped by category
     pub fn tools_by_category(&self) -> HashMap<String, Vec<String>> {
         let mut categories: HashMap<String, Vec<String>> = HashMap::new();
-
         for tool in self.enabled_tools() {
             let category = tool.split('.').next().unwrap_or("other");
             categories
@@ -515,12 +646,9 @@ impl ProfileManager {
                 .or_default()
                 .push(tool);
         }
-
-        // Sort each category
         for tools in categories.values_mut() {
             tools.sort();
         }
-
         categories
     }
 
@@ -574,15 +702,9 @@ mod tests {
 
     #[test]
     fn test_profile_from_str() {
-        assert_eq!(
-            ToolProfile::from_str("core-code"),
-            Some(ToolProfile::CoreCode)
-        );
+        assert_eq!(ToolProfile::from_str("core-code"), Some(ToolProfile::CoreCode));
         assert_eq!(ToolProfile::from_str("core"), Some(ToolProfile::CoreCode));
-        assert_eq!(
-            ToolProfile::from_str("local-power"),
-            Some(ToolProfile::LocalPower)
-        );
+        assert_eq!(ToolProfile::from_str("local-power"), Some(ToolProfile::LocalPower));
         assert_eq!(ToolProfile::from_str("invalid"), None);
     }
 
@@ -605,6 +727,10 @@ mod tests {
 
         assert!(ToolProfile::LocalPower.allows_writes());
         assert!(ToolProfile::LocalPower.allows_execution());
+
+        // ExperimentalLab must allow both (was the main bug)
+        assert!(ToolProfile::ExperimentalLab.allows_writes());
+        assert!(ToolProfile::ExperimentalLab.allows_execution());
     }
 
     #[test]
@@ -617,6 +743,18 @@ mod tests {
         let local_tools = ToolProfile::LocalPower.tools();
         assert!(local_tools.contains(&"local.exec.run"));
         assert!(local_tools.contains(&"git.write.commit"));
+
+        let lab_tools = ToolProfile::ExperimentalLab.tools();
+        assert!(lab_tools.contains(&"local.exec.run"));
+        assert!(lab_tools.contains(&"git.write.commit"));
+        assert!(lab_tools.contains(&"agent.bus.send"));
+    }
+
+    #[test]
+    fn test_experimental_lab_no_duplicates() {
+        let tools = ToolProfile::ExperimentalLab.tools();
+        let deduped: std::collections::HashSet<_> = tools.iter().collect();
+        assert_eq!(tools.len(), deduped.len(), "ExperimentalLab tool list must not contain duplicates");
     }
 
     #[test]
@@ -636,16 +774,14 @@ mod tests {
     fn test_profile_manager_add_profile() {
         let mut manager = ProfileManager::new();
         manager.add_profile(ToolProfile::LocalPower);
-
-        assert!(manager.is_tool_enabled("fs.read_file")); // From CoreCode
-        assert!(manager.is_tool_enabled("local.exec.run")); // From LocalPower
+        assert!(manager.is_tool_enabled("fs.read_file"));
+        assert!(manager.is_tool_enabled("local.exec.run"));
     }
 
     #[test]
     fn test_profile_manager_tool_override() {
         let mut manager = ProfileManager::new();
         manager.set_tool_override("fs.read_file".to_string(), false);
-
         assert!(!manager.is_tool_enabled("fs.read_file"));
     }
 
@@ -653,7 +789,6 @@ mod tests {
     fn test_profile_manager_enabled_tools() {
         let manager = ProfileManager::with_profile(ToolProfile::CoreCode);
         let tools = manager.enabled_tools();
-
         assert!(!tools.is_empty());
         assert!(tools.contains(&"fs.read_file".to_string()));
     }
@@ -664,14 +799,9 @@ mod tests {
             ToolProfile::CoreCode,
             ToolProfile::AgentOrchestration,
         ]);
-
-        // Additive: should have tools from both
-        assert!(manager.is_tool_enabled("fs.read_file")); // CoreCode
-        assert!(manager.is_tool_enabled("agent.bus.send")); // AgentOrchestration
-
-        // Switch to exclusive mode
+        assert!(manager.is_tool_enabled("fs.read_file"));
+        assert!(manager.is_tool_enabled("agent.bus.send"));
         manager.set_additive_mode(false);
-        // Exclusive: only tools in BOTH profiles (none overlap in this case)
         assert!(!manager.is_tool_enabled("fs.read_file"));
         assert!(!manager.is_tool_enabled("agent.bus.send"));
     }
@@ -680,7 +810,6 @@ mod tests {
     fn test_profile_manager_risk_level() {
         let manager = ProfileManager::with_profile(ToolProfile::CoreCode);
         assert_eq!(manager.max_risk_level(), 2);
-
         let mut manager = ProfileManager::new();
         manager.add_profile(ToolProfile::LocalPower);
         assert_eq!(manager.max_risk_level(), 4);
@@ -690,12 +819,9 @@ mod tests {
     fn test_tools_by_category() {
         let manager = ProfileManager::with_profile(ToolProfile::CoreCode);
         let categories = manager.tools_by_category();
-
         assert!(categories.contains_key("fs"));
         assert!(categories.contains_key("git"));
         assert!(categories.contains_key("code"));
-
-        // Verify tools are sorted
         if let Some(fs_tools) = categories.get("fs") {
             assert!(fs_tools.windows(2).all(|w| w[0] <= w[1]));
         }
