@@ -25,6 +25,7 @@ use std::collections::{HashMap, HashSet};
 /// Tool profile defining which tools are exposed to MCP clients
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
+#[derive(Default)]
 pub enum ToolProfile {
     /// Default coding workflow in Zed/Cursor
     ///
@@ -35,6 +36,7 @@ pub enum ToolProfile {
     /// - Text: `text.transform`, `text.summarize`, `text.stats`
     /// - Context: `pack_context`, `workspace_context`
     #[serde(rename = "core-code")]
+    #[default]
     CoreCode,
 
     /// PR review, architecture understanding, safe codebase inspection
@@ -95,11 +97,6 @@ pub enum ToolProfile {
     ExperimentalLab,
 }
 
-impl Default for ToolProfile {
-    fn default() -> Self {
-        ToolProfile::CoreCode
-    }
-}
 
 impl ToolProfile {
     /// Get all available profiles
@@ -361,7 +358,7 @@ impl ToolProfile {
 
     /// Check if a tool is available in this profile
     pub fn has_tool(&self, tool_name: &str) -> bool {
-        self.tools().iter().any(|&t| t == tool_name)
+        self.tools().contains(&tool_name)
     }
 
     /// Get tools that overlap between this profile and another

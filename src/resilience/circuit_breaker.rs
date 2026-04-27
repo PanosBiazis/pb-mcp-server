@@ -127,22 +127,15 @@ impl CircuitBreakerConfig {
 // ============================================================================
 
 /// State of the circuit breaker
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum CircuitState {
     /// Circuit is closed, requests pass through
+    #[default]
     Closed,
-
     /// Circuit is open, requests fail fast
     Open,
-
     /// Circuit is testing if service has recovered
     HalfOpen,
-}
-
-impl Default for CircuitState {
-    fn default() -> Self {
-        CircuitState::Closed
-    }
 }
 
 impl std::fmt::Display for CircuitState {

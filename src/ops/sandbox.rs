@@ -632,8 +632,8 @@ pub fn sandbox_docker_run_work(
             out.push_str(&format!("Command: {command}\n"));
             out.push_str(&format!("Root: {}\n", root.display()));
             out.push_str(&format!("Memory: {mem_mb}MB\n"));
-            out.push_str(&format!("CPU: 1 core\n"));
-            out.push_str(&format!("Network: none\n"));
+            out.push_str("CPU: 1 core\n");
+            out.push_str("Network: none\n");
             out.push_str(&format!("Timeout: {timeout_secs}s\n"));
             out.push_str(&format!(
                 "Exit: {}\n\n",
@@ -1064,7 +1064,7 @@ pub fn sandbox_network_request_work(
                 "Headers: {} custom\n",
                 headers.iter().filter(|h| !h.trim().is_empty()).count()
             ));
-            if body.as_deref().map_or(false, |b| !b.is_empty()) {
+            if body.as_deref().is_some_and(|b| !b.is_empty()) {
                 out.push_str(&format!(
                     "Body: {} bytes\n",
                     body.as_deref().map_or(0, |b| b.len())
@@ -1183,7 +1183,7 @@ pub fn sandbox_diff_work(
                     out.push_str(&stdout);
                     out.push('\n');
                 }
-                Some(2) | _ => {
+                _ => {
                     out.push_str(&stdout);
                     out.push('\n');
                     if !stderr.is_empty() {

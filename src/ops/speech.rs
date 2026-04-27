@@ -1032,7 +1032,7 @@ pub fn speech_enhance_work(
     }
 
     let nr = noise_reduction.unwrap_or(0.5);
-    if nr < 0.0 || nr > 1.0 {
+    if !(0.0..=1.0).contains(&nr) {
         return "Error: noise_reduction must be between 0.0 and 1.0".to_string();
     }
 

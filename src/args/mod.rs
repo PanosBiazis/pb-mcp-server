@@ -105,19 +105,12 @@ pub mod defaults {
 }
 
 /// Common path argument structure
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, JsonSchema, Default)]
 pub struct PathArgs {
     /// Directory path relative to project root, or absolute under root.
     /// Empty string = project root.
+    #[serde(default)]
     pub path: String,
-}
-
-impl Default for PathArgs {
-    fn default() -> Self {
-        PathArgs {
-            path: String::new(),
-        }
-    }
 }
 
 impl From<&str> for PathArgs {
@@ -135,7 +128,7 @@ impl From<String> for PathArgs {
 }
 
 /// Range specification for file reading
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, JsonSchema, Default)]
 pub struct LineRange {
     /// 1-based start line (inclusive) for a numbered slice; omit for whole file
     #[serde(default)]
@@ -143,15 +136,6 @@ pub struct LineRange {
     /// 1-based end line (inclusive). With start_line only, defaults to end of content
     #[serde(default)]
     pub end_line: Option<usize>,
-}
-
-impl Default for LineRange {
-    fn default() -> Self {
-        LineRange {
-            start_line: None,
-            end_line: None,
-        }
-    }
 }
 
 /// Pagination arguments for list/search operations

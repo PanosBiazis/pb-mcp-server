@@ -1240,8 +1240,8 @@ pub fn web_tls_inspect_work(host: String, port: Option<u16>) -> String {
 fn extract_x509_field(text: &str, prefix: &str) -> Option<String> {
     for line in text.lines() {
         let trimmed = line.trim();
-        if trimmed.starts_with(prefix) {
-            let value = trimmed[prefix.len()..].trim();
+        if let Some(stripped) = trimmed.strip_prefix(prefix) {
+            let value = stripped.trim();
             if !value.is_empty() {
                 return Some(value.to_string());
             }

@@ -220,14 +220,12 @@ pub fn ai_ollama_generate_work(
         Ok(c) => c,
         Err(e) => {
             return if e.kind() == std::io::ErrorKind::NotFound {
-                format!(
-                    "Error: ollama not found on PATH.\n\n\
+                "Error: ollama not found on PATH.\n\n\
                      Install ollama:\n  \
                      macOS:  brew install ollama\n  \
                      Linux:  curl -fsSL https://ollama.com/install.sh | sh\n  \
                      Windows: winget install Ollama.Ollama\n\n\
-                     See https://ollama.com/download for details."
-                )
+                     See https://ollama.com/download for details.".to_string()
             } else {
                 format!("Error spawning ollama: {e}")
             };
@@ -424,7 +422,7 @@ pub fn ai_prompt_template_work(
             if let Ok(entries) = fs::read_dir(&dir) {
                 let mut templates: Vec<String> = entries
                     .filter_map(|e| e.ok())
-                    .filter(|e| e.path().extension().map_or(false, |ext| ext == "md"))
+                    .filter(|e| e.path().extension().is_some_and(|ext| ext == "md"))
                     .filter_map(|e| e.file_name().to_str().map(|s| s.to_string()))
                     .collect();
                 templates.sort();
@@ -552,7 +550,7 @@ pub fn ai_context_pack_smart_work(
             Err(_) => continue,
         };
 
-        if !entry.file_type().map_or(false, |ft| ft.is_file()) {
+        if !entry.file_type().is_some_and(|ft| ft.is_file()) {
             continue;
         }
 

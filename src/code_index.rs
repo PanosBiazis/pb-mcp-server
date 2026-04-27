@@ -176,7 +176,7 @@ pub fn code_index_build_work(
         if f.take(MAX_READ_BYTES).read_to_end(&mut buf).is_err() {
             continue;
         }
-        if buf.iter().any(|&b| b == 0) {
+        if buf.contains(&0) {
             continue;
         }
         let text = String::from_utf8_lossy(&buf);

@@ -532,11 +532,7 @@ fn filter_symbols(symbols: &str, stype: &str) -> String {
                 if parts.len() >= 2 {
                     let sym_type = parts[1];
                     sym_type == "T" || sym_type == "t" || sym_type == "W" || sym_type == "w"
-                } else if trimmed.contains("FUNC") || trimmed.contains(".text") {
-                    true
-                } else {
-                    false
-                }
+                } else { trimmed.contains("FUNC") || trimmed.contains(".text") }
             })
             .collect(),
         "variables" => symbols
@@ -1041,7 +1037,7 @@ pub fn re_pattern_search_work(
         let ascii: String = context
             .iter()
             .map(|&b| {
-                if b >= 0x20 && b <= 0x7e {
+                if (0x20..=0x7e).contains(&b) {
                     b as char
                 } else {
                     '.'
@@ -1084,7 +1080,7 @@ fn parse_pattern(pattern: &str) -> Result<Vec<u8>, String> {
         return Err("Error: empty hex pattern".to_string());
     }
 
-    if hex_str.len() % 2 != 0 {
+    if !hex_str.len().is_multiple_of(2) {
         return Err(format!(
             "Error: hex pattern has odd length ({} chars): '{}'",
             hex_str.len(),
@@ -1478,7 +1474,7 @@ fn read_field_value(cursor: &mut std::io::Cursor<&[u8]>, field: &FieldSpec) -> S
             let ascii: String = buf
                 .iter()
                 .map(|&b| {
-                    if b >= 0x20 && b <= 0x7e {
+                    if (0x20..=0x7e).contains(&b) {
                         b as char
                     } else {
                         '.'

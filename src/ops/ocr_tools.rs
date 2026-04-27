@@ -249,13 +249,12 @@ pub fn ocr_pdf_work(path: PathBuf, language: Option<String>, page_range: Option<
     };
 
     // Create a temp directory for page images.
-    let tmp_dir = match std::env::temp_dir().join("pb-mcp-ocr-pdf") {
-        td => {
-            if let Err(e) = fs::create_dir_all(&td) {
-                return format!("Error: cannot create temp dir {}: {e}", td.display());
-            }
-            td
+    let tmp_dir = {
+        let td = std::env::temp_dir().join("pb-mcp-ocr-pdf");
+        if let Err(e) = fs::create_dir_all(&td) {
+            return format!("Error: cannot create temp dir {}: {e}", td.display());
         }
+        td
     };
 
     // Parse page range.

@@ -43,25 +43,17 @@ use sysinfo::System;
 // ============================================================================
 
 /// Overall health status of the system
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum HealthStatus {
     /// System is healthy and operating normally
     Healthy,
-
     /// System is degraded but still functional
     Degraded,
-
     /// System is unhealthy and may fail
     Unhealthy,
-
     /// Health check failed or not yet performed
+    #[default]
     Unknown,
-}
-
-impl Default for HealthStatus {
-    fn default() -> Self {
-        HealthStatus::Unknown
-    }
 }
 
 impl std::fmt::Display for HealthStatus {

@@ -13,7 +13,7 @@ use super::defaults;
 // ============================================================================
 
 /// Arguments for sending a message on the agent bus
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, JsonSchema, Default)]
 pub struct AgentSendArgs {
     /// Stable sender id for this session (alphanumeric, _, -, .)
     /// e.g., "cursor-main", "review-bot"
@@ -34,18 +34,6 @@ pub struct AgentSendArgs {
     /// Short label: note, question, suggestion, handoff, etc.
     #[serde(default)]
     pub kind: Option<String>,
-}
-
-impl Default for AgentSendArgs {
-    fn default() -> Self {
-        AgentSendArgs {
-            from_agent: String::new(),
-            message: String::new(),
-            to_agent: None,
-            topic: None,
-            kind: None,
-        }
-    }
 }
 
 /// Arguments for agent handoff (structured message)

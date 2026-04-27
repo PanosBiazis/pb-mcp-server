@@ -172,16 +172,7 @@ pub fn convert_document_work(input_path: PathBuf, output_format: Option<String>)
     };
 
     let ext = extension_lower(&input_path);
-    let pandoc_from = match ext.as_str() {
-        "docx" => "docx",
-        "odt" => "odt",
-        "rtf" => "rtf",
-        other => {
-            // pandoc is flexible — pass the extension through and let it
-            // decide. If it fails the fallback will run.
-            other
-        }
-    };
+    let pandoc_from = ext.as_str();
 
     // --- Attempt 1: pandoc ---------------------------------------------------
     let pandoc_result = Command::new("pandoc")
@@ -227,67 +218,62 @@ pub fn convert_document_work(input_path: PathBuf, output_format: Option<String>)
         .arg(&input_path)
         .output();
 
-    match libre_result {
-        Ok(out) => {
-            if out.status.success() {
-                let stdout = String::from_utf8_lossy(&out.stdout);
-                let stderr = String::from_utf8_lossy(&out.stderr);
-
-                // LibreOffice writes the converted file next to the input.
-                // Deduce the output path from the input path + new extension.
-                let mut out_path = input_path.clone();
-                out_path.set_extension(libre_target);
-
-                let body = if out_path.is_file() {
-                    match fs::read_to_string(&out_path) {
-                        Ok(t) => t,
-                        Err(e) => format!(
-                            "<could not read converted file {}: {e}>",
-                            out_path.display()
-                        ),
-                    }
-                } else {
-                    // If we cannot locate the output file, show whatever
-                    // libreoffice printed on stdout.
-                    stdout.clone().into_owned()
-                };
-
-                let mut resp = format!(
-                    "CONVERT_DOCUMENT tool=libreoffice to={libre_target} path={}\n\n{}",
-                    input_path.display(),
-                    body.trim()
-                );
-                if !stderr.trim().is_empty() {
-                    resp.push_str(&format!(
-                        "\n\n--- libreoffice stderr ---\n{}",
-                        truncate_response(stderr.trim(), 2000)
-                    ));
-                }
-                return truncate_response(&resp, MAX_RESPONSE_CHARS);
-            }
-            let code = out
-                .status
-                .code()
-                .map(|c| c.to_string())
-                .unwrap_or_else(|| "signal".into());
+    if let Ok(out) = libre_result {
+        if out.status.success() {
+            let stdout = String::from_utf8_lossy(&out.stdout);
             let stderr = String::from_utf8_lossy(&out.stderr);
-            return format!(
-                "CONVERT_DOCUMENT failed: pandoc unavailable, libreoffice exit={code}\nSTDERR: {}",
-                truncate_response(stderr.trim(), 4000)
+
+            // LibreOffice writes the converted file next to the input.
+            // Deduce the output path from the input path + new extension.
+            let mut out_path = input_path.clone();
+            out_path.set_extension(libre_target);
+
+            let body = if out_path.is_file() {
+                match fs::read_to_string(&out_path) {
+                    Ok(t) => t,
+                    Err(e) => format!(
+                        "<could not read converted file {}: {e}>",
+                        out_path.display()
+                    ),
+                }
+            } else {
+                // If we cannot locate the output file, show whatever
+                // libreoffice printed on stdout.
+                stdout.clone().into_owned()
+            };
+
+            let mut resp = format!(
+                "CONVERT_DOCUMENT tool=libreoffice to={libre_target} path={}\n\n{}",
+                input_path.display(),
+                body.trim()
             );
+            if !stderr.trim().is_empty() {
+                resp.push_str(&format!(
+                    "\n\n--- libreoffice stderr ---\n{}",
+                    truncate_response(stderr.trim(), 2000)
+                ));
+            }
+            return truncate_response(&resp, MAX_RESPONSE_CHARS);
         }
-        Err(_) => {}
+        let code = out
+            .status
+            .code()
+            .map(|c| c.to_string())
+            .unwrap_or_else(|| "signal".into());
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        return format!(
+            "CONVERT_DOCUMENT failed: pandoc unavailable, libreoffice exit={code}\nSTDERR: {}",
+            truncate_response(stderr.trim(), 4000)
+        );
     }
 
     // --- Neither tool available ---------------------------------------------
-    format!(
-        "Error: neither pandoc nor libreoffice found on PATH.\n\
+    "Error: neither pandoc nor libreoffice found on PATH.\n\
          Install one of:\n  \
          apt install pandoc                    # Debian / Ubuntu\n  \
          brew install pandoc                   # macOS\n  \
          apt install libreoffice               # Debian / Ubuntu\n  \
-         brew install --cask libreoffice       # macOS"
-    )
+         brew install --cask libreoffice       # macOS".to_string()
 }
 
 // ---------------------------------------------------------------------------
@@ -648,7 +634,7 @@ pub fn convert_binary_hexdump_work(
 
         // ASCII representation
         for &b in chunk.iter() {
-            let ch = if b >= 0x20 && b <= 0x7e {
+            let ch = if (0x20..=0x7e).contains(&b) {
                 b as char
             } else {
                 '.'
