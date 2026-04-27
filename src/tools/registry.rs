@@ -2,19 +2,19 @@
 //!
 //! [`ToolRegistry`] wraps a [`ToolCatalog`] together with a [`ToolProfile`],
 //! gating which tools are available based on the profile's risk level, write
-//! permission, and execution permission. It also supports dynamic
-//! registration and unregistration of tools at runtime.
+//! permission, execution permission, **and profile visibility**.
+//! It also supports dynamic registration and unregistration of tools at runtime.
 //!
 //! # Risk gating rules
 //!
-//! | Profile | Risk levels | Writes | Exec | Notes |
-//! |----------------------|-------------------------------|--------|------|-------|
-//! | `CoreCode` | low, medium | ✗ | ✗ | |
-//! | `ReviewRefactor` | low, medium | ✗ | ✗ | |
-//! | `AgentOrchestration` | low, medium | ✗ | ✗ | Agent tools allowed |
-//! | `LocalPower` | low, medium, high, critical | ✓ | ✓ | |
-//! | `PublicSafe` | low only | ✗ | ✗ | No write, no exec |
-//! | `ExperimentalLab` | low, medium, high, critical | ✓ | ✓ | |
+//! | Profile              | Risk levels                   | Writes | Exec | Profile visible to              |
+//! |----------------------|-------------------------------|--------|------|---------------------------------|
+//! | `PublicSafe`         | low only                      | ✗      | ✗    | public-safe                     |
+//! | `CoreCode`           | low, medium                   | ✗      | ✗    | public-safe, core-code          |
+//! | `ReviewRefactor`     | low, medium                   | ✗      | ✗    | + review-refactor               |
+//! | `AgentOrchestration` | low, medium                   | ✓      | ✗    | + agent-orchestration           |
+//! | `LocalPower`         | low, medium, high, critical   | ✓      | ✓    | + local-power                   |
+//! | `ExperimentalLab`    | low, medium, high, critical   | ✓      | ✓    | all profiles                    |
 
 use super::catalog::{ToolCatalog, ToolInfo};
 use crate::profiles::ToolProfile;
@@ -28,8 +28,8 @@ use crate::profiles::ToolProfile;
 /// A `ToolRegistry` pairs a [`ToolCatalog`] with a [`ToolProfile`] and
 /// enforces profile-specific rules on which tools are enabled. Tools that
 /// exceed the profile's risk level, or that require write/exec permissions
-/// the profile does not grant, are considered *disabled* even though they
-/// remain in the underlying catalog.
+/// the profile does not grant, or that belong to a higher-tier profile, are
+/// considered *disabled* even though they remain in the underlying catalog.
 ///
 /// # Example
 ///
@@ -40,7 +40,7 @@ use crate::profiles::ToolProfile;
 /// let registry = ToolRegistry::new(ToolProfile::CoreCode);
 /// assert!(!registry.is_enabled("nonexistent_tool"));
 /// let enabled = registry.enabled_tools();
-/// // Only low and medium risk tools with no write/exec are included
+/// // Only low/medium risk tools whose profile is public-safe or core-code
 /// ```
 #[derive(Debug, Clone)]
 pub struct ToolRegistry {
@@ -56,17 +56,12 @@ impl ToolRegistry {
     // -----------------------------------------------------------------------
 
     /// Create a new registry with a freshly built catalog and the given profile.
-    ///
-    /// The catalog is populated via [`ToolCatalog::new`] and then filtered
-    /// according to the profile's risk and permission rules.
     pub fn new(profile: ToolProfile) -> Self {
         let catalog = ToolCatalog::new();
         Self { catalog, profile }
     }
 
     /// Create a registry from an existing catalog and the given profile.
-    ///
-    /// Useful when the catalog has been pre-built or customised externally.
     pub fn with_catalog(catalog: ToolCatalog, profile: ToolProfile) -> Self {
         Self { catalog, profile }
     }
@@ -76,13 +71,6 @@ impl ToolRegistry {
     // -----------------------------------------------------------------------
 
     /// Check whether a tool is available under the current profile.
-    ///
-    /// A tool is considered *enabled* when **all** of the following hold:
-    ///
-    /// 1. The tool exists in the catalog.
-    /// 2. The tool's risk level is allowed by the profile.
-    /// 3. If the tool requires write access, the profile allows writes.
-    /// 4. If the tool requires execution, the profile allows execution.
     pub fn is_enabled(&self, tool_name: &str) -> bool {
         let Some(tool) = self.find_tool(tool_name) else {
             return false;
@@ -91,8 +79,6 @@ impl ToolRegistry {
     }
 
     /// Return all tools enabled under the current profile.
-    ///
-    /// The order follows the underlying catalog.
     pub fn enabled_tools(&self) -> Vec<&ToolInfo> {
         self.catalog
             .all()
@@ -115,16 +101,15 @@ impl ToolRegistry {
 
     /// Register a custom tool dynamically at runtime.
     ///
-    /// The tool is appended to the underlying catalog. If a tool with the
-    /// same name already exists, it is **not** replaced — the duplicate
-    /// remains in the catalog and both entries will be considered by
-    /// [`is_enabled`](Self::is_enabled).
-    ///
-    /// To replace an existing tool, call [`unregister_tool`](Self::unregister_tool)
-    /// first.
+    /// If a tool with the same name already exists in the catalog, this call
+    /// is a **no-op** — the existing entry is preserved and no duplicate is
+    /// created. To replace an existing tool, call
+    /// [`unregister_tool`](Self::unregister_tool) first.
     pub fn register_tool(&mut self, info: ToolInfo) {
-        // We need mutable access to the catalog's internal vec.
-        // ToolCatalog::all() returns &[ToolInfo], so we expose an add method.
+        // Deduplicate: skip if a tool with the same name already exists.
+        if self.catalog.all().iter().any(|t| t.name == info.name) {
+            return;
+        }
         self.catalog.add(info);
     }
 
@@ -160,7 +145,23 @@ impl ToolRegistry {
     }
 
     /// Determine whether a specific tool passes the profile's gate.
+    ///
+    /// Gates are checked in order:
+    /// 0. Profile visibility — the tool's declared profile must be reachable
+    ///    from the active profile.
+    /// 1. Risk level — must be within the profile's allowed risk levels.
+    /// 2. Write gate — if the tool requires write access, the profile must
+    ///    allow writes.
+    /// 3. Exec gate — if the tool requires execution, the profile must allow
+    ///    execution.
     fn is_tool_enabled(&self, tool: &ToolInfo) -> bool {
+        // 0. Profile visibility gate — tool's declared profile must be
+        //    reachable from the active profile. This prevents experimental-lab
+        //    tools from appearing under public-safe/core-code, etc.
+        if !self.is_profile_visible(&tool.profile) {
+            return false;
+        }
+
         // 1. Risk level gate
         if !self.is_risk_allowed(&tool.risk_level) {
             return false;
@@ -177,6 +178,56 @@ impl ToolRegistry {
         }
 
         true
+    }
+
+    /// Return the set of tool-profile strings visible to the active profile.
+    ///
+    /// A profile can see itself and all lower-tier profiles. The tiers are:
+    ///
+    /// ```text
+    /// public-safe  (lowest)
+    ///   core-code
+    ///     review-refactor
+    ///       agent-orchestration
+    ///         local-power
+    ///           experimental-lab  (highest)
+    /// ```
+    fn is_profile_visible(&self, tool_profile: &str) -> bool {
+        let allowed: &[&str] = match self.profile {
+            ToolProfile::PublicSafe => &["public-safe"],
+            ToolProfile::CoreCode => &["public-safe", "core-code"],
+            ToolProfile::ReviewRefactor => {
+                &["public-safe", "core-code", "review-refactor"]
+            }
+            ToolProfile::AgentOrchestration => {
+                &[
+                    "public-safe",
+                    "core-code",
+                    "review-refactor",
+                    "agent-orchestration",
+                ]
+            }
+            ToolProfile::LocalPower => {
+                &[
+                    "public-safe",
+                    "core-code",
+                    "review-refactor",
+                    "agent-orchestration",
+                    "local-power",
+                ]
+            }
+            ToolProfile::ExperimentalLab => {
+                &[
+                    "public-safe",
+                    "core-code",
+                    "review-refactor",
+                    "agent-orchestration",
+                    "local-power",
+                    "experimental-lab",
+                ]
+            }
+        };
+        allowed.contains(&tool_profile)
     }
 
     /// Check whether the given risk level string is permitted under the
@@ -203,16 +254,6 @@ impl ToolRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// A helper that builds a minimal catalog with known tools for
-    /// deterministic testing, bypassing the full `ToolCatalog::new()`.
-    fn make_test_catalog() -> ToolCatalog {
-        // We use ToolCatalog::new() but then rely on specific known entries.
-        // For fully deterministic tests we build via the public API of
-        // ToolRegistry — the full catalog is fine because we know the
-        // risk levels and flags of the built-in tools.
-        ToolCatalog::new()
-    }
 
     /// Verifies that `PublicSafe` only exposes low-risk, no-write, no-exec
     /// tools and that high-risk / write / exec tools are disabled.
@@ -271,6 +312,94 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Verifies that the profile visibility gate blocks tools whose declared
+    /// profile is higher-tier than the active profile, even if they would
+    /// otherwise pass the risk/write/exec gates.
+    ///
+    /// Specifically: experimental-lab tools with risk_level "low" and no
+    /// write/exec requirements must NOT appear under PublicSafe or CoreCode.
+    #[test]
+    fn profile_gate_blocks_downlevel_tools() {
+        // These profiles must NOT see experimental-lab tools.
+        let restricted = [
+            ToolProfile::PublicSafe,
+            ToolProfile::CoreCode,
+            ToolProfile::ReviewRefactor,
+            ToolProfile::AgentOrchestration,
+            ToolProfile::LocalPower,
+        ];
+
+        for profile in restricted {
+            let registry = ToolRegistry::new(profile);
+            for tool in registry.enabled_tools() {
+                assert_ne!(
+                    tool.profile, "experimental-lab",
+                    "profile {:?} must not expose experimental-lab tool: {}",
+                    profile, tool.name
+                );
+            }
+        }
+
+        // ExperimentalLab itself MUST see experimental-lab tools.
+        let lab = ToolRegistry::new(ToolProfile::ExperimentalLab);
+        let lab_tools: Vec<_> = lab
+            .enabled_tools()
+            .into_iter()
+            .filter(|t| t.profile == "experimental-lab")
+            .collect();
+        assert!(
+            !lab_tools.is_empty(),
+            "ExperimentalLab should expose experimental-lab tools"
+        );
+    }
+
+    /// Verifies that registering a tool with a duplicate name is a no-op:
+    /// the catalog count stays the same and the original entry is preserved.
+    #[test]
+    fn register_tool_deduplicates() {
+        let mut registry = ToolRegistry::new(ToolProfile::CoreCode);
+        let before = registry.catalog().count();
+
+        // Register a new tool.
+        let tool = ToolInfo {
+            name: "test.dedup_target".to_string(),
+            description: "Original description".to_string(),
+            category: "test".to_string(),
+            profile: "core-code".to_string(),
+            risk_level: "low".to_string(),
+            requires_write: false,
+            requires_exec: false,
+        };
+        registry.register_tool(tool);
+        assert_eq!(registry.catalog().count(), before + 1);
+
+        // Try to register a duplicate — count must stay the same.
+        let duplicate = ToolInfo {
+            name: "test.dedup_target".to_string(),
+            description: "Duplicate — should be ignored".to_string(),
+            category: "test".to_string(),
+            profile: "core-code".to_string(),
+            risk_level: "low".to_string(),
+            requires_write: false,
+            requires_exec: false,
+        };
+        registry.register_tool(duplicate);
+        assert_eq!(
+            registry.catalog().count(),
+            before + 1,
+            "duplicate registration should be a no-op"
+        );
+
+        // The original description must still be intact.
+        let found = registry
+            .catalog()
+            .all()
+            .iter()
+            .find(|t| t.name == "test.dedup_target")
+            .expect("tool must exist");
+        assert_eq!(found.description, "Original description");
     }
 
     /// Tests dynamic registration and unregistration of tools, ensuring
@@ -358,10 +487,23 @@ mod tests {
         // A category that has no low-risk tools under PublicSafe should
         // return an empty vec.
         let compress_tools = registry.enabled_by_category("compress");
-        // compress tools are typically medium+ risk, so under PublicSafe
-        // the list should be empty or only contain low-risk entries.
         for tool in &compress_tools {
             assert_eq!(tool.risk_level, "low");
+        }
+    }
+
+    /// Verifies that every tool exposed by PublicSafe has profile "public-safe".
+    /// This is a canary test: if any future catalog entry with a higher-tier
+    /// profile leaks through the profile gate it will fail here.
+    #[test]
+    fn public_safe_only_exposes_public_safe_profile_tools() {
+        let registry = ToolRegistry::new(ToolProfile::PublicSafe);
+        for tool in registry.enabled_tools() {
+            assert_eq!(
+                tool.profile, "public-safe",
+                "PublicSafe must only expose public-safe profile tools, found {} (profile: {})",
+                tool.name, tool.profile
+            );
         }
     }
 }
