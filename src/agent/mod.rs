@@ -85,8 +85,6 @@ pub mod worker;
 // Re-exports for ergonomic access
 // ============================================================================
 
-pub use sync::{AgentEntry, AgentRegistry, AgentStatus, SyncState, SyncStateStore, SyncStatus};
-
 pub use consensus::ConsensusEngine;
 
 #[cfg(feature = "web-websocket")]
