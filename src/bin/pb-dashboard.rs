@@ -12,9 +12,14 @@
 //! cargo run --features dashboard --bin pb-dashboard
 //! ```
 
-#![cfg(feature = "dashboard")]
+// NOTE: Do NOT put #![cfg(feature = "dashboard")] at file level — that would
+// gate `main()` itself and cause the linker to silently drop the binary even
+// when the feature IS requested. Instead, each egui-dependent item is gated
+// individually below, and main() always compiles.
 
+#[cfg(feature = "dashboard")]
 use egui::{Color32, RichText, Vec2};
+#[cfg(feature = "dashboard")]
 use std::time::Instant;
 
 // ---------------------------------------------------------------------------
@@ -22,6 +27,7 @@ use std::time::Instant;
 // ---------------------------------------------------------------------------
 
 /// Which dashboard tab is currently selected.
+#[cfg(feature = "dashboard")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum DashboardTab {
     Overview,
@@ -32,8 +38,8 @@ enum DashboardTab {
     Metrics,
 }
 
+#[cfg(feature = "dashboard")]
 impl DashboardTab {
-    /// Human-readable label for the tab.
     fn label(self) -> &'static str {
         match self {
             Self::Overview => "Overview",
@@ -45,7 +51,6 @@ impl DashboardTab {
         }
     }
 
-    /// All tab variants in display order.
     const ALL: [Self; 6] = [
         Self::Overview,
         Self::Agents,
@@ -56,105 +61,71 @@ impl DashboardTab {
     ];
 }
 
-/// Summary information about a single agent worker.
+#[cfg(feature = "dashboard")]
 #[derive(Clone, Debug)]
 struct AgentInfo {
-    /// Unique agent identifier.
     id: String,
-    /// Role / kind of the agent (e.g. "coder", "reviewer").
     role: String,
-    /// Current status string (e.g. "idle", "running", "stopped").
     status: String,
-    /// Number of bus messages sent by this agent.
     message_count: String,
 }
 
-/// A single agent-bus message.
+#[cfg(feature = "dashboard")]
 #[derive(Clone, Debug)]
 struct BusMessage {
-    /// Message identifier.
     id: String,
-    /// Sending agent.
     from: String,
-    /// Receiving agent (empty for broadcast).
     to: String,
-    /// Message topic.
     topic: String,
-    /// Message kind / type.
     kind: String,
-    /// Short body / payload summary.
     body: String,
-    /// Human-readable timestamp.
     timestamp: String,
 }
 
-/// A tool entry with profile and risk metadata.
+#[cfg(feature = "dashboard")]
 #[derive(Clone, Debug)]
 struct ToolEntry {
-    /// Tool name.
     name: String,
-    /// Category the tool belongs to.
     category: String,
-    /// Profile that enables this tool.
     profile: String,
-    /// Risk level label.
     risk_level: String,
-    /// Whether the tool is enabled under the active profile.
     enabled: bool,
 }
 
-/// Security status snapshot from the gateway.
+#[cfg(feature = "dashboard")]
 #[derive(Clone, Debug)]
 struct SecurityInfo {
-    /// Whether token-based authentication is enabled.
     token_enabled: String,
-    /// Whether request signing is enabled.
     signing_enabled: String,
-    /// Additional notes from the gateway.
     notes: String,
 }
 
-/// Time-series metric data for plotting.
+#[cfg(feature = "dashboard")]
 #[derive(Clone, Debug, Default)]
 struct MetricsData {
-    /// Requests per second over recent samples.
     requests_per_sec: Vec<f64>,
-    /// Average response time in milliseconds.
     response_times_ms: Vec<f64>,
-    /// Error rate as a fraction (0.0 – 1.0).
     error_rates: Vec<f64>,
 }
 
-/// Top-level application state for the dashboard.
+#[cfg(feature = "dashboard")]
 struct DashboardApp {
-    /// Gateway HTTP base URL.
     gateway_url: String,
-    /// Most recently fetched agents.
     agents: Vec<AgentInfo>,
-    /// Most recently fetched bus messages.
     bus_messages: Vec<BusMessage>,
-    /// Most recently fetched tool entries.
     tools: Vec<ToolEntry>,
-    /// Most recently fetched security info.
     security_status: SecurityInfo,
-    /// Metric time-series data.
     metrics: MetricsData,
-    /// Currently selected tab.
     selected_tab: DashboardTab,
-    /// Whether auto-refresh is enabled.
     auto_refresh: bool,
-    /// Auto-refresh interval in seconds.
     refresh_interval_secs: f32,
-    /// Instant of the last data refresh.
     last_refresh: Instant,
-    /// Status bar text.
     status_text: String,
-    /// Filter text for the Bus tab.
     bus_filter: String,
-    /// Whether the initial connection has been verified.
     connected: bool,
 }
 
+#[cfg(feature = "dashboard")]
 impl Default for DashboardApp {
     fn default() -> Self {
         Self {
@@ -180,11 +151,10 @@ impl Default for DashboardApp {
 }
 
 // ---------------------------------------------------------------------------
-// Placeholder data helpers (real HTTP integration requires reqwest / web-tools)
+// Placeholder data helpers
 // ---------------------------------------------------------------------------
 
-/// Populate the dashboard with sample data so the UI is functional even
-/// without a live gateway connection.
+#[cfg(feature = "dashboard")]
 fn load_placeholder_data(app: &mut DashboardApp) {
     app.agents = vec![
         AgentInfo {
@@ -340,7 +310,6 @@ fn load_placeholder_data(app: &mut DashboardApp) {
         notes: "Token protection active. Request signing not configured. Project-root confinement enabled.".into(),
     };
 
-    // Generate a simulated metrics history (60 samples).
     let n = 60;
     let mut rps = Vec::with_capacity(n);
     let mut rt = Vec::with_capacity(n);
@@ -362,27 +331,18 @@ fn load_placeholder_data(app: &mut DashboardApp) {
 // eframe::App implementation
 // ---------------------------------------------------------------------------
 
+#[cfg(feature = "dashboard")]
 impl eframe::App for DashboardApp {
-    /// Called once on creation — no special init needed since `Default` handles it.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // --- Auto-refresh timer ---------------------------------------------------
         if self.auto_refresh && self.connected {
             if self.last_refresh.elapsed().as_secs_f32() >= self.refresh_interval_secs {
-                // TODO: actual HTTP fetch from gateway endpoints.
-                // For now the placeholder data persists; a real implementation would
-                // spawn a background thread or use ehttp to hit:
-                //   GET {gateway_url}/status
-                //   GET {gateway_url}/agent-recent
-                //   GET {gateway_url}/security-status
                 self.last_refresh = Instant::now();
                 self.status_text =
                     format!("Refreshed at {}", chrono::Local::now().format("%H:%M:%S"));
             }
-            // Keep repainting so the timer fires visually.
             ctx.request_repaint_after(std::time::Duration::from_millis(500));
         }
 
-        // --- Top panel: connection bar --------------------------------------------
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
@@ -395,9 +355,6 @@ impl eframe::App for DashboardApp {
                         .hint_text("http://localhost:8123"),
                 );
                 if ui.button("Connect").clicked() {
-                    // TODO: HTTP GET {gateway_url}/health
-                    // On success, set connected = true and fetch initial data.
-                    // Placeholder: assume connection succeeds.
                     self.connected = true;
                     load_placeholder_data(self);
                     self.status_text =
@@ -414,38 +371,22 @@ impl eframe::App for DashboardApp {
                     );
                 }
                 ui.separator();
-                // Connection indicator dot.
-                let dot_color = if self.connected {
-                    Color32::GREEN
-                } else {
-                    Color32::GRAY
-                };
+                let dot_color = if self.connected { Color32::GREEN } else { Color32::GRAY };
                 ui.colored_label(dot_color, "●");
-                ui.label(if self.connected {
-                    "connected"
-                } else {
-                    "disconnected"
-                });
+                ui.label(if self.connected { "connected" } else { "disconnected" });
             });
             ui.add_space(2.0);
         });
 
-        // --- Bottom panel: status bar ---------------------------------------------
         egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
-                ui.label(
-                    RichText::new(&self.status_text)
-                        .small()
-                        .color(Color32::GRAY),
-                );
+                ui.label(RichText::new(&self.status_text).small().color(Color32::GRAY));
             });
             ui.add_space(2.0);
         });
 
-        // --- Central panel: tab bar + content -------------------------------------
         egui::CentralPanel::default().show(ctx, |ui| {
-            // Tab bar.
             ui.horizontal(|ui| {
                 for tab in DashboardTab::ALL {
                     let is_selected = self.selected_tab == tab;
@@ -457,14 +398,13 @@ impl eframe::App for DashboardApp {
             });
             ui.separator();
 
-            // Tab content.
             match self.selected_tab {
-                DashboardTab::Overview => self.draw_overview(ui),
-                DashboardTab::Agents => self.draw_agents(ui),
-                DashboardTab::Bus => self.draw_bus(ui),
-                DashboardTab::Tools => self.draw_tools(ui),
-                DashboardTab::Security => self.draw_security(ui),
-                DashboardTab::Metrics => self.draw_metrics(ui),
+                DashboardTab::Overview  => self.draw_overview(ui),
+                DashboardTab::Agents    => self.draw_agents(ui),
+                DashboardTab::Bus       => self.draw_bus(ui),
+                DashboardTab::Tools     => self.draw_tools(ui),
+                DashboardTab::Security  => self.draw_security(ui),
+                DashboardTab::Metrics   => self.draw_metrics(ui),
             }
         });
     }
@@ -474,8 +414,8 @@ impl eframe::App for DashboardApp {
 // Tab drawing helpers
 // ---------------------------------------------------------------------------
 
+#[cfg(feature = "dashboard")]
 impl DashboardApp {
-    /// Draw the **Overview** tab.
     fn draw_overview(&mut self, ui: &mut egui::Ui) {
         ui.vertical_centered(|ui| {
             ui.add_space(8.0);
@@ -489,18 +429,10 @@ impl DashboardApp {
             .striped(true)
             .show(ui, |ui| {
                 ui.label("Server Status");
-                let status_color = if self.connected {
-                    Color32::GREEN
-                } else {
-                    Color32::YELLOW
-                };
+                let status_color = if self.connected { Color32::GREEN } else { Color32::YELLOW };
                 ui.colored_label(
                     status_color,
-                    if self.connected {
-                        "Running"
-                    } else {
-                        "Not Connected"
-                    },
+                    if self.connected { "Running" } else { "Not Connected" },
                 );
                 ui.end_row();
 
@@ -513,12 +445,7 @@ impl DashboardApp {
                 ui.end_row();
 
                 ui.label("Uptime");
-                // Placeholder: show time since connection.
-                if self.connected {
-                    ui.label("Active");
-                } else {
-                    ui.label("—");
-                }
+                ui.label(if self.connected { "Active" } else { "—" });
                 ui.end_row();
 
                 ui.label("Project Root");
@@ -598,7 +525,6 @@ impl DashboardApp {
             });
     }
 
-    /// Draw the **Agents** tab.
     fn draw_agents(&mut self, ui: &mut egui::Ui) {
         ui.heading("Agent Workers");
         ui.add_space(4.0);
@@ -608,39 +534,35 @@ impl DashboardApp {
             return;
         }
 
-        egui::ScrollArea::vertical()
-            .max_height(500.0)
-            .show(ui, |ui| {
-                egui::Grid::new("agents_grid")
-                    .num_columns(4)
-                    .spacing([16.0, 6.0])
-                    .striped(true)
-                    .show(ui, |ui| {
-                        ui.label(RichText::new("ID").strong());
-                        ui.label(RichText::new("Role").strong());
-                        ui.label(RichText::new("Status").strong());
-                        ui.label(RichText::new("Messages").strong());
-                        ui.end_row();
+        egui::ScrollArea::vertical().max_height(500.0).show(ui, |ui| {
+            egui::Grid::new("agents_grid")
+                .num_columns(4)
+                .spacing([16.0, 6.0])
+                .striped(true)
+                .show(ui, |ui| {
+                    ui.label(RichText::new("ID").strong());
+                    ui.label(RichText::new("Role").strong());
+                    ui.label(RichText::new("Status").strong());
+                    ui.label(RichText::new("Messages").strong());
+                    ui.end_row();
 
-                        for agent in &self.agents {
-                            ui.label(&agent.id);
-                            ui.label(&agent.role);
-                            let color = match agent.status.as_str() {
-                                "running" => Color32::GREEN,
-                                "idle" => Color32::YELLOW,
-                                "stopped" => Color32::RED,
-                                _ => Color32::GRAY,
-                            };
-                            ui.colored_label(color, &agent.status);
-                            ui.label(&agent.message_count);
-                            ui.end_row();
-                        }
-                    });
-            });
+                    for agent in &self.agents {
+                        ui.label(&agent.id);
+                        ui.label(&agent.role);
+                        let color = match agent.status.as_str() {
+                            "running" => Color32::GREEN,
+                            "idle"    => Color32::YELLOW,
+                            "stopped" => Color32::RED,
+                            _         => Color32::GRAY,
+                        };
+                        ui.colored_label(color, &agent.status);
+                        ui.label(&agent.message_count);
+                        ui.end_row();
+                    }
+                });
+        });
 
         ui.add_space(8.0);
-
-        // Action buttons per agent.
         ui.separator();
         ui.label("Agent Controls");
         ui.add_space(4.0);
@@ -653,15 +575,12 @@ impl DashboardApp {
                     ui.label(&agent.id);
                     if agent.status == "running" {
                         if ui.button("⏹ Stop").clicked() {
-                            // TODO: POST {gateway_url}/agent-stop
                             self.status_text = format!("TODO: stop agent {}", agent.id);
                         }
                     } else if ui.button("▶ Start").clicked() {
-                        // TODO: POST {gateway_url}/agent-start
                         self.status_text = format!("TODO: start agent {}", agent.id);
                     }
                     if ui.button("🔄 Restart").clicked() {
-                        // TODO: POST {gateway_url}/agent-restart
                         self.status_text = format!("TODO: restart agent {}", agent.id);
                     }
                     ui.label(format!("[{}]", agent.status));
@@ -670,7 +589,6 @@ impl DashboardApp {
             });
     }
 
-    /// Draw the **Bus** tab.
     fn draw_bus(&mut self, ui: &mut egui::Ui) {
         ui.heading("Agent Bus Messages");
         ui.add_space(4.0);
@@ -713,63 +631,37 @@ impl DashboardApp {
             self.bus_messages.len(),
             filtered.len()
         ));
-
         ui.add_space(4.0);
 
-        egui::ScrollArea::vertical()
-            .max_height(500.0)
-            .show(ui, |ui| {
-                for msg in filtered {
-                    egui::CollapsingHeader::new(format!(
-                        "{} {} → {}  [{}]  {}",
-                        msg.timestamp,
-                        msg.from,
-                        if msg.to.is_empty() {
-                            "broadcast".to_string()
-                        } else {
-                            msg.to.clone()
-                        },
-                        msg.topic,
-                        msg.kind
-                    ))
-                    .id_salt(&msg.id)
-                    .show(ui, |ui| {
-                        egui::Grid::new(("bus_msg", &msg.id))
-                            .num_columns(2)
-                            .spacing([12.0, 4.0])
-                            .show(ui, |ui| {
-                                ui.label("ID:");
-                                ui.label(&msg.id);
-                                ui.end_row();
-                                ui.label("From:");
-                                ui.label(&msg.from);
-                                ui.end_row();
-                                ui.label("To:");
-                                ui.label(if msg.to.is_empty() {
-                                    "broadcast"
-                                } else {
-                                    &msg.to
-                                });
-                                ui.end_row();
-                                ui.label("Topic:");
-                                ui.label(&msg.topic);
-                                ui.end_row();
-                                ui.label("Kind:");
-                                ui.label(&msg.kind);
-                                ui.end_row();
-                                ui.label("Body:");
-                                ui.label(&msg.body);
-                                ui.end_row();
-                                ui.label("Time:");
-                                ui.label(&msg.timestamp);
-                                ui.end_row();
-                            });
-                    });
-                }
-            });
+        egui::ScrollArea::vertical().max_height(500.0).show(ui, |ui| {
+            for msg in filtered {
+                egui::CollapsingHeader::new(format!(
+                    "{} {} → {}  [{}]  {}",
+                    msg.timestamp,
+                    msg.from,
+                    if msg.to.is_empty() { "broadcast".to_string() } else { msg.to.clone() },
+                    msg.topic,
+                    msg.kind
+                ))
+                .id_salt(&msg.id)
+                .show(ui, |ui| {
+                    egui::Grid::new(("bus_msg", &msg.id))
+                        .num_columns(2)
+                        .spacing([12.0, 4.0])
+                        .show(ui, |ui| {
+                            ui.label("ID:");      ui.label(&msg.id);        ui.end_row();
+                            ui.label("From:");    ui.label(&msg.from);      ui.end_row();
+                            ui.label("To:");      ui.label(if msg.to.is_empty() { "broadcast" } else { &msg.to }); ui.end_row();
+                            ui.label("Topic:");   ui.label(&msg.topic);     ui.end_row();
+                            ui.label("Kind:");    ui.label(&msg.kind);      ui.end_row();
+                            ui.label("Body:");    ui.label(&msg.body);      ui.end_row();
+                            ui.label("Time:");    ui.label(&msg.timestamp); ui.end_row();
+                        });
+                });
+            }
+        });
     }
 
-    /// Draw the **Tools** tab.
     fn draw_tools(&mut self, ui: &mut egui::Ui) {
         ui.heading("Registered Tools");
         ui.add_space(4.0);
@@ -779,61 +671,52 @@ impl DashboardApp {
             return;
         }
 
-        // Group tools by category.
         let mut categories: std::collections::BTreeMap<String, Vec<&ToolEntry>> =
             std::collections::BTreeMap::new();
         for tool in &self.tools {
-            categories
-                .entry(tool.category.clone())
-                .or_default()
-                .push(tool);
+            categories.entry(tool.category.clone()).or_default().push(tool);
         }
 
-        egui::ScrollArea::vertical()
-            .max_height(600.0)
-            .show(ui, |ui| {
-                for (cat, entries) in &categories {
-                    egui::CollapsingHeader::new(format!("{} ({} tools)", cat, entries.len()))
-                        .default_open(true)
-                        .id_salt(cat)
-                        .show(ui, |ui| {
-                            egui::Grid::new(("tools_cat", cat))
-                                .num_columns(4)
-                                .spacing([16.0, 6.0])
-                                .striped(true)
-                                .show(ui, |ui| {
-                                    ui.label(RichText::new("Name").strong());
-                                    ui.label(RichText::new("Profile").strong());
-                                    ui.label(RichText::new("Risk").strong());
-                                    ui.label(RichText::new("Enabled").strong());
-                                    ui.end_row();
+        egui::ScrollArea::vertical().max_height(600.0).show(ui, |ui| {
+            for (cat, entries) in &categories {
+                egui::CollapsingHeader::new(format!("{} ({} tools)", cat, entries.len()))
+                    .default_open(true)
+                    .id_salt(cat)
+                    .show(ui, |ui| {
+                        egui::Grid::new(("tools_cat", cat))
+                            .num_columns(4)
+                            .spacing([16.0, 6.0])
+                            .striped(true)
+                            .show(ui, |ui| {
+                                ui.label(RichText::new("Name").strong());
+                                ui.label(RichText::new("Profile").strong());
+                                ui.label(RichText::new("Risk").strong());
+                                ui.label(RichText::new("Enabled").strong());
+                                ui.end_row();
 
-                                    for entry in entries {
-                                        ui.label(&entry.name);
-                                        ui.label(&entry.profile);
-
-                                        let risk_color = match entry.risk_level.as_str() {
-                                            "low" => Color32::from_rgb(80, 180, 80),
-                                            "medium" => Color32::from_rgb(220, 180, 40),
-                                            "high" => Color32::from_rgb(220, 60, 60),
-                                            _ => Color32::GRAY,
-                                        };
-                                        ui.colored_label(risk_color, &entry.risk_level);
-
-                                        if entry.enabled {
-                                            ui.colored_label(Color32::GREEN, "✔ on");
-                                        } else {
-                                            ui.colored_label(Color32::GRAY, "✘ off");
-                                        }
-                                        ui.end_row();
+                                for entry in entries {
+                                    ui.label(&entry.name);
+                                    ui.label(&entry.profile);
+                                    let risk_color = match entry.risk_level.as_str() {
+                                        "low"    => Color32::from_rgb(80,  180, 80),
+                                        "medium" => Color32::from_rgb(220, 180, 40),
+                                        "high"   => Color32::from_rgb(220, 60,  60),
+                                        _        => Color32::GRAY,
+                                    };
+                                    ui.colored_label(risk_color, &entry.risk_level);
+                                    if entry.enabled {
+                                        ui.colored_label(Color32::GREEN, "✔ on");
+                                    } else {
+                                        ui.colored_label(Color32::GRAY,  "✘ off");
                                     }
-                                });
-                        });
-                }
-            });
+                                    ui.end_row();
+                                }
+                            });
+                    });
+            }
+        });
     }
 
-    /// Draw the **Security** tab.
     fn draw_security(&mut self, ui: &mut egui::Ui) {
         ui.heading("Security Status");
         ui.add_space(8.0);
@@ -868,97 +751,58 @@ impl DashboardApp {
 
         ui.add_space(12.0);
 
-        // Rate-limit info (placeholder).
-        egui::CollapsingHeader::new("Rate Limits")
-            .default_open(true)
-            .show(ui, |ui| {
-                egui::Grid::new("rate_limit_grid")
-                    .num_columns(2)
-                    .spacing([20.0, 6.0])
-                    .striped(true)
-                    .show(ui, |ui| {
-                        ui.label("Global Requests/min");
-                        ui.label("120");
-                        ui.end_row();
-                        ui.label("Per-Agent Requests/min");
-                        ui.label("30");
-                        ui.end_row();
-                        ui.label("Burst Allowance");
-                        ui.label("10");
-                        ui.end_row();
-                    });
-            });
+        egui::CollapsingHeader::new("Rate Limits").default_open(true).show(ui, |ui| {
+            egui::Grid::new("rate_limit_grid")
+                .num_columns(2)
+                .spacing([20.0, 6.0])
+                .striped(true)
+                .show(ui, |ui| {
+                    ui.label("Global Requests/min");     ui.label("120"); ui.end_row();
+                    ui.label("Per-Agent Requests/min");  ui.label("30");  ui.end_row();
+                    ui.label("Burst Allowance");         ui.label("10");  ui.end_row();
+                });
+        });
 
         ui.add_space(8.0);
 
-        // Audit log (placeholder).
-        egui::CollapsingHeader::new("Audit Log (recent)")
-            .default_open(false)
-            .show(ui, |ui| {
-                egui::ScrollArea::vertical()
-                    .max_height(250.0)
+        egui::CollapsingHeader::new("Audit Log (recent)").default_open(false).show(ui, |ui| {
+            egui::ScrollArea::vertical().max_height(250.0).show(ui, |ui| {
+                let audit_entries = [
+                    ("2025-01-15T10:00:01Z", "INFO", "Gateway started"),
+                    ("2025-01-15T10:00:02Z", "INFO", "Token protection enabled"),
+                    ("2025-01-15T10:01:15Z", "AUTH", "Agent agent-coder-01 authenticated"),
+                    ("2025-01-15T10:02:30Z", "AUTH", "Agent agent-reviewer-01 authenticated"),
+                    ("2025-01-15T10:05:00Z", "RATE", "Rate limit reached for 192.168.1.50"),
+                    ("2025-01-15T10:10:00Z", "SIGN", "Unsigned request rejected from 10.0.0.12"),
+                    ("2025-01-15T10:15:22Z", "INFO", "Agent agent-linter-01 stopped"),
+                    ("2025-01-15T10:20:00Z", "AUTH", "Agent agent-planner-01 authenticated"),
+                ];
+                egui::Grid::new("audit_grid")
+                    .num_columns(3)
+                    .spacing([12.0, 4.0])
+                    .striped(true)
                     .show(ui, |ui| {
-                        let audit_entries = [
-                            ("2025-01-15T10:00:01Z", "INFO", "Gateway started"),
-                            ("2025-01-15T10:00:02Z", "INFO", "Token protection enabled"),
-                            (
-                                "2025-01-15T10:01:15Z",
-                                "AUTH",
-                                "Agent agent-coder-01 authenticated",
-                            ),
-                            (
-                                "2025-01-15T10:02:30Z",
-                                "AUTH",
-                                "Agent agent-reviewer-01 authenticated",
-                            ),
-                            (
-                                "2025-01-15T10:05:00Z",
-                                "RATE",
-                                "Rate limit reached for 192.168.1.50",
-                            ),
-                            (
-                                "2025-01-15T10:10:00Z",
-                                "SIGN",
-                                "Unsigned request rejected from 10.0.0.12",
-                            ),
-                            (
-                                "2025-01-15T10:15:22Z",
-                                "INFO",
-                                "Agent agent-linter-01 stopped",
-                            ),
-                            (
-                                "2025-01-15T10:20:00Z",
-                                "AUTH",
-                                "Agent agent-planner-01 authenticated",
-                            ),
-                        ];
-                        egui::Grid::new("audit_grid")
-                            .num_columns(3)
-                            .spacing([12.0, 4.0])
-                            .striped(true)
-                            .show(ui, |ui| {
-                                ui.label(RichText::new("Time").strong());
-                                ui.label(RichText::new("Kind").strong());
-                                ui.label(RichText::new("Message").strong());
-                                ui.end_row();
-                                for (ts, kind, msg) in &audit_entries {
-                                    ui.label(*ts);
-                                    let kind_color = match *kind {
-                                        "AUTH" => Color32::from_rgb(100, 160, 220),
-                                        "RATE" => Color32::from_rgb(220, 180, 40),
-                                        "SIGN" => Color32::from_rgb(220, 100, 60),
-                                        _ => Color32::GRAY,
-                                    };
-                                    ui.colored_label(kind_color, *kind);
-                                    ui.label(*msg);
-                                    ui.end_row();
-                                }
-                            });
+                        ui.label(RichText::new("Time").strong());
+                        ui.label(RichText::new("Kind").strong());
+                        ui.label(RichText::new("Message").strong());
+                        ui.end_row();
+                        for (ts, kind, msg) in &audit_entries {
+                            ui.label(*ts);
+                            let kind_color = match *kind {
+                                "AUTH" => Color32::from_rgb(100, 160, 220),
+                                "RATE" => Color32::from_rgb(220, 180, 40),
+                                "SIGN" => Color32::from_rgb(220, 100, 60),
+                                _      => Color32::GRAY,
+                            };
+                            ui.colored_label(kind_color, *kind);
+                            ui.label(*msg);
+                            ui.end_row();
+                        }
                     });
             });
+        });
     }
 
-    /// Draw the **Metrics** tab using `egui_plot`.
     fn draw_metrics(&mut self, ui: &mut egui::Ui) {
         ui.heading("Performance Metrics");
         ui.add_space(8.0);
@@ -968,7 +812,6 @@ impl DashboardApp {
             return;
         }
 
-        // Generate x-axis values (sample indices).
         let x_values: Vec<f64> = (0..self.metrics.requests_per_sec.len())
             .map(|i| i as f64)
             .collect();
@@ -992,48 +835,42 @@ impl DashboardApp {
         };
 
         egui::ScrollArea::vertical().show(ui, |ui| {
-            draw_chart(
-                ui,
-                "Requests / sec",
-                &self.metrics.requests_per_sec,
-                Color32::from_rgb(100, 200, 120),
-            );
+            draw_chart(ui, "Requests / sec",   &self.metrics.requests_per_sec,  Color32::from_rgb(100, 200, 120));
             ui.add_space(8.0);
-
-            draw_chart(
-                ui,
-                "Response Time (ms)",
-                &self.metrics.response_times_ms,
-                Color32::from_rgb(100, 160, 255),
-            );
+            draw_chart(ui, "Response Time (ms)", &self.metrics.response_times_ms, Color32::from_rgb(100, 160, 255));
             ui.add_space(8.0);
-
-            draw_chart(
-                ui,
-                "Error Rate",
-                &self.metrics.error_rates,
-                Color32::from_rgb(255, 100, 100),
-            );
+            draw_chart(ui, "Error Rate",         &self.metrics.error_rates,        Color32::from_rgb(255, 100, 100));
         });
     }
 }
 
 // ---------------------------------------------------------------------------
-// Entry point
+// Entry point — always compiled so cargo always produces the binary
 // ---------------------------------------------------------------------------
 
-/// Entry point for the pb-dashboard admin GUI.
-fn main() -> eframe::Result<()> {
-    let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size([1200.0, 800.0])
-            .with_title("pb-mcp-server Dashboard"),
-        ..Default::default()
-    };
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(not(feature = "dashboard"))]
+    {
+        eprintln!("pb-dashboard was built without the `dashboard` feature.");
+        eprintln!("Rebuild with:  cargo build --release --features dashboard --bin pb-dashboard");
+        std::process::exit(1);
+    }
 
-    eframe::run_native(
-        "pb-mcp-server Dashboard",
-        options,
-        Box::new(|_cc| Ok(Box::new(DashboardApp::default()))),
-    )
+    #[cfg(feature = "dashboard")]
+    {
+        let options = eframe::NativeOptions {
+            viewport: egui::ViewportBuilder::default()
+                .with_inner_size([1200.0, 800.0])
+                .with_title("pb-mcp-server Dashboard"),
+            ..Default::default()
+        };
+
+        eframe::run_native(
+            "pb-mcp-server Dashboard",
+            options,
+            Box::new(|_cc| Ok(Box::new(DashboardApp::default()))),
+        )?;
+    }
+
+    Ok(())
 }
