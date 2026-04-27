@@ -1065,7 +1065,7 @@ pub fn image_extract_exif_work(path: PathBuf) -> String {
         }
     }
 
-    format!("Error: no EXIF tool available. Install `exiftool` or ImageMagick (`identify`).")
+    "Error: no EXIF tool available. Install `exiftool` or ImageMagick (`identify`).".to_string()
 }
 
 // ---------------------------------------------------------------------------

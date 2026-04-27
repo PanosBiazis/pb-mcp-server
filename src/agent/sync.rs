@@ -28,21 +28,16 @@ use std::sync::atomic::{AtomicU64, Ordering};
 // ============================================================================
 
 /// Health / availability status of a registered agent.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentStatus {
     /// Agent is actively processing tasks and responsive.
     Active,
     /// Agent is alive but not currently accepting new work.
+    #[default]
     Idle,
     /// Agent has missed heartbeats and is presumed unavailable.
     Offline,
-}
-
-impl Default for AgentStatus {
-    fn default() -> Self {
-        Self::Idle
-    }
 }
 
 impl std::fmt::Display for AgentStatus {
@@ -263,21 +258,16 @@ impl Default for AgentRegistry {
 // ============================================================================
 
 /// Status of an in-flight synchronization round.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum SyncStatus {
     /// Sync message sent; waiting for confirmations.
+    #[default]
     Pending,
     /// All targeted agents have confirmed.
     Confirmed,
     /// At least one agent failed to confirm; the sync was rolled back.
     RolledBack,
-}
-
-impl Default for SyncStatus {
-    fn default() -> Self {
-        Self::Pending
-    }
 }
 
 impl std::fmt::Display for SyncStatus {

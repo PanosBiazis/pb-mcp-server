@@ -849,21 +849,12 @@ pub fn review_pr_packet_work(root: PathBuf, revision_range: String) -> String {
     // Diff stats
     let diff_stat = run_git_diff_stat(&root, &revision_range);
     out.push_str("=== DIFF STAT ===\n");
-    if diff_stat.starts_with("Error") {
-        out.push_str(&diff_stat);
-    } else {
-        out.push_str(&diff_stat);
-    }
+    out.push_str(&diff_stat);
     out.push_str("\n\n");
-
     // Commit log
     let log = run_git_log_oneline(&root, &revision_range);
     out.push_str("=== COMMITS ===\n");
-    if log.starts_with("Error") {
-        out.push_str(&log);
-    } else {
-        out.push_str(&log);
-    }
+    out.push_str(&log);
     out.push_str("\n\n");
 
     // Risk analysis

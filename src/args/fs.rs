@@ -12,28 +12,17 @@ use serde::Deserialize;
 // ============================================================================
 
 /// Arguments for reading a file
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, JsonSchema, Default)]
 pub struct ReadFileArgs {
     /// UTF-8 text file path under the project root
+    #[serde(default)]
     pub path: String,
-
     /// 1-based start line (inclusive) for a numbered slice; omit for whole file
     #[serde(default)]
     pub start_line: Option<usize>,
-
     /// 1-based end line (inclusive). With start_line only, defaults to end of loaded content
     #[serde(default)]
     pub end_line: Option<usize>,
-}
-
-impl Default for ReadFileArgs {
-    fn default() -> Self {
-        ReadFileArgs {
-            path: String::new(),
-            start_line: None,
-            end_line: None,
-        }
-    }
 }
 
 impl From<&str> for ReadFileArgs {

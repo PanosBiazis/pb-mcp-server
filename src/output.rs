@@ -53,10 +53,11 @@ pub const MAX_DIR_ENTRIES: usize = 200;
 pub const MAX_TREE_ENTRIES: usize = 500;
 
 /// Output status indicating success, error, or truncation
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum OutputStatus {
     /// Operation completed successfully
+    #[default]
     Ok,
     /// Operation failed with an error
     Error,
@@ -66,12 +67,6 @@ pub enum OutputStatus {
     Warning,
     /// Operation is pending (for async operations)
     Pending,
-}
-
-impl Default for OutputStatus {
-    fn default() -> Self {
-        OutputStatus::Ok
-    }
 }
 
 impl std::fmt::Display for OutputStatus {
@@ -117,53 +112,32 @@ pub struct OutputEnvelope {
 }
 
 /// Metadata about the output
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct OutputMetadata {
     /// Size in bytes
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub bytes: Option<usize>,
-
     /// Number of lines (if applicable)
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub lines: Option<usize>,
-
     /// Whether output was truncated
+    #[serde(default)]
     pub truncated: bool,
-
     /// Original size before truncation
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub original_size: Option<usize>,
-
     /// Execution time
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub duration_ms: Option<u64>,
-
     /// Number of items (for lists)
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub item_count: Option<usize>,
-
     /// File path (if applicable)
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub path: Option<String>,
-
     /// Additional custom metadata
     #[serde(skip_serializing_if = "std::collections::HashMap::is_empty", default)]
     pub extra: std::collections::HashMap<String, String>,
-}
-
-impl Default for OutputMetadata {
-    fn default() -> Self {
-        OutputMetadata {
-            bytes: None,
-            lines: None,
-            truncated: false,
-            original_size: None,
-            duration_ms: None,
-            item_count: None,
-            path: None,
-            extra: std::collections::HashMap::new(),
-        }
-    }
 }
 
 impl OutputEnvelope {

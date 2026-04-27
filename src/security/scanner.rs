@@ -299,7 +299,7 @@ impl SecretScanner {
         for entry in walker {
             let entry = entry.map_err(|e| format!("Walk error: {e}"))?;
 
-            if !entry.file_type().map_or(false, |ft| ft.is_file()) {
+            if !entry.file_type().is_some_and(|ft| ft.is_file()) {
                 continue;
             }
 
@@ -433,7 +433,7 @@ impl IntegrityChecker {
         for entry in walker {
             let entry = entry.map_err(|e| format!("Walk error: {e}"))?;
 
-            if !entry.file_type().map_or(false, |ft| ft.is_file()) {
+            if !entry.file_type().is_some_and(|ft| ft.is_file()) {
                 continue;
             }
 
