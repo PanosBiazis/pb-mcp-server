@@ -1,189 +1,28 @@
 {
-  "// Configuration for pb-mcp-server MCP server in Zed": "",
-  "// See https://github.com/PanosBiazis/pb-mcp-server for documentation": "",
-
-  "mcpServers": {
-    "pb-mcp-server": {
-      "// Description": "Profile-based IDE agent MCP server for Zed with multi-agent bus, code intelligence, and execution tools",
-
-      "// Binary path - update to your build location": "",
-      "command": "./target/release/pb-mcp-server",
-
-      "// No arguments needed - configuration via environment": "",
-      "args": [],
-
-      "// Environment configuration": "",
-      "env": {
-        "// Required: Project root path": "",
-        "MINT_PROJECT_ROOT": "/path/to/your/project",
-
-        "// Optional: Select profile (core-code, review-refactor, agent-orchestration, local-power, public-safe, experimental-lab)": "",
-        "PB_MCP_PROFILE": "core-code",
-
-        "// Optional: Network profile (local or public)": "",
-        "MINT_NETWORK_PROFILE": "local",
-
-        "// Optional: Enable terminal execution (set to '1' to enable)": "",
-        "MINT_TERMINAL_ENABLE": "0",
-
-        "// Optional: Allowed terminal commands (comma-separated)": "",
-        "MINT_TERMINAL_ALLOW": "git,cargo,npm,python,pytest",
-
-        "// Optional: Enable git push (set to '1' to enable)": "",
-        "MINT_GIT_PUSH_ENABLE": "0",
-
-        "// Optional: Enable git remote operations (set to '1' to enable)": "",
-        "MINT_GIT_REMOTE_ENABLE": "0",
-
-        "// Optional: Enable test runners (set to '1' to enable)": "",
-        "MINT_PROJECT_TEST_ENABLE": "0",
-
-        "// Optional: Bus rate limiting (messages per window)": "",
-        "MINT_BUS_MAX_SENDS_PER_WINDOW": "100",
-
-        "// Optional: Bus rate limiting window (seconds)": "",
-        "MINT_BUS_WINDOW_SECS": "60",
-
-        "// Optional: Read-only bus mode (set to '1' to disable writes)": "",
-        "MINT_BUS_READ_ONLY": "0",
-
-        "// Optional: Log level (trace, debug, info, warn, error)": "",
-        "RUST_LOG": "info"
-      },
-
-      "// Tool permissions - explicitly enable/disable tools": "",
-      "// Use 'mcp:pb-mcp-server:<tool_name>' format": "",
-      "tool_permissions": {
-        "// File system tools (core-code)": "",
-        "fs.read_file": "allow",
-        "fs.read_tail": "allow",
-        "fs.list": "allow",
-        "fs.tree": "allow",
-        "fs.find": "allow",
-        "fs.info": "allow",
-
-        "// Git read tools (core-code)": "",
-        "git.read.status": "allow",
-        "git.read.diff": "allow",
-        "git.read.log": "allow",
-        "git.read.show": "allow",
-
-        "// Code analysis tools (core-code)": "",
-        "code.index.search": "allow",
-        "code.analyze.inventory": "allow",
-
-        "// Text processing (core-code)": "",
-        "text.transform": "allow",
-        "text.summarize": "allow",
-
-        "// Context tools (core-code)": "",
-        "pack_context": "allow",
-        "workspace_context": "allow",
-
-        "// Agent bus tools - enable for agent-orchestration profile": "",
-        "agent.bus.send": "ask",
-        "agent.bus.inbox": "ask",
-        "agent.bus.thread": "ask",
-        "agent.bus.recent": "allow",
-
-        "// Execution tools - require local-power profile": "",
-        "local.exec.run": "deny",
-        "local.test.rust_test": "deny",
-        "local.test.pytest": "deny",
-
-        "// Git write tools - require local-power profile": "",
-        "git.write.commit": "deny",
-        "git.write.push": "deny"
-      }
-    },
-
-    "// Alternative configuration for local-power profile": "",
-    "pb-mcp-server-local": {
-      "command": "./target/release/pb-mcp-server",
-      "args": [],
-      "env": {
-        "MINT_PROJECT_ROOT": "/path/to/your/project",
-        "PB_MCP_PROFILE": "local-power",
-        "MINT_NETWORK_PROFILE": "local",
-        "MINT_TERMINAL_ENABLE": "1",
-        "MINT_TERMINAL_ALLOW": "git,cargo,npm,python,pytest,rustc,go",
-        "MINT_GIT_PUSH_ENABLE": "1",
-        "MINT_GIT_REMOTE_ENABLE": "1",
-        "MINT_PROJECT_TEST_ENABLE": "1",
-        "RUST_LOG": "warn"
-      },
-      "tool_permissions": {
-        "// All tools enabled for local-power": "",
-        "local.exec.run": "ask",
-        "local.test.rust_test": "allow",
-        "local.test.pytest": "allow",
-        "git.write.commit": "ask",
-        "git.write.push": "ask"
-      }
-    },
-
-    "// Alternative configuration for agent-orchestration": "",
-    "pb-mcp-server-agent": {
-      "command": "./target/release/pb-mcp-server",
-      "args": [],
-      "env": {
-        "MINT_PROJECT_ROOT": "/path/to/your/project",
-        "PB_MCP_PROFILE": "agent-orchestration",
-        "MINT_NETWORK_PROFILE": "local",
-        "RUST_LOG": "info"
-      },
-      "tool_permissions": {
-        "// Agent tools enabled": "",
-        "agent.bus.send": "allow",
-        "agent.bus.inbox": "allow",
-        "agent.ask": "allow",
-        "agent.handoff": "allow"
-      }
-    },
-
-    "// Alternative configuration for review-refactor": "",
-    "pb-mcp-server-review": {
-      "command": "./target/release/pb-mcp-server",
-      "args": [],
-      "env": {
-        "MINT_PROJECT_ROOT": "/path/to/your/project",
-        "PB_MCP_PROFILE": "review-refactor",
-        "MINT_NETWORK_PROFILE": "local",
-        "RUST_LOG": "info"
-      },
-      "tool_permissions": {
-        "// Review tools enabled": "",
-        "git.read.blame": "allow",
-        "code.analyze.largest_files": "allow",
-        "review.diff_risk": "allow"
-      }
+  "pb-mcp-server": {
+    "command": "/media/panosboy/ExtHD/panag/Documents/projects/AAP/tools/rust/pb-mcp-server/target/release/pb-mcp-server",
+    "args": [],
+    "env": {
+      "PB_PROJECT_ROOT": "/media/panosboy/ExtHD/panag/Documents/projects/AAP",
+      "PB_MCP_PROFILE": "experimental-lab",
+      "MINT_NETWORK_PROFILE": "local",
+      "MINT_TERMINAL_ENABLE": "1",
+      "MINT_TERMINAL_ALLOW": "git,cargo,npm,python,pytest,rustc,go",
+      "MINT_GIT_PUSH_ENABLE": "1",
+      "MINT_GIT_REMOTE_ENABLE": "1",
+      "MINT_PROJECT_TEST_ENABLE": "1",
+      "RUST_LOG": "info"
     }
   },
-
-  "// Profile descriptions for reference": "",
-  "//": "",
-  "// core-code: Default coding workflow (read-only file/git/code tools)",
-  "// review-refactor: PR review + architecture analysis (extends core-code)",
-  "// agent-orchestration: Multi-agent coordination (bus tools, handoffs)",
-  "// local-power: Local execution (terminal, tests, git write, OCR)",
-  "// public-safe: Remote HTTP subset (bounded, read-only)",
-  "// experimental-lab: Advanced ML/AI tools",
-  "//": "",
-  "// To use a specific profile, either:": "",
-  "// 1. Set PB_MCP_PROFILE environment variable": "",
-  "// 2. Use the appropriate server config above": "",
-  "// 3. Enable/disable tools via tool_permissions": "",
-  "//": "",
-  "// Security notes:": "",
-  "// - core-code is safest for general use (read-only)",
-  "// - local-power requires explicit enablement and approval",
-  "// - public-safe is for HTTP gateway only",
-  "// - Always set MINT_PROJECT_ROOT to limit file access",
-  "// - Terminal tools require MINT_TERMINAL_ENABLE=1": ""
-}
-
-
-{
+  "pb-mcp-server-core": {
+    "command": "/media/panosboy/ExtHD/panag/Documents/projects/AAP/tools/rust/pb-mcp-server/target/release/pb-mcp-server",
+    "args": [],
+    "env": {
+      "PB_PROJECT_ROOT": "/media/panosboy/ExtHD/panag/Documents/projects/AAP",
+      "PB_MCP_PROFILE": "core-code",
+      "RUST_LOG": "warn"
+    }
+  },
   "pb-mcp-server-local": {
     "command": "C:\\pb-mcp-server\\target\\release\\pb-mcp-server.exe",
     "args": [],
@@ -198,20 +37,5 @@
       "PB_PROJECT_TEST_ENABLE": "1",
       "RUST_LOG": "warn"
     }
-  }
-}
-
-
-{
-  /// Configure an MCP server that runs locally via stdin/stdout
-  ///
-  /// The name of your MCP server
-  "pb-mcp-server": {
-    /// The command which runs the MCP server
-    "command": "/media/panosboy/ExtHD/panag/Documents/projects/AAP/tools/rust/pb-mcp-server/target/release/pb-mcp-server",
-    /// The arguments to pass to the MCP server
-    "args": [],
-    /// The environment variables to set
-    "env": {"PB_PROJECT_ROOT":"/media/panosboy/ExtHD/panag/Documents/projects/AAP"}
   }
 }
