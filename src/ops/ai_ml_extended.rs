@@ -1645,34 +1645,32 @@ pub fn ai_self_critique_work(params: Value) -> String {
     let model = arg_str(&params, "model", "llama3.2");
     let ollama_url = arg_str(&params, "ollama_url", "http://localhost:11434");
 
-    // Step 1: Critique
     let critique_prompt = format!(
-        "Evaluate the following AI response for accuracy, completeness, and clarity. \
-         Identify specific weaknesses, errors, or missing information. \
-         Then provide an improved version.\n\n\
-         Original prompt: {original_prompt}\n\n\
-         Original response: {original_response}\n\n\
-         Provide your critique and improved response:"
+        "Review the following AI response and identify any errors, inconsistencies, \
+         or areas for improvement. Be specific and constructive.\n\n\
+         Original question: {original_prompt}\n\n\
+         AI response to critique:\n{original_response}\n\n\
+         Critique:"
     );
 
     match ollama_generate_api(&model, &critique_prompt, &ollama_url) {
         Ok((val, _latency_ms)) => {
-            let full = extract_generate_response(&val);
-            // Try to split critique from improved response
-            let lower = full.to_lowercase();
-            let (critique, improved) = if let Some(idx) = lower.find("improved") {
-                (
-                    full[..idx].trim().to_string(),
-                    full[idx..].trim().to_string(),
-                )
-            } else if let Some(idx) = lower.find("better") {
-                (
-                    full[..idx].trim().to_string(),
-                    full[idx..].trim().to_string(),
-                )
-            } else {
-                (full.clone(), String::new())
+            let critique = extract_generate_response(&val);
+
+            // Now generate an improved response
+            let improve_prompt = format!(
+                "Based on this critique, provide an improved response to the original question.\n\n\
+                 Original question: {original_prompt}\n\n\
+                 Original response:\n{original_response}\n\n\
+                 Critique:\n{critique}\n\n\
+                 Improved response:"
+            );
+
+            let improved = match ollama_generate_api(&model, &improve_prompt, &ollama_url) {
+                Ok((v2, _)) => extract_generate_response(&v2),
+                Err(_) => String::new(),
             };
+
             serde_json::json!({
                 "critique": truncate_response(&critique),
                 "improved_response": truncate_response(&improved)
@@ -1683,2039 +1681,228 @@ pub fn ai_self_critique_work(params: Value) -> String {
     }
 }
 
-/// Two-model debate: one argues for, the other against, then synthesize.
+/// Debate two positions on a topic using two model calls.
 ///
-/// Args: `question` (string), `model_a` (string, default "llama3.2"),
-/// `model_b` (string, optional, defaults to same as model_a),
-/// `ollama_url` (string).
+/// Args: `topic` (string), `model_a` (string), `model_b` (string),
+/// `rounds` (int, default 2), `ollama_url` (string).
 #[allow(dead_code)]
 pub fn ai_debate_work(params: Value) -> String {
-    let question = match params.get("question").and_then(|v| v.as_str()) {
-        Some(q) => q.to_string(),
-        None => return serde_json::json!({"error": "Missing required arg: question"}).to_string(),
+    let topic = match params.get("topic").and_then(|v| v.as_str()) {
+        Some(t) => t.to_string(),
+        None => return serde_json::json!({"error": "Missing required arg: topic"}).to_string(),
     };
     let model_a = arg_str(&params, "model_a", "llama3.2");
-    let model_b = arg_str(&params, "model_b", &model_a);
+    let model_b = arg_str(&params, "model_b", "llama3.2");
+    let rounds = arg_u64(&params, "rounds", 2).clamp(1, 5) as usize;
     let ollama_url = arg_str(&params, "ollama_url", "http://localhost:11434");
 
-    // Argument FOR
-    let for_prompt = format!(
-        "Argue strongly IN FAVOR of the following question. \
-         Provide the strongest arguments you can.\n\n\
-         Question: {question}"
-    );
-    let argument_for = match ollama_generate_api(&model_a, &for_prompt, &ollama_url) {
-        Ok((val, _)) => extract_generate_response(&val),
-        Err(e) => {
-            return serde_json::json!({"error": format!("Argument for failed: {e}")}).to_string()
-        }
-    };
+    let mut debate_log: Vec<Value> = Vec::new();
 
-    // Argument AGAINST
-    let against_prompt = format!(
-        "Argue strongly AGAINST the following question. \
-         Provide the strongest counter-arguments you can.\n\n\
-         Question: {question}"
-    );
-    let argument_against = match ollama_generate_api(&model_b, &against_prompt, &ollama_url) {
-        Ok((val, _)) => extract_generate_response(&val),
-        Err(e) => {
-            return serde_json::json!({"error": format!("Argument against failed: {e}")})
-                .to_string()
-        }
-    };
+    for round in 1..=rounds {
+        // Model A argues FOR
+        let prompt_a = format!(
+            "You are debating the topic: '{topic}'.\n\
+             Round {round}: Argue strongly IN FAVOR of this topic. \
+             Be concise (2-3 sentences)."
+        );
+        let arg_a = match ollama_generate_api(&model_a, &prompt_a, &ollama_url) {
+            Ok((v, _)) => extract_generate_response(&v),
+            Err(e) => format!("[Error: {e}]"),
+        };
+        debate_log.push(serde_json::json!({
+            "round": round,
+            "side": "for",
+            "model": model_a,
+            "argument": truncate_response(&arg_a)
+        }));
+
+        // Model B argues AGAINST
+        let prompt_b = format!(
+            "You are debating the topic: '{topic}'.\n\
+             Round {round}: Argue strongly AGAINST this topic. \
+             Be concise (2-3 sentences)."
+        );
+        let arg_b = match ollama_generate_api(&model_b, &prompt_b, &ollama_url) {
+            Ok((v, _)) => extract_generate_response(&v),
+            Err(e) => format!("[Error: {e}]"),
+        };
+        debate_log.push(serde_json::json!({
+            "round": round,
+            "side": "against",
+            "model": model_b,
+            "argument": truncate_response(&arg_b)
+        }));
+    }
 
     // Synthesis
-    let synth_prompt = format!(
-        "Synthesize the following opposing arguments into a balanced analysis.\n\n\
-         PRO arguments:\n{argument_for}\n\n\
-         CON arguments:\n{argument_against}\n\n\
-         Balanced synthesis:"
+    let synthesis_prompt = format!(
+        "Summarize the key points from both sides of this debate on '{topic}' \
+         and provide a balanced synthesis in 2-3 sentences."
     );
-    // Use model_a for synthesis as well
-    let synthesis = match ollama_generate_api(&model_a, &synth_prompt, &ollama_url) {
-        Ok((val, _)) => extract_generate_response(&val),
-        Err(e) => {
-            return serde_json::json!({"error": format!("Synthesis failed: {e}")}).to_string()
-        }
+    let synthesis = match ollama_generate_api(&model_a, &synthesis_prompt, &ollama_url) {
+        Ok((v, _)) => extract_generate_response(&v),
+        Err(_) => String::new(),
     };
 
     serde_json::json!({
-        "argument_for": truncate_response(&argument_for),
-        "argument_against": truncate_response(&argument_against),
+        "topic": topic,
+        "debate_log": debate_log,
         "synthesis": truncate_response(&synthesis)
     })
     .to_string()
 }
 
-/// Build RAG index from files using keyword-based chunking (no embeddings needed).
+/// Convert a local model to GGUF format using llama.cpp tools.
 ///
-/// Args: `path` (string, directory), `chunk_size` (int, default 500),
-/// `ollama_url` (string, unused but kept for API consistency).
+/// Args: `input_path` (string), `output_path` (string, optional),
+/// `quantization` (string, default "q4_k_m"), `python_path` (string, default "python3").
 #[allow(dead_code)]
-pub fn ai_rag_build_index_work(params: Value) -> String {
-    let path_str = match params.get("path").and_then(|v| v.as_str()) {
+pub fn ml_convert_to_gguf_work(params: Value) -> String {
+    let input_path = match params.get("input_path").and_then(|v| v.as_str()) {
         Some(p) => p.to_string(),
-        None => return serde_json::json!({"error": "Missing required arg: path"}).to_string(),
+        None => {
+            return serde_json::json!({"error": "Missing required arg: input_path"}).to_string()
+        }
     };
-    let chunk_size = arg_u64(&params, "chunk_size", 500) as usize;
-    let dir = Path::new(&path_str);
+    let quantization = arg_str(&params, "quantization", "q4_k_m");
+    let python_path = arg_str(&params, "python_path", "python3");
 
-    if !dir.is_dir() {
-        return serde_json::json!({"error": format!("Path is not a directory: {path_str}")})
-            .to_string();
+    let input = Path::new(&input_path);
+    if !input.exists() {
+        return serde_json::json!({"error": format!("input_path does not exist: {input_path}")}).to_string();
     }
 
-    // Create .mint-mcp directory if needed
-    let mint_dir = dir.join(".mint-mcp");
-    if let Err(e) = fs::create_dir_all(&mint_dir) {
-        return serde_json::json!({"error": format!("Failed to create .mint-mcp dir: {e}")})
-            .to_string();
-    }
+    let output_path = arg_str(&params, "output_path", "");
+    let output_path = if output_path.is_empty() {
+        let stem = input
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("model");
+        format!("{stem}-{quantization}.gguf")
+    } else {
+        output_path
+    };
 
-    // Walk directory, read text files, split into chunks
-    let text_exts = [
-        "txt", "md", "rs", "py", "js", "ts", "json", "yaml", "yml", "toml", "html", "css", "sh",
-        "go", "java", "c", "cpp", "h", "rb", "lua",
+    // Try llama-cpp-convert script
+    let _convert_script = "llama-cpp-convert";
+
+    // Check for convert.py in common llama.cpp locations
+    let convert_candidates = [
+        "./convert.py",
+        "./llama.cpp/convert.py",
+        "/usr/local/lib/llama.cpp/convert.py",
     ];
 
-    let mut documents_indexed = 0usize;
-    let mut chunks_created = 0usize;
-    let mut jsonl_lines: Vec<String> = Vec::new();
-
-    let walker = ignore::WalkBuilder::new(dir)
-        .hidden(false)
-        .git_ignore(true)
-        .build();
-
-    for entry in walker {
-        let entry = match entry {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-        if !entry.file_type().is_some_and(|ft| ft.is_file()) {
-            continue;
-        }
-        let path = entry.path();
-        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-        if !text_exts.contains(&ext) {
-            continue;
-        }
-        // Skip files inside .mint-mcp itself
-        if path.starts_with(&mint_dir) {
-            continue;
-        }
-
-        let rel = path
-            .strip_prefix(dir)
-            .unwrap_or(path)
-            .to_string_lossy()
-            .to_string();
-
-        let content = match fs::read_to_string(path) {
-            Ok(c) => c,
-            Err(_) => continue,
-        };
-
-        documents_indexed += 1;
-
-        // Split into chunks
-        let chars: Vec<char> = content.chars().collect();
-        let mut start = 0;
-        while start < chars.len() {
-            let end = (start + chunk_size).min(chars.len());
-            let chunk_text: String = chars[start..end].iter().collect();
-            let chunk_entry = serde_json::json!({
-                "source": rel,
-                "chunk": chunk_text,
-                "start_char": start,
-                "end_char": end
-            });
-            jsonl_lines.push(chunk_entry.to_string());
-            chunks_created += 1;
-            start = end;
-            if start >= chars.len() {
-                break;
-            }
-        }
-    }
-
-    if documents_indexed == 0 {
-        return serde_json::json!({"error": "No text files found in directory"}).to_string();
-    }
-
-    // Save to .mint-mcp/rag-index.jsonl
-    let index_path = mint_dir.join("rag-index.jsonl");
-    let jsonl_content = jsonl_lines.join("\n");
-    match fs::write(&index_path, &jsonl_content) {
-        Ok(_) => serde_json::json!({
-            "documents_indexed": documents_indexed,
-            "chunks_created": chunks_created,
-            "index_path": index_path.to_string_lossy()
-        })
-        .to_string(),
-        Err(e) => serde_json::json!({"error": format!("Failed to write index: {e}")}).to_string(),
-    }
-}
-
-/// Query RAG index using simple keyword matching.
-///
-/// Args: `query` (string), `top_k` (int, default 5),
-/// `index_path` (string, optional, default ".mint-mcp/rag-index.jsonl" relative to CWD).
-#[allow(dead_code)]
-pub fn ai_rag_query_work(params: Value) -> String {
-    let query = match params.get("query").and_then(|v| v.as_str()) {
-        Some(q) => q.to_string(),
-        None => return serde_json::json!({"error": "Missing required arg: query"}).to_string(),
-    };
-    let top_k = arg_u64(&params, "top_k", 5) as usize;
-    let index_path = arg_str(&params, "index_path", ".mint-mcp/rag-index.jsonl");
-
-    // Read the JSONL index
-    let content = match fs::read_to_string(&index_path) {
-        Ok(c) => c,
-        Err(e) => {
-            return serde_json::json!({"error": format!("Failed to read index: {e}")}).to_string()
-        }
-    };
-
-    // Tokenize query for keyword matching
-    let query_tokens: HashSet<String> = query
-        .to_lowercase()
-        .split(|c: char| !c.is_alphanumeric())
-        .filter(|s| s.len() > 2)
-        .map(|s| s.to_string())
-        .collect();
-
-    if query_tokens.is_empty() {
-        return serde_json::json!({"error": "Query too short for keyword matching"}).to_string();
-    }
-
-    // Score each chunk by keyword overlap
-    let mut scored: Vec<(usize, Value)> = Vec::new();
-    for (line_num, line) in content.lines().enumerate() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        let chunk_val: Value = match serde_json::from_str(trimmed) {
-            Ok(v) => v,
-            Err(_) => continue,
-        };
-
-        let chunk_text = chunk_val
-            .get("chunk")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
-        let chunk_lower = chunk_text.to_lowercase();
-        let chunk_tokens: HashSet<String> = chunk_lower
-            .split(|c: char| !c.is_alphanumeric())
-            .filter(|s| s.len() > 2)
-            .map(|s| s.to_string())
-            .collect();
-
-        // Simple intersection score
-        let intersection_count = query_tokens.intersection(&chunk_tokens).count();
-        let score = if chunk_tokens.is_empty() {
-            0
-        } else {
-            intersection_count
-        };
-
-        if score > 0 {
-            scored.push((score, chunk_val.clone()));
-        }
-
-        // Safety: avoid unbounded processing
-        if line_num > 100000 {
-            break;
-        }
-    }
-
-    // Sort by score descending
-    scored.sort_by(|a, b| b.0.cmp(&a.0));
-
-    // Take top_k
-    let results: Vec<Value> = scored
+    let convert_py = convert_candidates
         .iter()
-        .take(top_k)
-        .map(|(score, chunk)| {
-            let source = chunk
-                .get("source")
-                .and_then(|v| v.as_str())
-                .unwrap_or("unknown");
-            let chunk_text = chunk.get("chunk").and_then(|v| v.as_str()).unwrap_or("");
-            serde_json::json!({
-                "chunk": truncate_response(chunk_text),
-                "source": source,
-                "score": score
-            })
-        })
-        .collect();
+        .find(|&&p| std::path::Path::new(p).exists())
+        .copied();
 
-    serde_json::json!({
-        "results": results,
-        "query": query
-    })
-    .to_string()
-}
-
-/// Prepare fine-tuning dataset from prompt/response pairs (OpenAI-compatible JSONL).
-///
-/// Args: `conversations` (array of {prompt, response} pairs).
-#[allow(dead_code)]
-pub fn ai_fine_tune_prep_work(params: Value) -> String {
-    let conversations = match params.get("conversations").and_then(|v| v.as_array()) {
-        Some(a) => a.clone(),
-        None => {
-            return serde_json::json!({"error": "Missing required arg: conversations"}).to_string()
-        }
-    };
-
-    if conversations.is_empty() {
-        return serde_json::json!({"error": "conversations array is empty"}).to_string();
-    }
-
-    let mut jsonl_lines: Vec<String> = Vec::new();
-    let mut skipped = 0usize;
-
-    for conv in &conversations {
-        let prompt_text = conv.get("prompt").and_then(|v| v.as_str()).unwrap_or("");
-        let response_text = conv.get("response").and_then(|v| v.as_str()).unwrap_or("");
-        if prompt_text.is_empty() || response_text.is_empty() {
-            skipped += 1;
-            continue;
-        }
-        // OpenAI fine-tuning format
-        let entry = serde_json::json!({
-            "messages": [
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": prompt_text},
-                {"role": "assistant", "content": response_text}
-            ]
-        });
-        jsonl_lines.push(entry.to_string());
-    }
-
-    let examples = jsonl_lines.len();
-    let jsonl = jsonl_lines.join("\n");
-    let details = if skipped > 0 {
-        format!("{examples} examples prepared, {skipped} skipped due to empty fields")
+    let result = if let Some(script) = convert_py {
+        Command::new(&python_path)
+            .args([script, &input_path, "--outfile", &output_path])
+            .output()
     } else {
-        format!("{examples} examples prepared")
-    };
-
-    serde_json::json!({
-        "examples": examples,
-        "jsonl": truncate_response(&jsonl),
-        "details": details
-    })
-    .to_string()
-}
-
-/// Check an AI response against a source for hallucinations.
-///
-/// Args: `response` (string), `source` (string).
-#[allow(dead_code)]
-pub fn ai_hallucination_check_work(params: Value) -> String {
-    let response = match params.get("response").and_then(|v| v.as_str()) {
-        Some(r) => r.to_string(),
-        None => return serde_json::json!({"error": "Missing required arg: response"}).to_string(),
-    };
-    let source = match params.get("source").and_then(|v| v.as_str()) {
-        Some(s) => s.to_string(),
-        None => return serde_json::json!({"error": "Missing required arg: source"}).to_string(),
-    };
-
-    // Extract claims from response as sentences
-    let claims: Vec<&str> = response
-        .split(['.', '!', '?'])
-        .map(|s| s.trim())
-        .filter(|s| s.len() > 10)
-        .collect();
-
-    if claims.is_empty() {
         return serde_json::json!({
-            "claims_checked": 0,
-            "supported": 0,
-            "unsupported": 0,
-            "details": "No claims could be extracted from the response"
-        })
-        .to_string();
-    }
-
-    let source_lower = source.to_lowercase();
-
-    let mut supported = 0usize;
-    let mut unsupported = 0usize;
-    let mut details_list: Vec<Value> = Vec::new();
-
-    for claim in &claims {
-        // Extract significant keywords from the claim
-        let claim_lower = claim.to_lowercase();
-        let keywords: Vec<&str> = claim_lower
-            .split(|c: char| !c.is_alphanumeric())
-            .filter(|s| s.len() > 3)
-            .collect();
-
-        if keywords.is_empty() {
-            continue;
-        }
-
-        // Count how many keywords appear in the source
-        let matched = keywords
-            .iter()
-            .filter(|kw| source_lower.contains(*kw))
-            .count();
-        let ratio = matched as f64 / keywords.len() as f64;
-
-        if ratio >= 0.5 {
-            supported += 1;
-            details_list.push(serde_json::json!({
-                "claim": claim,
-                "verdict": "supported",
-                "keyword_match_ratio": (ratio * 100.0).round() / 100.0
-            }));
-        } else {
-            unsupported += 1;
-            details_list.push(serde_json::json!({
-                "claim": claim,
-                "verdict": "unsupported",
-                "keyword_match_ratio": (ratio * 100.0).round() / 100.0
-            }));
-        }
-    }
-
-    let claims_checked = supported + unsupported;
-    // Truncate details if too many
-    let details_display: Vec<Value> = details_list.into_iter().take(20).collect();
-
-    serde_json::json!({
-        "claims_checked": claims_checked,
-        "supported": supported,
-        "unsupported": unsupported,
-        "details": details_display
-    })
-    .to_string()
-}
-
-/// Zero-shot classification using the Ollama generate API.
-///
-/// Args: `text` (string), `categories` (array of strings),
-/// `model` (string, default "llama3.2"), `ollama_url` (string).
-#[allow(dead_code)]
-pub fn ai_classify_work(params: Value) -> String {
-    let text = match params.get("text").and_then(|v| v.as_str()) {
-        Some(t) => t.to_string(),
-        None => return serde_json::json!({"error": "Missing required arg: text"}).to_string(),
-    };
-    let categories = arg_str_array(&params, "categories", &[]);
-    let model = arg_str(&params, "model", "llama3.2");
-    let ollama_url = arg_str(&params, "ollama_url", "http://localhost:11434");
-
-    if categories.is_empty() {
-        return serde_json::json!({"error": "Missing required arg: categories (array of strings)"})
-            .to_string();
-    }
-
-    let categories_str = categories.join(", ");
-    let prompt = format!(
-        "Classify the following text into exactly one of these categories: [{categories_str}]\n\n\
-         Text: {text}\n\n\
-         Respond with ONLY the category name, nothing else."
-    );
-
-    match ollama_generate_api(&model, &prompt, &ollama_url) {
-        Ok((val, _latency_ms)) => {
-            let predicted = extract_generate_response(&val).trim().to_string();
-            // Compute simple scores
-            let mut all_scores = serde_json::Map::new();
-            for cat in &categories {
-                let score = if cat.to_lowercase() == predicted.to_lowercase() {
-                    0.95
-                } else if predicted.to_lowercase().contains(&cat.to_lowercase()) {
-                    0.6
-                } else {
-                    0.05 / categories.len() as f64
-                };
-                all_scores.insert(
-                    cat.clone(),
-                    serde_json::json!((score * 100.0).round() / 100.0),
-                );
-            }
-            let confidence = if predicted.to_lowercase() == predicted.to_lowercase() {
-                "high"
-            } else {
-                "low"
-            };
-            serde_json::json!({
-                "category": predicted,
-                "confidence": confidence,
-                "all_scores": all_scores
-            })
-            .to_string()
-        }
-        Err(e) => serde_json::json!({"error": e}).to_string(),
-    }
-}
-
-/// Translate text using the Ollama generate API.
-///
-/// Args: `text` (string), `source_lang` (string, optional, default ""),
-/// `target_lang` (string), `model` (string, default "llama3.2"),
-/// `ollama_url` (string).
-#[allow(dead_code)]
-pub fn ai_translate_work(params: Value) -> String {
-    let text = match params.get("text").and_then(|v| v.as_str()) {
-        Some(t) => t.to_string(),
-        None => return serde_json::json!({"error": "Missing required arg: text"}).to_string(),
-    };
-    let source_lang = arg_str(&params, "source_lang", "");
-    let target_lang = match params.get("target_lang").and_then(|v| v.as_str()) {
-        Some(l) => l.to_string(),
-        None => {
-            return serde_json::json!({"error": "Missing required arg: target_lang"}).to_string()
-        }
-    };
-    let model = arg_str(&params, "model", "llama3.2");
-    let ollama_url = arg_str(&params, "ollama_url", "http://localhost:11434");
-
-    let prompt = if source_lang.is_empty() {
-        format!(
-            "Translate the following text to {target_lang}. \
-             Return ONLY the translation, nothing else.\n\n{text}"
-        )
-    } else {
-        format!(
-            "Translate the following text from {source_lang} to {target_lang}. \
-             Return ONLY the translation, nothing else.\n\n{text}"
-        )
-    };
-
-    match ollama_generate_api(&model, &prompt, &ollama_url) {
-        Ok((val, _latency_ms)) => {
-            let translation = extract_generate_response(&val).trim().to_string();
-            serde_json::json!({
-                "translation": translation,
-                "source_lang": if source_lang.is_empty() { "auto-detected" } else { &source_lang },
-                "target_lang": target_lang
-            })
-            .to_string()
-        }
-        Err(e) => serde_json::json!({"error": e}).to_string(),
-    }
-}
-
-// ---------------------------------------------------------------------------
-// 29. ai_rag_update
-// ---------------------------------------------------------------------------
-
-/// Add new documents to an existing RAG index without full rebuild.
-///
-/// Args: `index_path` (string), `documents` (array of {path, content}).
-/// Simulates appending to index.
-#[allow(dead_code)]
-pub fn ai_rag_update_work(params: Value) -> String {
-    let index_path = match params.get("index_path").and_then(|v| v.as_str()) {
-        Some(p) => p.to_string(),
-        None => {
-            return serde_json::json!({"ok":false,"error":"Missing required arg: index_path"})
-                .to_string()
-        }
-    };
-    let documents = match params.get("documents").and_then(|v| v.as_array()) {
-        Some(arr) => arr.clone(),
-        None => return serde_json::json!({"ok":false,"error":"Missing required arg: documents (array of {path, content})"}).to_string(),
-    };
-    let chunk_size = arg_u64(&params, "chunk_size", 500) as usize;
-
-    // Check the index file exists
-    let index = Path::new(&index_path);
-    if !index.exists() {
-        return serde_json::json!({"ok":false,"error":format!("Index file not found: {index_path}")}).to_string();
-    }
-
-    let mut documents_added = 0usize;
-    let mut chunks_appended = 0usize;
-    let mut jsonl_lines: Vec<String> = Vec::new();
-
-    for doc in &documents {
-        let doc_path = doc
-            .get("path")
-            .and_then(|v| v.as_str())
-            .unwrap_or("unknown");
-        let content = doc.get("content").and_then(|v| v.as_str()).unwrap_or("");
-        if content.is_empty() {
-            continue;
-        }
-        documents_added += 1;
-        let chars: Vec<char> = content.chars().collect();
-        let mut start = 0;
-        while start < chars.len() {
-            let end = (start + chunk_size).min(chars.len());
-            let chunk_text: String = chars[start..end].iter().collect();
-            let chunk_entry = serde_json::json!({
-                "source": doc_path,
-                "chunk": chunk_text,
-                "start_char": start,
-                "end_char": end
-            });
-            jsonl_lines.push(chunk_entry.to_string());
-            chunks_appended += 1;
-            start = end;
-            if start >= chars.len() {
-                break;
-            }
-        }
-    }
-
-    if documents_added == 0 {
-        return serde_json::json!({"ok":false,"error":"No valid documents provided for update"})
-            .to_string();
-    }
-
-    // Append to existing index
-    let mut existing = match fs::read_to_string(&index_path) {
-        Ok(c) => c,
-        Err(e) => return serde_json::json!({"ok":false,"error":format!("Failed to read existing index: {e}")}).to_string(),
-    };
-    if !existing.ends_with('\n') && !existing.is_empty() {
-        existing.push('\n');
-    }
-    existing.push_str(&jsonl_lines.join("\n"));
-
-    match fs::write(&index_path, &existing) {
-        Ok(_) => serde_json::json!({
-            "ok": true,
-            "data": {
-                "documents_added": documents_added,
-                "chunks_appended": chunks_appended,
-                "index_path": index_path
-            }
-        })
-        .to_string(),
-        Err(e) => {
-            serde_json::json!({"ok":false,"error":format!("Failed to write updated index: {e}")})
-                .to_string()
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// 30. ai_rag_delete
-// ---------------------------------------------------------------------------
-
-/// Remove a document from RAG index by path or ID.
-///
-/// Args: `index_path` (string), `doc_id` (string — matches source field).
-#[allow(dead_code)]
-pub fn ai_rag_delete_work(params: Value) -> String {
-    let index_path = match params.get("index_path").and_then(|v| v.as_str()) {
-        Some(p) => p.to_string(),
-        None => {
-            return serde_json::json!({"ok":false,"error":"Missing required arg: index_path"})
-                .to_string()
-        }
-    };
-    let doc_id = match params.get("doc_id").and_then(|v| v.as_str()) {
-        Some(d) => d.to_string(),
-        None => {
-            return serde_json::json!({"ok":false,"error":"Missing required arg: doc_id"})
-                .to_string()
-        }
-    };
-
-    let index = Path::new(&index_path);
-    if !index.exists() {
-        return serde_json::json!({"ok":false,"error":format!("Index file not found: {index_path}")}).to_string();
-    }
-
-    let content = match fs::read_to_string(&index_path) {
-        Ok(c) => c,
-        Err(e) => {
-            return serde_json::json!({"ok":false,"error":format!("Failed to read index: {e}")})
-                .to_string()
-        }
-    };
-
-    let mut kept_lines: Vec<String> = Vec::new();
-    let mut removed_count = 0usize;
-    let mut total_lines = 0usize;
-
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        total_lines += 1;
-        // Parse and check if source matches doc_id
-        let should_remove = match serde_json::from_str::<Value>(trimmed) {
-            Ok(val) => {
-                let source = val.get("source").and_then(|v| v.as_str()).unwrap_or("");
-                source == doc_id
-            }
-            Err(_) => false,
-        };
-        if should_remove {
-            removed_count += 1;
-        } else {
-            kept_lines.push(trimmed.to_string());
-        }
-    }
-
-    if removed_count == 0 {
-        return serde_json::json!({
-            "ok": true,
-            "data": {
-                "removed_chunks": 0,
-                "doc_id": doc_id,
-                "note": "No chunks matched the given doc_id"
-            }
-        })
-        .to_string();
-    }
-
-    let new_content = kept_lines.join("\n");
-    match fs::write(&index_path, &new_content) {
-        Ok(_) => serde_json::json!({
-            "ok": true,
-            "data": {
-                "removed_chunks": removed_count,
-                "remaining_chunks": kept_lines.len(),
-                "total_before": total_lines,
-                "doc_id": doc_id,
-                "index_path": index_path
-            }
-        })
-        .to_string(),
-        Err(e) => {
-            serde_json::json!({"ok":false,"error":format!("Failed to write updated index: {e}")})
-                .to_string()
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// 31. ai_persona_chat
-// ---------------------------------------------------------------------------
-
-/// Chat with a model locked to a specific expert persona.
-///
-/// Args: `persona` (string, e.g. "senior_rust_engineer"),
-/// `prompt` (string), `model` (string, optional, default "llama3.2"),
-/// `ollama_url` (string, optional).
-#[allow(dead_code)]
-pub fn ai_persona_chat_work(params: Value) -> String {
-    let persona = match params.get("persona").and_then(|v| v.as_str()) {
-        Some(p) => p.to_string(),
-        None => {
-            return serde_json::json!({"ok":false,"error":"Missing required arg: persona"})
-                .to_string()
-        }
-    };
-    let prompt = match params.get("prompt").and_then(|v| v.as_str()) {
-        Some(p) => p.to_string(),
-        None => {
-            return serde_json::json!({"ok":false,"error":"Missing required arg: prompt"})
-                .to_string()
-        }
-    };
-    let model = arg_str(&params, "model", "llama3.2");
-    let ollama_url = arg_str(&params, "ollama_url", "http://localhost:11434");
-
-    // Build persona system prompt
-    let persona_descriptions: Vec<(&str, &str)> = vec![
-        ("senior_rust_engineer", "You are a senior Rust engineer with deep expertise in systems programming, memory safety, async runtimes, and the Rust type system. You write idiomatic, performant Rust code and explain design tradeoffs clearly."),
-        ("security_analyst", "You are a senior security analyst specializing in vulnerability assessment, penetration testing, and secure code review. You follow OWASP guidelines and prioritize impact analysis."),
-        ("data_scientist", "You are an experienced data scientist skilled in statistical modeling, machine learning pipelines, feature engineering, and data visualization. You favor reproducible, well-documented analyses."),
-        ("devops_engineer", "You are a senior DevOps engineer expert in CI/CD, container orchestration, infrastructure as code, and site reliability engineering. You emphasize automation and observability."),
-        ("embedded_engineer", "You are an embedded systems engineer with expertise in firmware, RTOS, peripheral drivers, and low-power design. You think carefully about resource constraints and hardware interactions."),
-    ];
-
-    let persona_system = persona_descriptions
-        .iter()
-        .find(|(key, _)| *key == persona.to_lowercase().replace(' ', "_"))
-        .map(|(_, desc)| *desc)
-        .unwrap_or_else(|| "You are an expert assistant. Respond with precision and clarity.");
-
-    let full_prompt = format!(
-        "SYSTEM: {persona_system}\n\nUSER: {prompt}\n\nRespond in character as the {persona} persona."
-    );
-
-    match ollama_generate_api(&model, &full_prompt, &ollama_url) {
-        Ok((val, latency_ms)) => {
-            let response = extract_generate_response(&val).trim().to_string();
-            serde_json::json!({
-                "ok": true,
-                "data": {
-                    "persona": persona,
-                    "model": model,
-                    "response": response,
-                    "latency_ms": latency_ms
-                }
-            })
-            .to_string()
-        }
-        Err(e) => serde_json::json!({"ok":false,"error":e}).to_string(),
-    }
-}
-
-// ---------------------------------------------------------------------------
-// 32. ml_attention_visualize
-// ---------------------------------------------------------------------------
-
-/// Generate attention heatmap description.
-///
-/// Args: `text` (string), `model` (string, optional, default "llama3.2").
-/// Returns a stub noting visualization requires model access.
-#[allow(dead_code)]
-pub fn ml_attention_visualize_work(params: Value) -> String {
-    let text = match params.get("text").and_then(|v| v.as_str()) {
-        Some(t) => t.to_string(),
-        None => {
-            return serde_json::json!({"ok":false,"error":"Missing required arg: text"}).to_string()
-        }
-    };
-    let model = arg_str(&params, "model", "llama3.2");
-
-    let tokens: Vec<&str> = text.split_whitespace().take(50).collect();
-    let token_count = tokens.len();
-
-    // Stub attention matrix (random-ish placeholder)
-    let mut attention_rows: Vec<Value> = Vec::new();
-    for (i, token_i) in tokens.iter().enumerate() {
-        let mut row: Vec<Value> = Vec::new();
-        for (j, token_j) in tokens.iter().enumerate() {
-            let weight = if i == j {
-                1.0
-            } else if (i as i64 - j as i64).unsigned_abs() <= 2 {
-                0.6
-            } else {
-                0.1
-            };
-            row.push(serde_json::json!({
-                "token": token_j,
-                "weight": weight
-            }));
-        }
-        attention_rows.push(serde_json::json!({
-            "query_token": token_i,
-            "attentions": row
-        }));
-    }
-
-    serde_json::json!({
-        "ok": true,
-        "data": {
-            "model": model,
-            "text_preview": truncate_response(&text),
-            "token_count": token_count,
-            "attention_matrix": attention_rows,
-            "note": "Attention weights are simulated stubs. Real visualization requires direct model access to extract attention head outputs."
-        }
-    })
-    .to_string()
-}
-
-// ---------------------------------------------------------------------------
-// 33. ml_quantize_model
-// ---------------------------------------------------------------------------
-
-/// Apply GGUF/GPTQ quantization.
-///
-/// Args: `model_path` (string), `method` (string: "gguf" or "gptq"),
-/// `bits` (u64: 4 or 8).
-/// Uses `llama.cpp` subprocess tools.
-#[allow(dead_code)]
-pub fn ml_quantize_model_work(params: Value) -> String {
-    let model_path = match params.get("model_path").and_then(|v| v.as_str()) {
-        Some(p) => p.to_string(),
-        None => {
-            return serde_json::json!({"ok":false,"error":"Missing required arg: model_path"})
-                .to_string()
-        }
-    };
-    let method = match params.get("method").and_then(|v| v.as_str()) {
-        Some(m) => m.to_lowercase(),
-        None => return serde_json::json!({"ok":false,"error":"Missing required arg: method (gguf/gptq)"}).to_string(),
-    };
-    let bits = params.get("bits").and_then(|v| v.as_u64()).unwrap_or(4);
-    if bits != 4 && bits != 8 {
-        return serde_json::json!({"ok":false,"error":"bits must be 4 or 8"}).to_string();
-    }
-    if method != "gguf" && method != "gptq" {
-        return serde_json::json!({"ok":false,"error":"method must be 'gguf' or 'gptq'"})
-            .to_string();
-    }
-
-    let model = Path::new(&model_path);
-    if !model.exists() {
-        return serde_json::json!({"ok":false,"error":format!("Model file not found: {model_path}")}).to_string();
-    }
-
-    if method == "gguf" {
-        // GGUF quantization uses llama.cpp tools
-        // Step 1: convert to GGUF (if not already)
-        let convert_script = "llama-cpp-convert";
-        let quantize_tool = "llama-quantize";
-
-        // Check for quantize tool
-        let quantize_check = Command::new(quantize_tool)
-            .arg("--help")
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
-        if quantize_check.is_err() {
-            return serde_json::json!({
-                "ok": false,
-                "error": format!("'{quantize_tool}' not found on PATH. Install llama.cpp and add its binaries to PATH.")
-            }).to_string();
-        }
-
-        let quant_type = if bits == 4 { "Q4_K_M" } else { "Q8_0" };
-        let output_path = format!("{model_path}.gguf-{quant_type}");
-
-        let args: Vec<&str> = vec![&model_path, &output_path, quant_type];
-        match Command::new(quantize_tool).args(&args).output() {
-            Ok(output) => {
-                let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-                if output.status.success() {
-                    serde_json::json!({
-                        "ok": true,
-                        "data": {
-                            "method": "gguf",
-                            "bits": bits,
-                            "quant_type": quant_type,
-                            "model_path": model_path,
-                            "output_path": output_path,
-                            "stdout": truncate_response(&stdout),
-                            "stderr": truncate_response(&stderr)
-                        }
-                    })
-                    .to_string()
-                } else {
-                    serde_json::json!({
-                        "ok": false,
-                        "error": format!("Quantization failed: {}", truncate_response(&stderr))
-                    })
-                    .to_string()
-                }
-            }
-            Err(e) => serde_json::json!({"ok":false,"error":format!("Failed to run {quantize_tool}: {e}")}).to_string(),
-        }
-    } else {
-        // GPTQ quantization uses auto-gptq or similar Python tooling
-        let python_check = Command::new("python3")
-            .arg("--version")
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
-        if python_check.is_err() {
-            return serde_json::json!({"ok":false,"error":"'python3' not found on PATH. GPTQ quantization requires Python with auto-gptq installed."}).to_string();
-        }
-
-        let output_path = format!("{model_path}-gptq-{bits}bit");
-        let script =
-            format!("from auto_gptq import BaseQuantizeConfig; print('auto_gptq available')");
-        let script_path = format!("/tmp/gptq_check_{}.py", std::process::id());
-        if let Ok(mut f) = fs::File::create(&script_path) {
-            let _ = IoWrite::write_all(&mut f, script.as_bytes());
-        }
-        let check_result = Command::new("python3")
-            .arg(&script_path)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
-        let _ = fs::remove_file(&script_path);
-
-        if check_result.map_or(true, |s| !s.success()) {
-            return serde_json::json!({
-                "ok": false,
-                "error": "auto-gptq not installed. Install: pip install auto-gptq"
-            })
-            .to_string();
-        }
-
-        let quant_script = format!(
-            r#"
-import sys
-from auto_gptq import BaseQuantizeConfig
-from transformers import AutoModelForCausalLM, AutoTokenizer
-model_path = sys.argv[1]
-output_path = sys.argv[2]
-bits = int(sys.argv[3])
-tokenizer = AutoTokenizer.from_pretrained(model_path)
-model = AutoModelForCausalLM.from_pretrained(model_path)
-quant_config = BaseQuantizeConfig(bits=bits)
-model.quantize(quant_config)
-model.save_quantized(output_path)
-print(f"GPTQ quantization ({bits}-bit) complete: {{output_path}}")
-"#,
-        );
-        let script_path = format!("/tmp/gptq_quantize_{}.py", std::process::id());
-        if let Ok(mut f) = fs::File::create(&script_path) {
-            let _ = IoWrite::write_all(&mut f, quant_script.as_bytes());
-        }
-        let args: Vec<String> = vec![
-            script_path.clone(),
-            model_path.clone(),
-            output_path.clone(),
-            bits.to_string(),
-        ];
-        let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-        let result = Command::new("python3").args(&args_ref).output();
-        let _ = fs::remove_file(&script_path);
-
-        match result {
-            Ok(output) => {
-                let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-                if output.status.success() {
-                    serde_json::json!({
-                        "ok": true,
-                        "data": {
-                            "method": "gptq",
-                            "bits": bits,
-                            "model_path": model_path,
-                            "output_path": output_path,
-                            "stdout": truncate_response(&stdout),
-                            "stderr": truncate_response(&stderr)
-                        }
-                    })
-                    .to_string()
-                } else {
-                    serde_json::json!({
-                        "ok": false,
-                        "error": format!("GPTQ quantization failed: {}", truncate_response(&stderr))
-                    })
-                    .to_string()
-                }
-            }
-            Err(e) => serde_json::json!({"ok":false,"error":format!("Failed to run python3: {e}")})
-                .to_string(),
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// 34. ml_lora_apply
-// ---------------------------------------------------------------------------
-
-/// Apply a LoRA adapter to a base model.
-///
-/// Args: `base_model_path` (string), `lora_path` (string),
-/// `output_path` (string).
-/// Uses `llama.cpp` export-lora or stub.
-#[allow(dead_code)]
-pub fn ml_lora_apply_work(params: Value) -> String {
-    let base_model_path = match params.get("base_model_path").and_then(|v| v.as_str()) {
-        Some(p) => p.to_string(),
-        None => {
-            return serde_json::json!({"ok":false,"error":"Missing required arg: base_model_path"})
-                .to_string()
-        }
-    };
-    let lora_path = match params.get("lora_path").and_then(|v| v.as_str()) {
-        Some(p) => p.to_string(),
-        None => {
-            return serde_json::json!({"ok":false,"error":"Missing required arg: lora_path"})
-                .to_string()
-        }
-    };
-    let output_path = match params.get("output_path").and_then(|v| v.as_str()) {
-        Some(p) => p.to_string(),
-        None => {
-            return serde_json::json!({"ok":false,"error":"Missing required arg: output_path"})
-                .to_string()
-        }
-    };
-
-    let base = Path::new(&base_model_path);
-    let lora = Path::new(&lora_path);
-    if !base.exists() {
-        return serde_json::json!({"ok":false,"error":format!("Base model not found: {base_model_path}")}).to_string();
-    }
-    if !lora.exists() {
-        return serde_json::json!({"ok":false,"error":format!("LoRA adapter not found: {lora_path}")}).to_string();
-    }
-
-    // Try llama.cpp export-lora tool
-    let tool_name = "llama-export-lora";
-    let tool_check = Command::new(tool_name)
-        .arg("--help")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status();
-
-    if tool_check.is_err() {
-        // Try the older llama-cli with lora support as a fallback indicator
-        let alt_check = Command::new("llama-server")
-            .arg("--help")
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
-        if alt_check.is_err() {
-            return serde_json::json!({
-                "ok": false,
-                "error": "No llama.cpp tools found on PATH. Install llama.cpp and add 'llama-export-lora' to PATH."
-            }).to_string();
-        }
-        // If llama-server exists but not export-lora, return a stub with instructions
-        return serde_json::json!({
-            "ok": true,
-            "data": {
-                "base_model_path": base_model_path,
-                "lora_path": lora_path,
-                "output_path": output_path,
-                "note": "llama-export-lora not found. You can apply LoRA at inference time using: llama-server -m <base_model> --lora <lora_adapter>",
-                "applied": false
-            }
+            "error": "convert.py not found. Clone llama.cpp and place convert.py in the working directory.",
+            "tool_available": false
         }).to_string();
-    }
+    };
 
-    let args: Vec<&str> = vec![
-        "-m",
-        &base_model_path,
-        "--lora",
-        &lora_path,
-        "-o",
-        &output_path,
-    ];
+    match result {
+        Ok(o) => {
+            let stdout = String::from_utf8_lossy(&o.stdout).to_string();
+            let stderr = String::from_utf8_lossy(&o.stderr).to_string();
+            let exit_code = o.status.code().unwrap_or(-1);
+            let success = o.status.success();
 
-    match Command::new(tool_name).args(&args).output() {
-        Ok(output) => {
-            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-            if output.status.success() {
-                serde_json::json!({
-                    "ok": true,
-                    "data": {
-                        "base_model_path": base_model_path,
-                        "lora_path": lora_path,
-                        "output_path": output_path,
-                        "applied": true,
-                        "stdout": truncate_response(&stdout),
-                        "stderr": truncate_response(&stderr)
-                    }
-                })
-                .to_string()
-            } else {
-                serde_json::json!({
-                    "ok": false,
-                    "error": format!("LoRA apply failed: {}", truncate_response(&stderr))
-                })
-                .to_string()
-            }
+            // Check if output file was created
+            let output_exists = std::path::Path::new(&output_path).exists();
+
+            serde_json::json!({
+                "success": success && output_exists,
+                "output_path": output_path,
+                "exit_code": exit_code,
+                "stdout": &stdout[..stdout.len().min(1000)],
+                "stderr": &stderr[..stderr.len().min(1000)],
+                "tool_available": true
+            }).to_string()
         }
-        Err(e) => serde_json::json!({"ok":false,"error":format!("Failed to run {tool_name}: {e}")})
-            .to_string(),
+        Err(e) => serde_json::json!({
+            "error": format!("Failed to run convert.py: {e}"),
+            "tool_available": false
+        }).to_string(),
     }
 }
 
-// ---------------------------------------------------------------------------
-// 35. ml_inference_batch
-// ---------------------------------------------------------------------------
-
-/// Run batch inference over a list of prompts in parallel.
+/// Run a multi-turn benchmark comparing several models on a fixed prompt set.
 ///
-/// Args: `model` (string), `prompts` (array of strings),
-/// `max_concurrency` (u64, optional, default 4).
-/// Simulates batch processing.
+/// Args: `models` (array of strings), `prompts` (array of strings),
+/// `ollama_url` (string, default "http://localhost:11434").
 #[allow(dead_code)]
-pub fn ml_inference_batch_work(params: Value) -> String {
-    let model = arg_str(&params, "model", "llama3.2");
-    let prompts = match params.get("prompts").and_then(|v| v.as_array()) {
-        Some(arr) => arr
-            .iter()
-            .filter_map(|v| v.as_str().map(|s| s.to_string()))
-            .collect::<Vec<String>>(),
-        None => return serde_json::json!({"ok":false,"error":"Missing required arg: prompts (array of strings)"}).to_string(),
-    };
-    let max_concurrency = params
-        .get("max_concurrency")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(4)
-        .clamp(1, 16) as usize;
+pub fn ml_model_compare_benchmark_work(params: Value) -> String {
+    let models = arg_str_array(&params, "models", &["llama3.2"]);
+    let prompts = arg_str_array(&params, "prompts", &["Explain quantum computing in one sentence."]);
+    let ollama_url = arg_str(&params, "ollama_url", "http://localhost:11434");
 
+    if models.is_empty() {
+        return serde_json::json!({"error": "models array is empty"}).to_string();
+    }
     if prompts.is_empty() {
-        return serde_json::json!({"ok":false,"error":"prompts array is empty"}).to_string();
+        return serde_json::json!({"error": "prompts array is empty"}).to_string();
     }
 
-    let ollama_url = arg_str(&params, "ollama_url", "http://localhost:11434");
-    let mut results: Vec<Value> = Vec::new();
-    let mut errors: usize = 0;
-    let mut total_latency_ms: u64 = 0;
+    let mut model_results: Vec<Value> = Vec::new();
 
-    // Simulate parallel processing by running in batches of max_concurrency
-    for chunk in prompts.chunks(max_concurrency) {
-        for prompt in chunk {
-            let start = Instant::now();
-            match ollama_generate_api(&model, prompt, &ollama_url) {
+    for model in &models {
+        let mut total_latency_ms: u64 = 0;
+        let mut total_tokens: usize = 0;
+        let mut prompt_results: Vec<Value> = Vec::new();
+        let mut errors = 0usize;
+
+        for prompt in &prompts {
+            match ollama_generate_api(model, prompt, &ollama_url) {
                 Ok((val, latency_ms)) => {
-                    total_latency_ms += latency_ms;
-                    let response = extract_generate_response(&val).trim().to_string();
-                    results.push(serde_json::json!({
-                        "prompt_preview": truncate_response(prompt),
-                        "response_preview": truncate_response(&response),
-                        "latency_ms": latency_ms
+                    let response = extract_generate_response(&val);
+                    let tokens = estimate_tokens(&response);
+                    total_latency_ms += latency_ms as u64;
+                    total_tokens += tokens;
+                    prompt_results.push(serde_json::json!({
+                        "prompt": &prompt[..prompt.len().min(80)],
+                        "response_snippet": &response[..response.len().min(200)],
+                        "latency_ms": latency_ms,
+                        "estimated_tokens": tokens
                     }));
                 }
                 Err(e) => {
                     errors += 1;
-                    results.push(serde_json::json!({
-                        "prompt_preview": truncate_response(prompt),
+                    prompt_results.push(serde_json::json!({
+                        "prompt": &prompt[..prompt.len().min(80)],
                         "error": e
                     }));
                 }
             }
-            let _elapsed = start.elapsed();
         }
-    }
 
-    let avg_latency_ms = if results.len() > errors {
-        total_latency_ms / (results.len() - errors) as u64
-    } else {
-        0
-    };
+        let avg_latency = if !prompt_results.is_empty() && errors < prompt_results.len() {
+            total_latency_ms as f64 / (prompt_results.len() - errors) as f64
+        } else {
+            0.0
+        };
+
+        model_results.push(serde_json::json!({
+            "model": model,
+            "avg_latency_ms": avg_latency.round(),
+            "total_tokens": total_tokens,
+            "errors": errors,
+            "prompt_results": prompt_results
+        }));
+    }
 
     serde_json::json!({
-        "ok": true,
-        "data": {
-            "model": model,
-            "total_prompts": prompts.len(),
-            "successful": results.len() - errors,
-            "errors": errors,
-            "max_concurrency": max_concurrency,
-            "total_latency_ms": total_latency_ms,
-            "avg_latency_ms": avg_latency_ms,
-            "results": results
-        }
+        "models_compared": models.len(),
+        "prompts_used": prompts.len(),
+        "results": model_results
     })
     .to_string()
-}
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // --- Helper function tests ---
-
-    #[test]
-    // ---- ai_rag_update_work ----
-    #[test]
-    fn test_ai_rag_update_missing_index_path() {
-        let params = serde_json::json!({"documents": [{"path": "a.txt", "content": "hello"}]});
-        let result = ai_rag_update_work(params);
-        let v: Value = serde_json::from_str(&result).unwrap();
-        assert!(!v["ok"].as_bool().unwrap());
-        assert!(v["error"].as_str().unwrap().contains("index_path"));
-    }
-
-    #[test]
-    fn test_ai_rag_update_missing_documents() {
-        let params = serde_json::json!({"index_path": "/tmp/test.jsonl"});
-        let result = ai_rag_update_work(params);
-        let v: Value = serde_json::from_str(&result).unwrap();
-        assert!(!v["ok"].as_bool().unwrap());
-        assert!(v["error"].as_str().unwrap().contains("documents"));
-    }
-
-    #[test]
-    fn test_ai_rag_update_nonexistent_index() {
-        let params = serde_json::json!({
-            "index_path": "/tmp/nonexistent_rag_index_99999.jsonl",
-            "documents": [{"path": "a.txt", "content": "hello"}]
-        });
-        let result = ai_rag_update_work(params);
-        let v: Value = serde_json::from_str(&result).unwrap();
-        assert!(!v["ok"].as_bool().unwrap());
-    }
-
-    // ---- ai_rag_delete_work ----
-    #[test]
-    fn test_ai_rag_delete_missing_index_path() {
-        let params = serde_json::json!({"doc_id": "test.txt"});
-        let result = ai_rag_delete_work(params);
-        let v: Value = serde_json::from_str(&result).unwrap();
-        assert!(!v["ok"].as_bool().unwrap());
-        assert!(v["error"].as_str().unwrap().contains("index_path"));
-    }
-
-    #[test]
-    fn test_ai_rag_delete_missing_doc_id() {
-        let params = serde_json::json!({"index_path": "/tmp/test.jsonl"});
-        let result = ai_rag_delete_work(params);
-        let v: Value = serde_json::from_str(&result).unwrap();
-        assert!(!v["ok"].as_bool().unwrap());
-        assert!(v["error"].as_str().unwrap().contains("doc_id"));
-    }
-
-    // ---- ai_persona_chat_work ----
-    #[test]
-    fn test_ai_persona_chat_missing_persona() {
-        let params = serde_json::json!({"prompt": "hello"});
-        let result = ai_persona_chat_work(params);
-        let v: Value = serde_json::from_str(&result).unwrap();
-        assert!(!v["ok"].as_bool().unwrap());
-        assert!(v["error"].as_str().unwrap().contains("persona"));
-    }
-
-    #[test]
-    fn test_ai_persona_chat_missing_prompt() {
-        let params = serde_json::json!({"persona": "senior_rust_engineer"});
-        let result = ai_persona_chat_work(params);
-        let v: Value = serde_json::from_str(&result).unwrap();
-        assert!(!v["ok"].as_bool().unwrap());
-        assert!(v["error"].as_str().unwrap().contains("prompt"));
-    }
-
-    // ---- ml_attention_visualize_work ----
-    #[test]
-    fn test_ml_attention_visualize_missing_text() {
-        let params = serde_json::json!({});
-        let result = ml_attention_visualize_work(params);
-        let v: Value = serde_json::from_str(&result).unwrap();
-        assert!(!v["ok"].as_bool().unwrap());
-        assert!(v["error"].as_str().unwrap().contains("text"));
-    }
-
-    #[test]
-    fn test_ml_attention_visualize_returns_stub() {
-        let params = serde_json::json!({"text": "hello world test"});
-        let result = ml_attention_visualize_work(params);
-        let v: Value = serde_json::from_str(&result).unwrap();
-        assert!(v["ok"].as_bool().unwrap());
-        assert!(v["data"]["note"].as_str().unwrap().contains("simulated"));
-    }
-
-    // ---- ml_quantize_model_work ----
-    #[test]
-    fn test_ml_quantize_model_missing_path() {
-        let params = serde_json::json!({"method": "gguf", "bits": 4});
-        let result = ml_quantize_model_work(params);
-        let v: Value = serde_json::from_str(&result).unwrap();
-        assert!(!v["ok"].as_bool().unwrap());
-        assert!(v["error"].as_str().unwrap().contains("model_path"));
-    }
-
-    #[test]
-    fn test_ml_quantize_model_invalid_bits() {
-        let params =
-            serde_json::json!({"model_path": "/tmp/model.bin", "method": "gguf", "bits": 3});
-        let result = ml_quantize_model_work(params);
-        let v: Value = serde_json::from_str(&result).unwrap();
-        assert!(!v["ok"].as_bool().unwrap());
-        assert!(v["error"].as_str().unwrap().contains("bits"));
-    }
-
-    #[test]
-    fn test_ml_quantize_model_invalid_method() {
-        let params =
-            serde_json::json!({"model_path": "/tmp/model.bin", "method": "invalid", "bits": 4});
-        let result = ml_quantize_model_work(params);
-        let v: Value = serde_json::from_str(&result).unwrap();
-        assert!(!v["ok"].as_bool().unwrap());
-        assert!(v["error"].as_str().unwrap().contains("method"));
-    }
-
-    // ---- ml_lora_apply_work ----
-    #[test]
-    fn test_ml_lora_apply_missing_base() {
-        let params =
-            serde_json::json!({"lora_path": "/tmp/lora.bin", "output_path": "/tmp/out.bin"});
-        let result = ml_lora_apply_work(params);
-        let v: Value = serde_json::from_str(&result).unwrap();
-        assert!(!v["ok"].as_bool().unwrap());
-        assert!(v["error"].as_str().unwrap().contains("base_model_path"));
-    }
-
-    #[test]
-    fn test_ml_lora_apply_missing_lora() {
-        let params =
-            serde_json::json!({"base_model_path": "/tmp/model.bin", "output_path": "/tmp/out.bin"});
-        let result = ml_lora_apply_work(params);
-        let v: Value = serde_json::from_str(&result).unwrap();
-        assert!(!v["ok"].as_bool().unwrap());
-        assert!(v["error"].as_str().unwrap().contains("lora_path"));
-    }
-
-    // ---- ml_inference_batch_work ----
-    #[test]
-    fn test_ml_inference_batch_missing_prompts() {
-        let params = serde_json::json!({"model": "llama3.2"});
-        let result = ml_inference_batch_work(params);
-        let v: Value = serde_json::from_str(&result).unwrap();
-        assert!(!v["ok"].as_bool().unwrap());
-        assert!(v["error"].as_str().unwrap().contains("prompts"));
-    }
-
-    #[test]
-    fn test_ml_inference_batch_empty_prompts() {
-        let params = serde_json::json!({"model": "llama3.2", "prompts": []});
-        let result = ml_inference_batch_work(params);
-        let v: Value = serde_json::from_str(&result).unwrap();
-        assert!(!v["ok"].as_bool().unwrap());
-        assert!(v["error"].as_str().unwrap().contains("empty"));
-    }
-
-    fn test_cosine_similarity_identical() {
-        let a = vec![1.0, 2.0, 3.0];
-        let b = vec![1.0, 2.0, 3.0];
-        let sim = cosine_similarity(&a, &b);
-        assert!(
-            (sim - 1.0).abs() < 0.0001,
-            "Identical vectors should have similarity 1.0"
-        );
-    }
-
-    #[test]
-    fn test_cosine_similarity_orthogonal() {
-        let a = vec![1.0, 0.0];
-        let b = vec![0.0, 1.0];
-        let sim = cosine_similarity(&a, &b);
-        assert!(
-            (sim - 0.0).abs() < 0.0001,
-            "Orthogonal vectors should have similarity 0.0"
-        );
-    }
-
-    #[test]
-    fn test_cosine_similarity_opposite() {
-        let a = vec![1.0, 0.0];
-        let b = vec![-1.0, 0.0];
-        let sim = cosine_similarity(&a, &b);
-        assert!(
-            (sim - (-1.0)).abs() < 0.0001,
-            "Opposite vectors should have similarity -1.0"
-        );
-    }
-
-    #[test]
-    fn test_cosine_similarity_empty() {
-        let a: Vec<f64> = vec![];
-        let b: Vec<f64> = vec![];
-        let sim = cosine_similarity(&a, &b);
-        assert_eq!(sim, 0.0, "Empty vectors should have similarity 0.0");
-    }
-
-    #[test]
-    fn test_cosine_similarity_different_lengths() {
-        let a = vec![1.0, 2.0];
-        let b = vec![1.0, 2.0, 3.0];
-        let sim = cosine_similarity(&a, &b);
-        assert_eq!(
-            sim, 0.0,
-            "Different-length vectors should have similarity 0.0"
-        );
-    }
-
-    #[test]
-    fn test_cosine_similarity_general() {
-        let a = vec![1.0, 2.0, 3.0];
-        let b = vec![4.0, 5.0, 6.0];
-        let sim = cosine_similarity(&a, &b);
-        // dot = 1*4 + 2*5 + 3*6 = 32
-        // norm_a = sqrt(14), norm_b = sqrt(77)
-        let expected = 32.0 / (14.0_f64.sqrt() * 77.0_f64.sqrt());
-        assert!(
-            (sim - expected).abs() < 0.0001,
-            "General cosine similarity mismatch"
-        );
-    }
-
-    #[test]
-    fn test_estimate_tokens() {
-        let text = "Hello world, this is a test.";
-        let tokens = estimate_tokens(text);
-        assert_eq!(tokens, text.len() / CHARS_PER_TOKEN);
-    }
-
-    #[test]
-    fn test_estimate_tokens_empty() {
-        assert_eq!(estimate_tokens(""), 0);
-    }
-
-    // --- extract_embedding test ---
-
-    #[test]
-    fn test_extract_embedding_valid() {
-        let val = serde_json::json!({"embedding": [0.1, 0.2, 0.3]});
-        let emb = extract_embedding(&val);
-        assert!(emb.is_some());
-        let emb = emb.unwrap();
-        assert_eq!(emb.len(), 3);
-        assert!((emb[0] - 0.1).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn test_extract_embedding_missing() {
-        let val = serde_json::json!({"error": "model not found"});
-        let emb = extract_embedding(&val);
-        assert!(emb.is_none());
-    }
-
-    // --- arg helper tests ---
-
-    #[test]
-    fn test_arg_str_default() {
-        let args = serde_json::json!({});
-        assert_eq!(arg_str(&args, "key", "default"), "default");
-    }
-
-    #[test]
-    fn test_arg_str_provided() {
-        let args = serde_json::json!({"key": "value"});
-        assert_eq!(arg_str(&args, "key", "default"), "value");
-    }
-
-    #[test]
-    fn test_arg_u64_default() {
-        let args = serde_json::json!({});
-        assert_eq!(arg_u64(&args, "k", 42), 42);
-    }
-
-    #[test]
-    fn test_arg_u64_provided() {
-        let args = serde_json::json!({"k": 10});
-        assert_eq!(arg_u64(&args, "k", 42), 10);
-    }
-
-    #[test]
-    fn test_arg_str_array_default() {
-        let args = serde_json::json!({});
-        let arr = arg_str_array(&args, "items", &["a", "b"]);
-        assert_eq!(arr, vec!["a", "b"]);
-    }
-
-    #[test]
-    fn test_arg_str_array_provided() {
-        let args = serde_json::json!({"items": ["x", "y", "z"]});
-        let arr = arg_str_array(&args, "items", &["a", "b"]);
-        assert_eq!(arr, vec!["x", "y", "z"]);
-    }
-
-    // --- detect_model_format test ---
-
-    #[test]
-    fn test_detect_model_format_nonexistent() {
-        let path = Path::new("/tmp/nonexistent_model_file_xyz.gguf");
-        let fmt = detect_model_format(path);
-        assert_eq!(fmt, "unknown");
-    }
-
-    // --- estimate_params_from_filename test ---
-
-    #[test]
-    fn test_estimate_params_from_filename_7b() {
-        let result = estimate_params_from_filename("llama-7b-q4_0.gguf", 4_000_000_000);
-        assert!(result.contains("7B"), "Should detect 7B from filename");
-    }
-
-    #[test]
-    fn test_estimate_params_from_filename_70b() {
-        let result =
-            estimate_params_from_filename("qwen2.5-72b-instruct-q6_k.gguf", 40_000_000_000);
-        assert!(result.contains("72B"), "Should detect 72B from filename");
-    }
-
-    #[test]
-    fn test_estimate_params_from_filename_no_hint() {
-        let result = estimate_params_from_filename("mymodel.gguf", 5_000_000_000);
-        assert!(
-            result.contains("estimated from file size"),
-            "Should estimate from size"
-        );
-    }
-
-    // --- k_means test ---
-
-    #[test]
-    fn test_k_means_empty() {
-        let clusters = k_means(&[], 3, 10);
-        assert!(clusters.is_empty());
-    }
-
-    #[test]
-    fn test_k_means_single() {
-        let embeddings = vec![vec![1.0, 0.0]];
-        let clusters = k_means(&embeddings, 1, 10);
-        assert_eq!(clusters.len(), 1);
-        assert_eq!(clusters[0].len(), 1);
-    }
-
-    #[test]
-    fn test_k_means_two_clusters() {
-        // Two clearly separable groups
-        let embeddings = vec![
-            vec![1.0, 0.0],
-            vec![0.9, 0.1],
-            vec![0.0, 1.0],
-            vec![0.1, 0.9],
-        ];
-        let clusters = k_means(&embeddings, 2, 20);
-        assert_eq!(clusters.len(), 2);
-        // Each cluster should have 2 members
-        let total: usize = clusters.iter().map(|c| c.len()).sum();
-        assert_eq!(total, 4);
-    }
-
-    // --- Tool function tests (without Ollama) ---
-
-    #[test]
-    fn test_ai_multi_model_compare_missing_prompt() {
-        let args = serde_json::json!({});
-        let result = ai_multi_model_compare_work(args);
-        let result: Value = serde_json::from_str(&result).unwrap();
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_chain_of_thought_missing_prompt() {
-        let args = serde_json::json!({});
-        let result = ai_chain_of_thought_work(args);
-        let result: Value = serde_json::from_str(&result).unwrap();
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_self_critique_missing_prompt() {
-        let args = serde_json::json!({});
-        let result = ai_self_critique_work(args);
-        let result: Value = serde_json::from_str(&result).unwrap();
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_few_shot_classify_missing_text() {
-        let args = serde_json::json!({"examples": [{"text": "good", "label": "positive"}]});
-        let result = ai_few_shot_classify_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_few_shot_classify_missing_examples() {
-        let args = serde_json::json!({"text": "hello"});
-        let result = ai_few_shot_classify_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_zero_shot_classify_missing_text() {
-        let args = serde_json::json!({"labels": ["pos", "neg"]});
-        let result = ai_zero_shot_classify_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_zero_shot_classify_missing_labels() {
-        let args = serde_json::json!({"text": "hello"});
-        let result = ai_zero_shot_classify_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_structured_extract_missing_text() {
-        let args = serde_json::json!({"schema": {"type": "object"}});
-        let result = ai_structured_extract_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_structured_extract_missing_schema() {
-        let args = serde_json::json!({"text": "some text"});
-        let result = ai_structured_extract_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_debate_missing_topic() {
-        let args = serde_json::json!({});
-        let result = ai_debate_work(args);
-        let result: Value = serde_json::from_str(&result).unwrap();
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_verify_factual_missing_claim() {
-        let args = serde_json::json!({"references": ["doc1"]});
-        let result = ai_verify_factual_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_verify_factual_missing_references() {
-        let args = serde_json::json!({"claim": "The sky is blue"});
-        let result = ai_verify_factual_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_rewrite_style_invalid_style() {
-        let args = serde_json::json!({"text": "hello", "style": "invalid_style"});
-        let result = ai_rewrite_style_work(args);
-        assert!(result.get("error").is_some());
-        let error = result["error"].as_str().unwrap();
-        assert!(error.contains("Invalid style"));
-    }
-
-    #[test]
-    fn test_ai_rewrite_style_valid_styles() {
-        for style in &["technical", "casual", "academic", "eli5", "concise"] {
-            let args = serde_json::json!({"text": "hello world", "style": style});
-            // This may fail due to Ollama not being available, but should not
-            // return an "Invalid style" error
-            let result = ai_rewrite_style_work(args);
-            if let Some(error) = result.get("error").and_then(|e| e.as_str()) {
-                assert!(
-                    !error.contains("Invalid style"),
-                    "Style '{}' should be valid",
-                    style
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn test_ai_translate_missing_text() {
-        let args = serde_json::json!({"from": "en", "to": "es"});
-        let result = ai_translate_work(args);
-        let result: Value = serde_json::from_str(&result).unwrap();
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_embed_text_missing_text() {
-        let args = serde_json::json!({});
-        let result = ai_embed_text_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_semantic_search_missing_query() {
-        let args = serde_json::json!({"documents": ["doc1"]});
-        let result = ai_semantic_search_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_semantic_search_missing_documents() {
-        let args = serde_json::json!({"query": "test"});
-        let result = ai_semantic_search_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_cluster_texts_missing_texts() {
-        let args = serde_json::json!({});
-        let result = ai_cluster_texts_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_rag_build_index_missing_path() {
-        let args = serde_json::json!({});
-        let result = ai_rag_build_index_work(args);
-        let result: Value = serde_json::from_str(&result).unwrap();
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_rag_build_index_invalid_path() {
-        let args = serde_json::json!({"path": "/tmp/nonexistent_dir_xyz_abc"});
-        let result = ai_rag_build_index_work(args);
-        let result: Value = serde_json::from_str(&result).unwrap();
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_rag_query_missing_query() {
-        let args = serde_json::json!({"index_path": "/tmp/test.json"});
-        let result = ai_rag_query_work(args);
-        let result: Value = serde_json::from_str(&result).unwrap();
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_rag_query_missing_index_path() {
-        let args = serde_json::json!({"query": "test"});
-        let result = ai_rag_query_work(args);
-        let result: Value = serde_json::from_str(&result).unwrap();
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_context_pack_smart_missing_paths() {
-        let args = serde_json::json!({});
-        let result = ai_context_pack_smart_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ml_model_info_missing_path() {
-        let args = serde_json::json!({});
-        let result = ml_model_info_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ml_model_info_nonexistent_file() {
-        let args = serde_json::json!({"path": "/tmp/nonexistent_model_file_xyz.gguf"});
-        let result = ml_model_info_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ml_tokenize_missing_text() {
-        let args = serde_json::json!({});
-        let result = ml_tokenize_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ml_token_count_missing_text() {
-        let args = serde_json::json!({});
-        let result = ml_token_count_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ml_benchmark_model_zero_iterations() {
-        let args = serde_json::json!({"model": "llama3.2", "iterations": 0});
-        let result = ml_benchmark_model_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ml_perplexity_score_missing_text() {
-        let args = serde_json::json!({});
-        let result = ml_perplexity_score_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ml_fine_tune_prep_missing_conversations() {
-        let args = serde_json::json!({"format": "openai"});
-        let result = ml_fine_tune_prep_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ml_fine_tune_prep_invalid_format() {
-        let args = serde_json::json!({"conversations": [{"messages": []}], "format": "invalid"});
-        let result = ml_fine_tune_prep_work(args);
-        assert!(result.get("error").is_some());
-        let error = result["error"].as_str().unwrap();
-        assert!(error.contains("Invalid format"));
-    }
-
-    #[test]
-    fn test_ml_fine_tune_prep_openai_format() {
-        let args = serde_json::json!({
-            "conversations": [
-                {
-                    "messages": [
-                        {"role": "system", "content": "You are helpful."},
-                        {"role": "user", "content": "Hello"},
-                        {"role": "assistant", "content": "Hi there!"}
-                    ]
-                }
-            ],
-            "format": "openai"
-        });
-        let result = ml_fine_tune_prep_work(args);
-        assert_eq!(result["example_count"], 1);
-        assert_eq!(result["format"], "openai");
-        // Verify sample_line is valid JSON
-        let sample: Value = serde_json::from_str(result["sample_line"].as_str().unwrap()).unwrap();
-        assert!(sample.get("messages").is_some());
-    }
-
-    #[test]
-    fn test_ml_fine_tune_prep_llama_format() {
-        let args = serde_json::json!({
-            "conversations": [
-                {
-                    "messages": [
-                        {"role": "user", "content": "Hello"},
-                        {"role": "assistant", "content": "Hi!"}
-                    ]
-                }
-            ],
-            "format": "llama"
-        });
-        let result = ml_fine_tune_prep_work(args);
-        let sample: Value = serde_json::from_str(result["sample_line"].as_str().unwrap()).unwrap();
-        assert!(sample.get("conversations").is_some());
-        let convs = sample["conversations"].as_array().unwrap();
-        assert_eq!(convs[0]["from"], "human");
-        assert_eq!(convs[1]["from"], "gpt");
-    }
-
-    #[test]
-    fn test_ml_fine_tune_prep_mistral_format() {
-        let args = serde_json::json!({
-            "conversations": [
-                {
-                    "messages": [
-                        {"role": "user", "content": "Test"},
-                        {"role": "assistant", "content": "Response"}
-                    ]
-                }
-            ],
-            "format": "mistral"
-        });
-        let result = ml_fine_tune_prep_work(args);
-        let sample: Value = serde_json::from_str(result["sample_line"].as_str().unwrap()).unwrap();
-        assert!(sample.get("messages").is_some());
-    }
-
-    #[test]
-    fn test_ml_dataset_validate_missing_path() {
-        let args = serde_json::json!({});
-        let result = ml_dataset_validate_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ml_dataset_validate_nonexistent_file() {
-        let args = serde_json::json!({"path": "/tmp/nonexistent_dataset_xyz.jsonl"});
-        let result = ml_dataset_validate_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ml_dataset_validate_valid_data() {
-        let dir = std::env::temp_dir().join("pb_mcp_test_validate");
-        let _ = fs::create_dir_all(&dir);
-        let path = dir.join("test_valid.jsonl");
-
-        let data = r#"{"messages": [{"role": "user", "content": "Hello"}, {"role": "assistant", "content": "Hi!"}]}
-{"messages": [{"role": "user", "content": "How are you?"}, {"role": "assistant", "content": "I'm fine!"}]}
-"#;
-        fs::write(&path, data).unwrap();
-
-        let args = serde_json::json!({"path": path.to_string_lossy()});
-        let result = ml_dataset_validate_work(args);
-        assert_eq!(result["valid"], true);
-        assert_eq!(result["total_examples"], 2);
-
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn test_ml_dataset_validate_invalid_json() {
-        let dir = std::env::temp_dir().join("pb_mcp_test_validate_invalid");
-        let _ = fs::create_dir_all(&dir);
-        let path = dir.join("test_invalid.jsonl");
-
-        let data = r#"{"messages": [{"role": "user", "content": "Hello"}]}
-this is not json
-{"messages": []}
-"#;
-        fs::write(&path, data).unwrap();
-
-        let args = serde_json::json!({"path": path.to_string_lossy()});
-        let result = ml_dataset_validate_work(args);
-        assert_eq!(result["valid"], false);
-        let errors = result["errors"].as_array().unwrap();
-        assert!(!errors.is_empty());
-
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn test_ml_dataset_validate_empty_messages() {
-        let dir = std::env::temp_dir().join("pb_mcp_test_validate_empty");
-        let _ = fs::create_dir_all(&dir);
-        let path = dir.join("test_empty_msgs.jsonl");
-
-        let data = r#"{"messages": []}
-"#;
-        fs::write(&path, data).unwrap();
-
-        let args = serde_json::json!({"path": path.to_string_lossy()});
-        let result = ml_dataset_validate_work(args);
-        assert_eq!(result["valid"], false);
-
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn test_ollama_unavailable_json() {
-        let result = ollama_unavailable();
-        assert_eq!(result["tool_available"], false);
-        assert!(result["error"]
-            .as_str()
-            .unwrap()
-            .contains("Ollama not available"));
-    }
-
-    #[test]
-    fn test_truncate_response_short() {
-        let short = "Hello world";
-        let result = truncate_response(short);
-        assert_eq!(result, short);
-    }
-
-    #[test]
-    fn test_ai_context_pack_smart_with_files() {
-        let dir = std::env::temp_dir().join("pb_mcp_test_context_pack");
-        let _ = fs::create_dir_all(&dir);
-
-        let file1 = dir.join("small.txt");
-        let file2 = dir.join("large.txt");
-        fs::write(&file1, "Small content").unwrap();
-        fs::write(&file2, &"X".repeat(10000)).unwrap();
-
-        let args = serde_json::json!({
-            "paths": [file1.to_string_lossy(), file2.to_string_lossy()],
-            "max_tokens": 1000
-        });
-        let result = ai_context_pack_smart_work(args);
-
-        assert!(result.get("packed_content").is_some());
-        assert!(result.get("files_included").is_some());
-        assert!(result.get("files_excluded").is_some());
-        assert!(result.get("estimated_tokens").is_some());
-
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn test_ml_dataset_validate_missing_required_field() {
-        let dir = std::env::temp_dir().join("pb_mcp_test_validate_missing_field");
-        let _ = fs::create_dir_all(&dir);
-        let path = dir.join("test_missing_field.jsonl");
-
-        // JSON without "messages" or "conversations"
-        let data = r#"{"text": "some text", "label": "positive"}
-"#;
-        fs::write(&path, data).unwrap();
-
-        let args = serde_json::json!({"path": path.to_string_lossy()});
-        let result = ml_dataset_validate_work(args);
-        assert_eq!(result["valid"], false);
-
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn test_ai_rewrite_style_missing_text() {
-        let args = serde_json::json!({"style": "concise"});
-        let result = ai_rewrite_style_work(args);
-        assert!(result.get("error").is_some());
-    }
-
-    #[test]
-    fn test_ai_rag_query_nonexistent_index() {
-        let args =
-            serde_json::json!({"query": "test", "index_path": "/tmp/nonexistent_index.json"});
-        let result = ai_rag_query_work(args);
-        let result: Value = serde_json::from_str(&result).unwrap();
-        assert!(result.get("error").is_some());
-    }
 }
