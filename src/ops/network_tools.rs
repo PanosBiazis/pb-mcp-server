@@ -1785,7 +1785,7 @@ pub fn net_dns_zone_transfer_work(args: serde_json::Value) -> serde_json::Value 
 
             json!({
                 "domain": domain,
-                "nameserver": if nameserver.is_empty() { "default" } else { nameserver.clone() },
+                "nameserver": if nameserver.is_empty() { "default" } else { &nameserver },
                 "transferred": transferred,
                 "records": records,
                 "details": details,
