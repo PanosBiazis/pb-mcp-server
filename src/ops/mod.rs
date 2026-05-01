@@ -208,7 +208,6 @@ use globset::{Glob, GlobSetBuilder};
 use ignore::WalkBuilder;
 use regex::RegexBuilder;
 use std::{
-    collections::HashMap,
     fs,
     io::{Read, Seek, SeekFrom},
     path::{Path, PathBuf},
@@ -1106,7 +1105,7 @@ pub fn file_stats_work(path: PathBuf) -> String {
         ""
     };
     format!(
-        "path: {}\nsize_bytes: {}\nbytes_scanned: {}\nline_estimate: {}\nhas_nul_bytes: {}\npreview_head_utf8_lossy:\n---\n{}{}\n---",
+        "path: {}\nsize_bytes: {}\nbytes_scanned: {}\nline_estimate: {}\nhas_nul_bytes: {}\npreview_head_utf8_lossy:\n---\n{}{}\\n---",
         path.display(),
         size,
         scan,
