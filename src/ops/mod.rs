@@ -1049,8 +1049,7 @@ pub fn file_stats_work(path: PathBuf) -> String {
         ""
     };
     format!(
-        "path: {}\nsize_bytes: {}\nbytes_scanned: {}\nline_estimate: {}\nhas_nul_bytes: {}\npreview_head_utf8_lossy:\n---\n{}{}
----",
+        "path: {}\nsize_bytes: {}\nbytes_scanned: {}\nline_estimate: {}\nhas_nul_bytes: {}\npreview_head_utf8_lossy:\n---\n{}{}\n---",
         path.display(),
         size,
         scan,
@@ -1443,7 +1442,7 @@ pub fn text_stats_work(text: String) -> String {
     let para_like = text.split("\n\n").filter(|p| !p.trim().is_empty()).count();
     let words = text.split_whitespace().filter(|w| !w.is_empty()).count();
     let tok4 = chars / 4;
-    let tok13 = chars.saturating_mul(10) / 13; // ~ chars/1.3 token heuristic (very rough)
+    let tok13 = chars.saturating_mul(10) / 13;
     format!(
         "TEXT_STATS\nbytes: {bytes}\nchars: {chars}\nlines: {lines}\nnon_empty_lines: {non_empty}\nparagraph_like_blocks: {para_like}\nwhitespace_separated_tokens: {words}\nrough_llm_tokens_est_chars_div_4: {tok4}\nrough_llm_tokens_est_chars_div_1_3: {tok13}\nhint: real tokenizer counts differ; use summarize_token_estimate for the same metrics in a dedicated tool; shrink with compress_* / summarize_* / compress_redact_urls.\n"
     )
@@ -1476,6 +1475,3 @@ pub fn compress_redact_urls_work(text: String, max_chars: usize) -> String {
     let (body, _) = truncate_chars(&body, max_chars);
     format!("COMPRESS_REDACT_URLS max_chars={max_chars}\n\n{body}")
 }
-
-/// Replace email-shaped tokens (privacy when sharing logs).
-pub fn 
