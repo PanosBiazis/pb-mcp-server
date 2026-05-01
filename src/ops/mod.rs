@@ -209,8 +209,7 @@ pub use protection::*;
 
 use globset::{Glob, GlobSetBuilder};
 use ignore::WalkBuilder;
-use regex::{Regex, RegexBuilder};
-use serde_json::Value;
+use regex::RegexBuilder;
 use std::{
     collections::HashMap,
     fs,
@@ -1222,7 +1221,7 @@ pub fn read_json_file_work(path: PathBuf) -> String {
                 keys.len(),
                 key_preview.join(", "),
                 if more > 0 {
-                    format!("\n... and {more} more keys")
+                    format!("... and {more} more keys")
                 } else {
                     String::new()
                 }
