@@ -155,17 +155,14 @@ pub use screenshot_tools::{
 
 #[allow(unused_imports)]
 pub use ai_ml_extended::{
-    ai_chain_of_thought_work, ai_classify_work, ai_cluster_texts_work,
-    ai_context_pack_smart_work as ai_ml_context_pack_smart_work, ai_debate_work,
-    ai_embed_text_work, ai_few_shot_classify_work, ai_fine_tune_prep_work,
-    ai_hallucination_check_work, ai_multi_model_compare_work, ai_persona_chat_work,
-    ai_rag_build_index_work, ai_rag_delete_work, ai_rag_query_work, ai_rag_update_work,
-    ai_rewrite_style_work, ai_self_critique_work, ai_semantic_search_work,
-    ai_structured_extract_work, ai_translate_work, ai_verify_factual_work,
-    ai_zero_shot_classify_work, ml_attention_visualize_work, ml_benchmark_model_work,
-    ml_dataset_validate_work, ml_fine_tune_prep_work, ml_inference_batch_work,
-    ml_lora_apply_work, ml_model_info_work, ml_perplexity_score_work, ml_quantize_model_work,
-    ml_token_count_work, ml_tokenize_work,
+    ai_cluster_texts_work,
+    ai_context_pack_smart_work as ai_ml_context_pack_smart_work,
+    ai_embed_text_work, ai_few_shot_classify_work, ai_multi_model_compare_work,
+    ai_rewrite_style_work, ai_semantic_search_work,
+    ai_structured_extract_work, ai_verify_factual_work,
+    ai_zero_shot_classify_work, ml_benchmark_model_work,
+    ml_dataset_validate_work, ml_fine_tune_prep_work, ml_model_info_work,
+    ml_perplexity_score_work, ml_token_count_work, ml_tokenize_work,
 };
 
 #[allow(unused_imports)]
@@ -1232,5 +1229,5 @@ pub fn read_json_file_work(path: PathBuf) -> String {
         }
         _ => "kind: scalar".to_string(),
     };
-    format!("FILE: {}\n\n{}", path.display(), summary)
+    format!("FILE: {}\n\nkind: {}\n", path.display(), summary)
 }
