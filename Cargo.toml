@@ -230,6 +230,11 @@ screenshot-tools = ["dep:image"]
 web-fetch = ["web-tools"]
 web-search = ["web-tools"]
 web-scrape = ["web-tools", "web-scraping"]
+# Passthrough feature aliases so #[cfg(feature = "ort")] / #[cfg(feature = "tokenizers")]
+# in neural.rs are recognised by Cargo's check-cfg lints without triggering
+# unexpected_cfg warnings. These just re-enable the corresponding dep.
+ort = ["dep:ort"]
+tokenizers = ["dep:tokenizers"]
 
 [profile.release]
 opt-level = 3
