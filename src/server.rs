@@ -12,10 +12,7 @@
 //! 4. Exposes [`build_router`] / [`run_server`] as the stable API surface.
 
 use crate::profiles::ToolProfile;
-use crate::tools::{
-    catalog::ToolCatalog,
-    registry::ToolRegistry,
-};
+use crate::tools::registry::ToolRegistry;
 
 // ---------------------------------------------------------------------------
 // MintMcp

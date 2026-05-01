@@ -177,10 +177,11 @@ pub use algorithms::{
     algo_stats_regression_work,
 };
 
+// Fix: use correct function names that actually exist in file_crypto.rs
 #[allow(unused_imports)]
 pub use file_crypto::{
-    file_decrypt_work, file_detect_duplicates_work, file_encrypt_work, file_sign_work,
-    file_verify_work, file_watch_snapshot_work,
+    file_decrypt_work, file_deduplicate_work, file_encrypt_work, file_sign_work,
+    file_verify_signature_work, file_watch_work,
 };
 
 #[allow(unused_imports)]
@@ -206,19 +207,14 @@ pub use network_tools::*;
 #[allow(unused_imports)]
 pub use protection::*;
 
-use base64::{engine::general_purpose::STANDARD, Engine as _};
-use flate2::read::GzDecoder;
-use flate2::write::GzEncoder;
-use flate2::Compression;
 use globset::{Glob, GlobSetBuilder};
 use ignore::WalkBuilder;
 use regex::{Regex, RegexBuilder};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 use std::{
-    collections::{BTreeSet, HashMap, HashSet},
+    collections::HashMap,
     fs,
-    io::{Read, Seek, SeekFrom, Write},
+    io::{Read, Seek, SeekFrom},
     path::{Path, PathBuf},
     process::Command,
     time::UNIX_EPOCH,
@@ -251,6 +247,42 @@ pub const MAX_TERMINAL_STDIN_BYTES: usize = 512 * 1024;
 /// Max decompressed size from `decompress_gzip_base64` (mitigate zip bombs).
 pub const MAX_GZIP_DECOMPRESSED_BYTES: usize = 2 * 1024 * 1024;
 
+// ---------------------------------------------------------------------------
+// Feature-gate helpers (used by workspace_context_work and ai_ops.rs)
+// ---------------------------------------------------------------------------
+
+/// Returns true when the `terminal-exec` feature is compiled in.
+pub(crate) fn terminal_enabled() -> bool {
+    cfg!(feature = "terminal-exec")
+}
+
+/// Returns true when the `git-write` feature is compiled in.
+pub(crate) fn git_write_enabled() -> bool {
+    cfg!(feature = "git-write")
+}
+
+/// Returns true when git remote operations are enabled.
+pub(crate) fn git_remote_enabled() -> bool {
+    cfg!(feature = "git-write")
+}
+
+/// Returns true when project test tools (cargo test / pytest) are enabled.
+pub(crate) fn project_test_tools_enabled() -> bool {
+    cfg!(feature = "core-code")
+}
+
+/// Pre-flight check for commands that require the `terminal-exec` feature.
+/// Returns `Ok(())` when the feature is active, or an error string otherwise.
+pub(crate) fn terminal_run_precheck(cmd: &str) -> Result<(), String> {
+    if !terminal_enabled() {
+        return Err(format!(
+            "`{}` requires the `terminal-exec` feature to be enabled",
+            cmd
+        ));
+    }
+    Ok(())
+}
+
 /// Truncate a string to a maximum character count
 ///
 /// Returns a tuple of (truncated_string, was_truncated)
@@ -260,6 +292,35 @@ pub fn truncate_chars(s: &str, max: usize) -> (String, bool) {
     }
     let t: String = s.chars().take(max).collect();
     (t, true)
+}
+
+/// Return basic metadata for a single file or directory path.
+pub fn file_info_work(path: PathBuf) -> String {
+    let meta = match fs::metadata(&path) {
+        Ok(m) => m,
+        Err(e) => return format!("Error: {e}"),
+    };
+    let kind = if meta.is_file() {
+        "file"
+    } else if meta.is_dir() {
+        "directory"
+    } else {
+        "other"
+    };
+    let size = meta.len();
+    let mtime = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    format!(
+        "path: {}\nkind: {}\nsize_bytes: {}\nmtime_unix: {}",
+        path.display(),
+        kind,
+        size,
+        mtime
+    )
 }
 
 /// Read a file with optional line range and size limits
