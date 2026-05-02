@@ -88,6 +88,7 @@ impl ToolCatalog {
         cat.add_agent_tools();
         cat.add_plan_tools();
         cat.add_reasoning_tools();
+        cat.add_thinking_tools();
         cat.add_review_tools();
         cat.add_debug_tools();
         cat.add_image_tools();
@@ -584,6 +585,7 @@ impl ToolCatalog {
         self.add(ToolInfo { name: "plan.handoff_brief".into(), description: "Generate a handoff brief for agent transitions".into(), category: cat.into(), profile: "agent-orchestration".into(), risk_level: "low".into(), requires_write: false, requires_exec: false });
         self.add(ToolInfo { name: "plan.work_buckets".into(), description: "Partition work into parallel buckets".into(), category: cat.into(), profile: "agent-orchestration".into(), risk_level: "low".into(), requires_write: false, requires_exec: false });
         self.add(ToolInfo { name: "plan.execution_checklist".into(), description: "Generate an execution checklist".into(), category: cat.into(), profile: "agent-orchestration".into(), risk_level: "low".into(), requires_write: false, requires_exec: false });
+        self.add(ToolInfo { name: "plan.retrospective".into(), description: "Generate a project retrospective analysis".into(), category: cat.into(), profile: profile.into(), risk_level: "low".into(), requires_write: false, requires_exec: false });
     }
 
     fn add_reasoning_tools(&mut self) {
@@ -592,6 +594,18 @@ impl ToolCatalog {
         self.add(ToolInfo { name: "reasoning.evidence_matrix".into(), description: "Build an evidence matrix for hypothesis evaluation".into(), category: cat.into(), profile: profile.into(), risk_level: "low".into(), requires_write: false, requires_exec: false });
         self.add(ToolInfo { name: "reasoning.devils_advocate".into(), description: "Generate devil's advocate counter-arguments".into(), category: cat.into(), profile: profile.into(), risk_level: "low".into(), requires_write: false, requires_exec: false });
         self.add(ToolInfo { name: "reasoning.premortem".into(), description: "Run a premortem analysis".into(), category: cat.into(), profile: profile.into(), risk_level: "low".into(), requires_write: false, requires_exec: false });
+        self.add(ToolInfo { name: "reasoning.chain".into(), description: "Build a logical reasoning chain".into(), category: cat.into(), profile: profile.into(), risk_level: "low".into(), requires_write: false, requires_exec: false });
+        self.add(ToolInfo { name: "reasoning.five_whys".into(), description: "Perform five whys root cause analysis".into(), category: cat.into(), profile: profile.into(), risk_level: "low".into(), requires_write: false, requires_exec: false });
+    }
+
+    fn add_thinking_tools(&mut self) {
+        let profile = "review-refactor";
+        let cat = "thinking";
+        self.add(ToolInfo { name: "thinking.assumption_audit".into(), description: "Audit and validate assumptions in analysis".into(), category: cat.into(), profile: profile.into(), risk_level: "low".into(), requires_write: false, requires_exec: false });
+        self.add(ToolInfo { name: "thinking.plan_skeleton".into(), description: "Generate a structured plan skeleton".into(), category: cat.into(), profile: profile.into(), risk_level: "low".into(), requires_write: false, requires_exec: false });
+        self.add(ToolInfo { name: "thinking.session_append".into(), description: "Append content to a thinking session".into(), category: cat.into(), profile: profile.into(), risk_level: "low".into(), requires_write: false, requires_exec: false });
+        self.add(ToolInfo { name: "thinking.session_read".into(), description: "Read contents of a thinking session".into(), category: cat.into(), profile: profile.into(), risk_level: "low".into(), requires_write: false, requires_exec: false });
+        self.add(ToolInfo { name: "thinking.step_back".into(), description: "Take a step back and analyze from broader perspective".into(), category: cat.into(), profile: profile.into(), risk_level: "low".into(), requires_write: false, requires_exec: false });
     }
 
     fn add_review_tools(&mut self) {
@@ -735,6 +749,7 @@ impl ToolCatalog {
         self.add(ToolInfo { name: "ai.context_pack_smart".into(), description: "Smart context packing with keyword scoring".into(), category: cat.into(), profile: profile.into(), risk_level: "low".into(), requires_write: false, requires_exec: false });
         self.add(ToolInfo { name: "ai.semantic_diff".into(), description: "Semantic diff analysis mapping hunks to code units".into(), category: cat.into(), profile: profile.into(), risk_level: "low".into(), requires_write: false, requires_exec: false });
         self.add(ToolInfo { name: "ai.inference".into(), description: "Run AI inference on local models".into(), category: cat.into(), profile: profile.into(), risk_level: "medium".into(), requires_write: false, requires_exec: true });
+        self.add(ToolInfo { name: "ai.inference_integration_guide".into(), description: "Generate AI inference integration guide".into(), category: cat.into(), profile: profile.into(), risk_level: "low".into(), requires_write: false, requires_exec: false });
         self.add(ToolInfo { name: "ai.stack_probe".into(), description: "Probe the local AI stack for available models".into(), category: cat.into(), profile: profile.into(), risk_level: "low".into(), requires_write: false, requires_exec: true });
         self.add(ToolInfo { name: "ai.model_list".into(), description: "List available AI models".into(), category: cat.into(), profile: profile.into(), risk_level: "low".into(), requires_write: false, requires_exec: true });
         self.add(ToolInfo { name: "ml.embed".into(), description: "Generate ML embeddings".into(), category: cat.into(), profile: profile.into(), risk_level: "medium".into(), requires_write: false, requires_exec: true });

@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! # Agent Module
 //!
 //! Multi-agent coordination primitives built on top of the durable JSONL
@@ -94,7 +96,9 @@ pub use live::{
     LiveEventBus, LiveStatusReport, LiveStreamInfo, PingResult,
 };
 
+// Re-export worker types when needed
 #[cfg(feature = "agent-workers")]
+#[allow(unused_imports)]
 pub use worker::{
     AgentRole, AgentWorker, AgentWorkerConfig, AgentWorkerStatus, WorkerInfo, WorkerPool,
 };
