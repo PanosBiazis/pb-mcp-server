@@ -1,9 +1,5 @@
-//! Wired tool dispatch methods for all previously unused *_work imports.
-//!
-//! This file is included at the end of the `#[tool_router] impl MintMcp` block
-//! in main.rs via `include!("tools_wired.rs")`. Every `#[tool]` method here
-//! calls the corresponding `*_work` function that was previously imported but
-//! never dispatched, making it visible to Zed / Cursor via MCP tools/list.
+// Wired tool dispatch methods for all previously unused *_work imports.
+// include!("tools_wired.rs") is called at the end of the #[tool_router] impl MintMcp block.
 
 // ── AI / Ollama ─────────────────────────────────────────────────────────────
 
@@ -43,10 +39,9 @@ async fn ai_ollama_embed(
     }
     let model = args.model.clone();
     let input = args.input.clone();
-    let out =
-        tokio::task::spawn_blocking(move || ai_ollama_embed_work(model, input))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+    let out = tokio::task::spawn_blocking(move || ai_ollama_embed_work(model, input))
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
     Self::tool_text(out)
 }
 
@@ -84,10 +79,9 @@ async fn web_tls_inspect(
     }
     let host = args.host.clone();
     let port = args.port;
-    let out =
-        tokio::task::spawn_blocking(move || web_tls_inspect_work(host, port))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+    let out = tokio::task::spawn_blocking(move || web_tls_inspect_work(host, port))
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
     Self::tool_text(out)
 }
 
@@ -128,10 +122,9 @@ async fn notify_email(
     let subject = args.subject.clone();
     let body = args.body.clone();
     let from = args.from.clone();
-    let out =
-        tokio::task::spawn_blocking(move || notify_email_send_work(to, subject, body, from))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+    let out = tokio::task::spawn_blocking(move || notify_email_send_work(to, subject, body, from))
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
     Self::tool_text(out)
 }
 
@@ -370,9 +363,7 @@ async fn web_screenshot_url(
         return Self::tool_text(e);
     }
     let url = args.url.clone();
-    let output = args.output_path.as_ref().map(|p| {
-        self.root.join(p)
-    });
+    let output = args.output_path.as_ref().map(|p| self.root.join(p));
     let out = tokio::task::spawn_blocking(move || web_screenshot_work(url, output))
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
