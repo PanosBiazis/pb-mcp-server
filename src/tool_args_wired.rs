@@ -1,10 +1,7 @@
-//! Argument structs for the newly-wired tool methods in tools_wired.rs.
-//!
-//! Included at the top of main.rs (before the impl block) so that the
-//! `#[tool]` macros in tools_wired.rs can reference these types.
+// Argument structs for tools wired via tools_wired.rs.
+// include!("tool_args_wired.rs") is called at module scope in main.rs.
 
-use schemars::JsonSchema;
-use serde::Deserialize;
+// NOTE: JsonSchema and Deserialize are already in scope from main.rs imports.
 
 // ── AI / Ollama ───────────────────────────────────────────────────────────────
 
@@ -52,7 +49,9 @@ pub struct WebTlsInspectArgs {
     pub port: u16,
 }
 
-fn default_tls_port() -> u16 { 443 }
+fn default_tls_port() -> u16 {
+    443
+}
 
 // ── Notify ────────────────────────────────────────────────────────────────────
 
@@ -94,7 +93,9 @@ pub struct NotifyWebhookArgs {
     pub block_internal: bool,
 }
 
-fn default_block_internal() -> bool { true }
+fn default_block_internal() -> bool {
+    true
+}
 
 // ── System ────────────────────────────────────────────────────────────────────
 
@@ -171,7 +172,9 @@ pub struct WebDownloadFileArgs {
 pub struct WebScreenshotArgs {
     #[schemars(description = "URL to screenshot.")]
     pub url: String,
-    #[schemars(description = "Output file path relative to project root (e.g. screenshots/page.png).")]
+    #[schemars(
+        description = "Output file path relative to project root (e.g. screenshots/page.png)."
+    )]
     #[serde(default)]
     pub output_path: Option<String>,
 }
@@ -185,7 +188,9 @@ pub struct WebSearchArgs {
     pub max_results: usize,
 }
 
-fn default_web_search_max() -> usize { 10 }
+fn default_web_search_max() -> usize {
+    10
+}
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct WebRssFetchArgs {
@@ -196,7 +201,9 @@ pub struct WebRssFetchArgs {
     pub max_items: usize,
 }
 
-fn default_rss_max() -> usize { 20 }
+fn default_rss_max() -> usize {
+    20
+}
 
 // ── Convert ───────────────────────────────────────────────────────────────────
 
@@ -223,7 +230,9 @@ pub struct ConvertBinaryHexdumpArgs {
     pub max_bytes: usize,
 }
 
-fn default_hexdump_max() -> usize { 4096 }
+fn default_hexdump_max() -> usize {
+    4096
+}
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct ConvertDocumentArgs {

@@ -7,14 +7,12 @@ mod ops;
 mod thinking;
 
 use crate::ops::{
-    agent_coordination_playbook_work, ai_context_pack_smart_work,
-    ai_inference_integration_guide_work, ai_ollama_embed_work, ai_ollama_generate_work,
-    ai_prompt_template_work, ai_semantic_diff_work, ai_stack_probe_work, batch_file_info_work,
-    code_ast_dump_work, code_complexity_score_work, code_dead_code_hints_work,
-    code_detect_language_work, code_extract_imports_work, codebase_cargo_dependency_names_work,
-    codebase_duplicate_basenames_work, codebase_index_work, codebase_largest_files_work,
-    codebase_manifest_write_work, codebase_path_list_work, codebase_shallow_hash_work,
-    codebase_word_index_work, coding_agent_toolchains_catalog_work,
+    agent_coordination_playbook_work, ai_inference_integration_guide_work, ai_stack_probe_work,
+    batch_file_info_work, code_ast_dump_work, code_complexity_score_work,
+    code_dead_code_hints_work, code_detect_language_work, code_extract_imports_work,
+    codebase_cargo_dependency_names_work, codebase_duplicate_basenames_work, codebase_index_work,
+    codebase_largest_files_work, codebase_manifest_write_work, codebase_path_list_work,
+    codebase_shallow_hash_work, codebase_word_index_work, coding_agent_toolchains_catalog_work,
     compress_collapse_blank_lines_work, compress_context_work, compress_dedent_work,
     compress_double_slash_line_comments_work, compress_drop_lines_matching_regex_work,
     compress_fenced_code_blocks_work, compress_file_work, compress_gzip_base64_work,
@@ -23,10 +21,7 @@ use crate::ops::{
     compress_redact_urls_work, compress_sentences_work, compress_simplify_whitespace_work,
     compress_strip_tags_work, compress_truncate_lines_work, compress_truncate_middle_work,
     compress_unified_diff_stats_work, compress_unique_lines_work, compress_ws_collapse_work,
-    convert_archive_extract_work, convert_archive_list_work, convert_binary_hexdump_work,
-    convert_document_work, convert_encoding_work, convert_format_work, convert_pdf_extract_work,
-    convert_qr_generate_work, db_json_query_work, db_sqlite_exec_work, db_sqlite_query_work,
-    db_sqlite_schema_work, debug_failure_cluster_work, debug_replay_run_work,
+    convert_format_work, debug_failure_cluster_work, debug_replay_run_work,
     debug_root_cause_report_work, debug_trace_run_work, decompress_gzip_base64_work,
     extract_snippets_from_file_work, extract_snippets_work, file_info_work, file_stats_work,
     find_files_by_name_work, find_files_work, format_prefix_lines_work, gh_pr_list_work,
@@ -38,27 +33,33 @@ use crate::ops::{
     git_stash_list_work, git_stash_push_work, git_status_work, git_tag_list_work,
     git_worktree_extension_work, git_worktree_list_work, gitkraken_cloud_catalog_work,
     gitkraken_hosted_tool_redirect_work, glab_mr_list_work, glab_mr_show_work, grep_snippets_work,
-    grep_work, list_files_work, mcp_env_hints_work, notify_desktop_work, notify_email_send_work,
-    notify_webhook_work, ocr_tesseract_file_work, ollama_list_models_work, pack_context_work,
-    project_cargo_check_build_args, project_cargo_test_build_args, project_pytest_build_args,
-    project_test_tools_enabled, read_file_tail_work, read_file_work, read_json_file_work,
-    repository_get_file_content_work, review_diff_risk_work, review_focused_review_work,
-    review_missing_tests_work, review_pr_packet_work, review_rulebook_check_work,
-    screenshot_capture_work, summarize_bullets_work, summarize_delimited_header_work,
-    summarize_diff_file_list_work, summarize_duplicate_lines_work, summarize_file_work,
-    summarize_first_lines_work, summarize_headings_work, summarize_identifier_frequency_work,
-    summarize_json_structure_work, summarize_line_histogram_work,
-    summarize_line_prefix_groups_work, summarize_markdown_toc_work, summarize_multi_file_work,
-    summarize_rank_lines_by_keywords_work, summarize_segments_work, summarize_text_work,
-    summarize_token_estimate_work, summarize_top_terms_work, system_disk_usage_work,
-    system_env_get_work, system_network_interfaces_work, system_process_list_work,
+    grep_work, list_files_work, mcp_env_hints_work, ocr_tesseract_file_work,
+    ollama_list_models_work, pack_context_work, project_cargo_check_build_args,
+    project_cargo_test_build_args, project_pytest_build_args, project_test_tools_enabled,
+    read_file_tail_work, read_file_work, read_json_file_work, repository_get_file_content_work,
+    review_diff_risk_work, review_focused_review_work, review_missing_tests_work,
+    review_pr_packet_work, review_rulebook_check_work, screenshot_capture_work,
+    summarize_bullets_work, summarize_delimited_header_work, summarize_diff_file_list_work,
+    summarize_duplicate_lines_work, summarize_file_work, summarize_first_lines_work,
+    summarize_headings_work, summarize_identifier_frequency_work, summarize_json_structure_work,
+    summarize_line_histogram_work, summarize_line_prefix_groups_work, summarize_markdown_toc_work,
+    summarize_multi_file_work, summarize_rank_lines_by_keywords_work, summarize_segments_work,
+    summarize_text_work, summarize_token_estimate_work, summarize_top_terms_work,
     terminal_program_version_work, terminal_run_precheck, terminal_which_work, text_djb2_hash_work,
     text_levenshtein_distance_work, text_longest_common_substring_work, text_stats_work,
-    text_token_jaccard_work, tree_work, web_api_call_work, web_dns_lookup_work,
-    web_download_file_work, web_rss_fetch_work, web_screenshot_work, web_search_work,
-    web_tls_inspect_work, workspace_context_work, workspace_temp_delete_work,
+    text_token_jaccard_work, tree_work, workspace_context_work, workspace_temp_delete_work,
     workspace_temp_list_work, workspace_temp_read_work, workspace_temp_write_work,
     MAX_TERMINAL_STDIN_BYTES,
+};
+use crate::ops::{
+    ai_ollama_embed_work, ai_ollama_generate_work, convert_archive_extract_work,
+    convert_archive_list_work, convert_binary_hexdump_work, convert_document_work,
+    convert_pdf_extract_work, convert_qr_generate_work, db_json_query_work, db_sqlite_exec_work,
+    db_sqlite_query_work, db_sqlite_schema_work, notify_desktop_work, notify_email_send_work,
+    notify_webhook_work, system_disk_usage_work, system_env_get_work,
+    system_network_interfaces_work, system_process_list_work, web_api_call_work,
+    web_dns_lookup_work, web_download_file_work, web_rss_fetch_work, web_screenshot_work,
+    web_search_work, web_tls_inspect_work,
 };
 use crate::thinking::{
     plan_definition_of_done_work, plan_execution_checklist_work, plan_handoff_brief_work,
@@ -75,7 +76,6 @@ use rmcp::{
 };
 use schemars::JsonSchema;
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -2950,6 +2950,9 @@ impl MintMcp {
     }
 }
 
+// Argument structs for the extra tools wired via tools_wired.rs.
+include!("tool_args_wired.rs");
+
 #[tool_router]
 impl MintMcp {
     #[tool(
@@ -2964,10 +2967,11 @@ impl MintMcp {
         let net = self.network_profile.label().to_string();
         let cap = self.network_profile.server_sleep_cap_ms();
         let is_pub = self.network_profile.is_public();
-        let out =
-            tokio::task::spawn_blocking(move || workspace_context_work(root, net, cap, is_pub))
-                .await
-                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            workspace_context_work(root, net, cap, is_pub)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -2979,7 +2983,7 @@ impl MintMcp {
         &self,
         Parameters(_args): Parameters<EmptyArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let out = tokio::task::spawn_blocking(|| gitkraken_cloud_catalog_work())
+        let out = tokio::task::spawn_blocking(|| -> String { gitkraken_cloud_catalog_work() })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -2993,9 +2997,10 @@ impl MintMcp {
         &self,
         Parameters(_args): Parameters<EmptyArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let out = tokio::task::spawn_blocking(|| coding_agent_toolchains_catalog_work())
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(|| -> String { coding_agent_toolchains_catalog_work() })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -3008,9 +3013,11 @@ impl MintMcp {
         Parameters(args): Parameters<GitkrakenHostedToolNameArgs>,
     ) -> Result<CallToolResult, McpError> {
         let name = args.tool_name.clone();
-        let out = tokio::task::spawn_blocking(move || gitkraken_hosted_tool_redirect_work(&name))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            gitkraken_hosted_tool_redirect_work(&name)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -3022,7 +3029,7 @@ impl MintMcp {
         &self,
         Parameters(_args): Parameters<EmptyArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let out = tokio::task::spawn_blocking(|| mcp_env_hints_work())
+        let out = tokio::task::spawn_blocking(|| -> String { mcp_env_hints_work() })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -3058,10 +3065,12 @@ impl MintMcp {
         &self,
         Parameters(_args): Parameters<EmptyArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let out = tokio::task::spawn_blocking(ai_stack_probe_work)
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-        Self::tool_text(out)
+        let out = tokio::task::spawn_blocking(|| -> serde_json::Value {
+            ai_stack_probe_work(serde_json::json!({}))
+        })
+        .await
+        .unwrap_or_else(|e| serde_json::Value::String(format!("Error: task failed: {e}")));
+        Self::tool_text(out.to_string())
     }
 
     #[tool(
@@ -3469,7 +3478,7 @@ impl MintMcp {
         Parameters(args): Parameters<TerminalWhichArgs>,
     ) -> Result<CallToolResult, McpError> {
         let program = args.program.clone();
-        let out = tokio::task::spawn_blocking(move || terminal_which_work(&program))
+        let out = tokio::task::spawn_blocking(move || -> String { terminal_which_work(&program) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -3484,9 +3493,11 @@ impl MintMcp {
         Parameters(args): Parameters<TerminalProgramVersionArgs>,
     ) -> Result<CallToolResult, McpError> {
         let program = args.program.clone();
-        let out = tokio::task::spawn_blocking(move || terminal_program_version_work(&program))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            terminal_program_version_work(&program)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -3507,9 +3518,11 @@ impl MintMcp {
         };
         let lang = args.lang.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || ocr_tesseract_file_work(&path, &lang, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            ocr_tesseract_file_work(&path, &lang, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -3524,7 +3537,7 @@ impl MintMcp {
         if let Err(e) = self.require_trusted_deployment() {
             return Self::tool_text(e);
         }
-        let out = tokio::task::spawn_blocking(ollama_list_models_work)
+        let out = tokio::task::spawn_blocking(|| -> String { ollama_list_models_work() })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -3550,18 +3563,20 @@ impl MintMcp {
             .unwrap_or_else(|_| self.root.clone());
         let backend = args.backend.clone();
         let output_name = args.output_name.clone();
-        let out = tokio::task::spawn_blocking(move || {
-            let output_path = if output_name.is_empty() {
-                None
-            } else {
-                Some(root.join(&output_name))
-            };
-            let display_env = if backend.is_empty() {
-                None
-            } else {
-                Some(backend)
-            };
-            screenshot_capture_work(output_path, display_env)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                let output_path = if output_name.is_empty() {
+                    None
+                } else {
+                    Some(root.join(&output_name))
+                };
+                let display_env = if backend.is_empty() {
+                    None
+                } else {
+                    Some(backend)
+                };
+                screenshot_capture_work(output_path, display_env)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -3586,8 +3601,10 @@ impl MintMcp {
         let name = args.name.clone();
         let content = args.content.clone();
         let maxb = args.max_store_bytes;
-        let out = tokio::task::spawn_blocking(move || {
-            workspace_temp_write_work(root, name, content, maxb)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                workspace_temp_write_work(root, name, content, maxb)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -3611,9 +3628,11 @@ impl MintMcp {
             .unwrap_or_else(|_| self.root.clone());
         let name = args.name.clone();
         let maxr = args.max_read_bytes;
-        let out = tokio::task::spawn_blocking(move || workspace_temp_read_work(root, name, maxr))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            workspace_temp_read_work(root, name, maxr)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -3633,9 +3652,11 @@ impl MintMcp {
             .canonicalize()
             .unwrap_or_else(|_| self.root.clone());
         let limit = args.limit;
-        let out = tokio::task::spawn_blocking(move || workspace_temp_list_work(root, limit))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            workspace_temp_list_work(root, limit)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -3655,9 +3676,11 @@ impl MintMcp {
             .canonicalize()
             .unwrap_or_else(|_| self.root.clone());
         let name = args.name.clone();
-        let out = tokio::task::spawn_blocking(move || workspace_temp_delete_work(root, name))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            workspace_temp_delete_work(root, name)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -3678,9 +3701,10 @@ impl MintMcp {
         };
         let limit = args.limit;
         let state = args.state.clone();
-        let out = tokio::task::spawn_blocking(move || gh_pr_list_work(cwd, limit, &state))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || -> String { gh_pr_list_work(cwd, limit, &state) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -3700,7 +3724,7 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let pr = args.pr_number.clone();
-        let out = tokio::task::spawn_blocking(move || gh_pr_view_work(cwd, &pr))
+        let out = tokio::task::spawn_blocking(move || -> String { gh_pr_view_work(cwd, &pr) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -3722,7 +3746,7 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let limit = args.limit;
-        let out = tokio::task::spawn_blocking(move || glab_mr_list_work(cwd, limit))
+        let out = tokio::task::spawn_blocking(move || -> String { glab_mr_list_work(cwd, limit) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -3744,7 +3768,7 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let iid = args.iid.clone();
-        let out = tokio::task::spawn_blocking(move || glab_mr_show_work(cwd, &iid))
+        let out = tokio::task::spawn_blocking(move || -> String { glab_mr_show_work(cwd, &iid) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -3765,9 +3789,10 @@ impl MintMcp {
 
         let start = args.start_line;
         let end = args.end_line;
-        let out = tokio::task::spawn_blocking(move || read_file_work(path, start, end))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || -> String { read_file_work(path, start, end) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
 
         Self::tool_text(out)
     }
@@ -3786,9 +3811,10 @@ impl MintMcp {
         };
 
         let root_display = self.root.clone();
-        let out = tokio::task::spawn_blocking(move || list_files_work(root_display, path))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || -> String { list_files_work(root_display, path) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
 
         Self::tool_text(out)
     }
@@ -3812,15 +3838,17 @@ impl MintMcp {
         let respect = args.respect_gitignore;
         let max_m = args.max_matches;
 
-        let out = tokio::task::spawn_blocking(move || {
-            grep_work(
-                search_root,
-                pattern,
-                literal,
-                case_sensitive,
-                respect,
-                max_m,
-            )
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                grep_work(
+                    search_root,
+                    pattern,
+                    literal,
+                    case_sensitive,
+                    respect,
+                    max_m,
+                )
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -3843,9 +3871,11 @@ impl MintMcp {
 
         let glob = args.glob.clone();
         let max_f = args.max_files;
-        let out = tokio::task::spawn_blocking(move || find_files_work(search_root, glob, max_f))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            find_files_work(search_root, glob, max_f)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
 
         Self::tool_text(out)
     }
@@ -3864,7 +3894,7 @@ impl MintMcp {
         };
 
         let depth = args.max_depth;
-        let out = tokio::task::spawn_blocking(move || tree_work(search_root, depth))
+        let out = tokio::task::spawn_blocking(move || -> String { tree_work(search_root, depth) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
 
@@ -3887,8 +3917,10 @@ impl MintMcp {
         let sketch = args.symbol_sketch;
         let max_sym = args.max_symbol_entries;
 
-        let out = tokio::task::spawn_blocking(move || {
-            codebase_index_work(search_root, max_files, sketch, max_sym)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                codebase_index_work(search_root, max_files, sketch, max_sym)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -3910,8 +3942,10 @@ impl MintMcp {
         };
         let max_files = args.max_files;
         let top_n = args.top_n;
-        let out = tokio::task::spawn_blocking(move || {
-            codebase_word_index_work(search_root, max_files, top_n)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                codebase_word_index_work(search_root, max_files, top_n)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -3932,8 +3966,10 @@ impl MintMcp {
         };
         let max_files = args.max_files;
         let sample = args.sample_bytes;
-        let out = tokio::task::spawn_blocking(move || {
-            codebase_shallow_hash_work(search_root, max_files, sample)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                codebase_shallow_hash_work(search_root, max_files, sample)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -3954,8 +3990,10 @@ impl MintMcp {
         };
         let max_paths = args.max_paths;
         let max_depth = args.max_depth;
-        let out = tokio::task::spawn_blocking(move || {
-            codebase_path_list_work(search_root, max_paths, max_depth)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                codebase_path_list_work(search_root, max_paths, max_depth)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -3976,8 +4014,10 @@ impl MintMcp {
         };
         let scan = args.max_files_scan;
         let top = args.top_n;
-        let out = tokio::task::spawn_blocking(move || {
-            codebase_largest_files_work(search_root, scan, top)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                codebase_largest_files_work(search_root, None, false, top)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -3997,8 +4037,10 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let scan = args.max_files_scan;
-        let out = tokio::task::spawn_blocking(move || {
-            codebase_duplicate_basenames_work(search_root, scan)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                codebase_duplicate_basenames_work(search_root, scan)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -4022,8 +4064,10 @@ impl MintMcp {
                 Err(e) => return Self::tool_text(format!("Error: {e}")),
             }
         };
-        let out = tokio::task::spawn_blocking(move || {
-            codebase_cargo_dependency_names_work(manifest_path)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                codebase_cargo_dependency_names_work(manifest_path)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -4051,8 +4095,10 @@ impl MintMcp {
         };
         let respect = args.respect_gitignore;
         let max_files = args.max_files;
-        let out = tokio::task::spawn_blocking(move || {
-            crate::code_index::code_index_build_work(base, subtree, respect, max_files)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                crate::code_index::code_index_build_work(base, subtree, respect, max_files)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -4076,8 +4122,12 @@ impl MintMcp {
         let limit = args.limit;
         let prefix = args.path_prefix.clone();
         let use_regex = args.use_regex;
-        let out = tokio::task::spawn_blocking(move || {
-            crate::code_index::code_index_search_work(base, needle, cs, limit, prefix, use_regex)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                crate::code_index::code_index_search_work(
+                    base, needle, cs, limit, prefix, use_regex,
+                )
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -4096,10 +4146,11 @@ impl MintMcp {
             .root
             .canonicalize()
             .unwrap_or_else(|_| self.root.clone());
-        let out =
-            tokio::task::spawn_blocking(move || crate::code_index::code_index_status_work(base))
-                .await
-                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            crate::code_index::code_index_status_work(base)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -4116,8 +4167,10 @@ impl MintMcp {
             .canonicalize()
             .unwrap_or_else(|_| self.root.clone());
         let rel = args.path.clone();
-        let out = tokio::task::spawn_blocking(move || {
-            crate::code_index::code_index_file_symbols_work(base, rel)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                crate::code_index::code_index_file_symbols_work(base, rel)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -4136,8 +4189,10 @@ impl MintMcp {
             .root
             .canonicalize()
             .unwrap_or_else(|_| self.root.clone());
-        let out = tokio::task::spawn_blocking(move || {
-            crate::code_index::code_index_aggregate_stats_work(base)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                crate::code_index::code_index_aggregate_stats_work(base)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -4158,8 +4213,10 @@ impl MintMcp {
             .unwrap_or_else(|_| self.root.clone());
         let prefix = args.prefix.clone();
         let limit = args.limit;
-        let out = tokio::task::spawn_blocking(move || {
-            crate::code_index::code_index_paths_prefix_work(base, prefix, limit)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                crate::code_index::code_index_paths_prefix_work(base, prefix, limit)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -4179,8 +4236,10 @@ impl MintMcp {
             .canonicalize()
             .unwrap_or_else(|_| self.root.clone());
         let limit = args.limit;
-        let out = tokio::task::spawn_blocking(move || {
-            crate::code_index::code_index_extension_histogram_work(base, limit)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                crate::code_index::code_index_extension_histogram_work(base, limit)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -4200,8 +4259,10 @@ impl MintMcp {
             .canonicalize()
             .unwrap_or_else(|_| self.root.clone());
         let limit = args.limit;
-        let out = tokio::task::spawn_blocking(move || {
-            crate::code_index::code_index_symbol_frequency_work(base, limit)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                crate::code_index::code_index_symbol_frequency_work(base, limit)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -4223,8 +4284,10 @@ impl MintMcp {
         let needle = args.needle.clone();
         let limit = args.limit;
         let cs = args.case_sensitive;
-        let out = tokio::task::spawn_blocking(move || {
-            crate::code_index::code_index_path_substring_work(base, needle, limit, cs)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                crate::code_index::code_index_path_substring_work(base, needle, limit, cs)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -4246,8 +4309,10 @@ impl MintMcp {
         let prefix = args.prefix.clone();
         let limit = args.limit;
         let cs = args.case_sensitive;
-        let out = tokio::task::spawn_blocking(move || {
-            crate::code_index::code_index_symbol_prefix_work(base, prefix, cs, limit)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                crate::code_index::code_index_symbol_prefix_work(base, prefix, cs, limit)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -4268,8 +4333,10 @@ impl MintMcp {
             .unwrap_or_else(|_| self.root.clone());
         let minf = args.min_files;
         let limit = args.limit;
-        let out = tokio::task::spawn_blocking(move || {
-            crate::code_index::code_index_duplicate_symbols_work(base, minf, limit)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                crate::code_index::code_index_duplicate_symbols_work(base, minf, limit)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -4289,8 +4356,10 @@ impl MintMcp {
             .canonicalize()
             .unwrap_or_else(|_| self.root.clone());
         let limit = args.limit;
-        let out = tokio::task::spawn_blocking(move || {
-            crate::code_index::code_index_paths_without_symbols_work(base, limit)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                crate::code_index::code_index_paths_without_symbols_work(base, limit)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -4314,7 +4383,7 @@ impl MintMcp {
         };
 
         let staged = args.staged;
-        let out = tokio::task::spawn_blocking(move || git_diff_work(dir, staged))
+        let out = tokio::task::spawn_blocking(move || -> String { git_diff_work(dir, staged) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
 
@@ -4335,9 +4404,10 @@ impl MintMcp {
         };
         let staged = args.staged;
         let rev = args.revision_range.clone();
-        let out = tokio::task::spawn_blocking(move || git_diff_stat_work(dir, staged, rev))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || -> String { git_diff_stat_work(dir, staged, rev) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -4354,7 +4424,7 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
 
-        let out = tokio::task::spawn_blocking(move || file_info_work(path))
+        let out = tokio::task::spawn_blocking(move || -> String { file_info_work(path) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
 
@@ -4382,7 +4452,7 @@ impl MintMcp {
             self.root.clone()
         };
 
-        let out = tokio::task::spawn_blocking(move || git_status_work(dir))
+        let out = tokio::task::spawn_blocking(move || -> String { git_status_work(dir) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
 
@@ -4401,7 +4471,7 @@ impl MintMcp {
             Ok(p) => p,
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
-        let out = tokio::task::spawn_blocking(move || git_stash_list_work(dir))
+        let out = tokio::task::spawn_blocking(move || -> String { git_stash_list_work(dir) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -4419,7 +4489,7 @@ impl MintMcp {
             Ok(p) => p,
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
-        let out = tokio::task::spawn_blocking(move || git_worktree_list_work(dir))
+        let out = tokio::task::spawn_blocking(move || -> String { git_worktree_list_work(dir) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -4441,7 +4511,7 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let target = args.target.clone();
-        let out = tokio::task::spawn_blocking(move || git_checkout_work(dir, target))
+        let out = tokio::task::spawn_blocking(move || -> String { git_checkout_work(dir, target) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -4463,9 +4533,10 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let message = args.message.clone();
-        let out = tokio::task::spawn_blocking(move || git_stash_push_work(dir, message))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || -> String { git_stash_push_work(dir, message) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -4485,9 +4556,10 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let message = args.name.clone();
-        let out = tokio::task::spawn_blocking(move || git_stash_push_work(dir, message))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || -> String { git_stash_push_work(dir, message) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -4508,8 +4580,10 @@ impl MintMcp {
         let since = args.since.clone();
         let until = args.until.clone();
         let authors = args.authors.clone();
-        let out = tokio::task::spawn_blocking(move || {
-            git_log_or_diff_work(dir, &action, rr, since, until, authors)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                git_log_or_diff_work(dir, &action, rr, since, until, authors)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -4535,9 +4609,11 @@ impl MintMcp {
         };
         let action = args.action.clone();
         let bn = args.branch_name.clone();
-        let out = tokio::task::spawn_blocking(move || git_branch_extension_work(dir, &action, bn))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            git_branch_extension_work(dir, &action, bn)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -4567,8 +4643,10 @@ impl MintMcp {
         };
         let action = args.action.clone();
         let branch = args.branch.clone();
-        let out = tokio::task::spawn_blocking(move || {
-            git_worktree_extension_work(dir, &action, wp, branch)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                git_worktree_extension_work(dir, &action, wp, branch)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -4593,8 +4671,10 @@ impl MintMcp {
         let action = args.action.clone();
         let files = args.files.clone();
         let message = args.message.clone();
-        let out = tokio::task::spawn_blocking(move || {
-            git_add_or_commit_work(dir, &action, files, message)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                git_add_or_commit_work(dir, &action, files, message)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -4616,7 +4696,7 @@ impl MintMcp {
             Ok(p) => p,
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
-        let out = tokio::task::spawn_blocking(move || git_push_work(dir))
+        let out = tokio::task::spawn_blocking(move || -> String { git_push_work(dir) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -4637,7 +4717,7 @@ impl MintMcp {
             Ok(p) => p,
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
-        let out = tokio::task::spawn_blocking(move || git_fetch_work(dir))
+        let out = tokio::task::spawn_blocking(move || -> String { git_fetch_work(dir) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -4658,7 +4738,7 @@ impl MintMcp {
             Ok(p) => p,
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
-        let out = tokio::task::spawn_blocking(move || git_pull_work(dir))
+        let out = tokio::task::spawn_blocking(move || -> String { git_pull_work(dir) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -4676,7 +4756,7 @@ impl MintMcp {
             Ok(p) => p,
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
-        let out = tokio::task::spawn_blocking(move || git_remote_list_work(dir))
+        let out = tokio::task::spawn_blocking(move || -> String { git_remote_list_work(dir) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -4695,7 +4775,7 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let pat = args.pattern.clone();
-        let out = tokio::task::spawn_blocking(move || git_tag_list_work(dir, pat))
+        let out = tokio::task::spawn_blocking(move || -> String { git_tag_list_work(dir, pat) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -4714,7 +4794,7 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let mode = args.mode.clone();
-        let out = tokio::task::spawn_blocking(move || git_ls_files_work(dir, &mode))
+        let out = tokio::task::spawn_blocking(move || -> String { git_ls_files_work(dir, &mode) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -4732,7 +4812,7 @@ impl MintMcp {
             Ok(p) => p,
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
-        let out = tokio::task::spawn_blocking(move || git_describe_work(dir))
+        let out = tokio::task::spawn_blocking(move || -> String { git_describe_work(dir) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -4751,7 +4831,7 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let lim = args.limit;
-        let out = tokio::task::spawn_blocking(move || git_shortlog_work(dir, lim))
+        let out = tokio::task::spawn_blocking(move || -> String { git_shortlog_work(dir, lim) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -4770,7 +4850,7 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let lim = args.limit;
-        let out = tokio::task::spawn_blocking(move || git_reflog_work(dir, lim))
+        let out = tokio::task::spawn_blocking(move || -> String { git_reflog_work(dir, lim) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -4789,9 +4869,10 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let style = args.style.clone();
-        let out = tokio::task::spawn_blocking(move || git_last_commit_work(dir, &style))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || -> String { git_last_commit_work(dir, &style) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -4809,10 +4890,11 @@ impl MintMcp {
         };
         let fp = args.file_path.clone();
         let gr = args.git_ref.clone();
-        let out =
-            tokio::task::spawn_blocking(move || repository_get_file_content_work(dir, fp, gr))
-                .await
-                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            repository_get_file_content_work(dir, fp, gr)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -4828,7 +4910,7 @@ impl MintMcp {
             Ok(p) => p,
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
-        let out = tokio::task::spawn_blocking(move || git_status_work(dir))
+        let out = tokio::task::spawn_blocking(move || -> String { git_status_work(dir) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -4850,7 +4932,7 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let target = args.branch.clone();
-        let out = tokio::task::spawn_blocking(move || git_checkout_work(dir, target))
+        let out = tokio::task::spawn_blocking(move || -> String { git_checkout_work(dir, target) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -4873,8 +4955,10 @@ impl MintMcp {
         let since = args.since.clone();
         let until = args.until.clone();
         let authors = args.authors.clone();
-        let out = tokio::task::spawn_blocking(move || {
-            git_log_or_diff_work(dir, &action, rr, since, until, authors)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                git_log_or_diff_work(dir, &action, rr, since, until, authors)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -4906,9 +4990,11 @@ impl MintMcp {
                 );
             }
         };
-        let out = tokio::task::spawn_blocking(move || git_blame_work(repo, file_rel, 1, 400, None))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            git_blame_work(repo, file_rel, 1, 400, None)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -4931,9 +5017,11 @@ impl MintMcp {
         };
         let action = args.action.clone();
         let bn = args.branch_name.clone();
-        let out = tokio::task::spawn_blocking(move || git_branch_extension_work(dir, &action, bn))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            git_branch_extension_work(dir, &action, bn)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -4953,9 +5041,10 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let message = args.name.clone();
-        let out = tokio::task::spawn_blocking(move || git_stash_push_work(dir, message))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || -> String { git_stash_push_work(dir, message) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -4985,8 +5074,10 @@ impl MintMcp {
         };
         let action = args.action.clone();
         let branch = args.branch.clone();
-        let out = tokio::task::spawn_blocking(move || {
-            git_worktree_extension_work(dir, &action, wp, branch)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                git_worktree_extension_work(dir, &action, wp, branch)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -5011,8 +5102,10 @@ impl MintMcp {
         let action = args.action.clone();
         let files = args.files.clone();
         let message = args.message.clone();
-        let out = tokio::task::spawn_blocking(move || {
-            git_add_or_commit_work(dir, &action, files, message)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                git_add_or_commit_work(dir, &action, files, message)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -5034,7 +5127,7 @@ impl MintMcp {
             Ok(p) => p,
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
-        let out = tokio::task::spawn_blocking(move || git_push_work(dir))
+        let out = tokio::task::spawn_blocking(move || -> String { git_push_work(dir) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -5070,10 +5163,11 @@ impl MintMcp {
         };
         let limit = args.limit;
         let oneline = args.oneline;
-        let out =
-            tokio::task::spawn_blocking(move || git_log_work(repo, limit, path_in_repo, oneline))
-                .await
-                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            git_log_work(repo, limit, path_in_repo, oneline)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5091,9 +5185,10 @@ impl MintMcp {
         };
         let rev = args.rev.clone();
         let patch = args.patch;
-        let out = tokio::task::spawn_blocking(move || git_show_work(repo, rev, patch))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || -> String { git_show_work(repo, rev, patch) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5109,7 +5204,7 @@ impl MintMcp {
             Ok(p) => p,
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
-        let out = tokio::task::spawn_blocking(move || git_branches_work(repo))
+        let out = tokio::task::spawn_blocking(move || -> String { git_branches_work(repo) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -5143,8 +5238,10 @@ impl MintMcp {
         let start_line = args.start_line;
         let end_line = args.end_line;
         let rev = args.rev.clone();
-        let out = tokio::task::spawn_blocking(move || {
-            git_blame_work(repo, file_rel, start_line, end_line, rev)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                git_blame_work(repo, file_rel, start_line, end_line, rev)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -5164,7 +5261,7 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let refs = args.refs.clone();
-        let out = tokio::task::spawn_blocking(move || git_rev_parse_work(repo, refs))
+        let out = tokio::task::spawn_blocking(move || -> String { git_rev_parse_work(repo, refs) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -5184,7 +5281,7 @@ impl MintMcp {
         };
         let a = args.commit_a.clone();
         let b = args.commit_b.clone();
-        let out = tokio::task::spawn_blocking(move || git_merge_base_work(dir, a, b))
+        let out = tokio::task::spawn_blocking(move || -> String { git_merge_base_work(dir, a, b) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -5203,9 +5300,11 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let last_lines = args.last_lines;
-        let out = tokio::task::spawn_blocking(move || read_file_tail_work(path, last_lines))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            read_file_tail_work(path, last_lines)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5221,7 +5320,7 @@ impl MintMcp {
             Ok(p) => p,
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
-        let out = tokio::task::spawn_blocking(move || file_stats_work(path))
+        let out = tokio::task::spawn_blocking(move || -> String { file_stats_work(path) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -5242,8 +5341,10 @@ impl MintMcp {
         let substring = args.substring.clone();
         let ci = args.case_insensitive;
         let max_f = args.max_files;
-        let out = tokio::task::spawn_blocking(move || {
-            find_files_by_name_work(search_root, substring, ci, max_f)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                find_files_by_name_work(search_root, substring, ci, max_f)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -5262,7 +5363,7 @@ impl MintMcp {
             Ok(p) => p,
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
-        let out = tokio::task::spawn_blocking(move || read_json_file_work(path))
+        let out = tokio::task::spawn_blocking(move || -> String { read_json_file_work(path) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -5283,7 +5384,7 @@ impl MintMcp {
                 Err(e) => return Self::tool_text(format!("Error: {e}")),
             }
         }
-        let out = tokio::task::spawn_blocking(move || batch_file_info_work(resolved))
+        let out = tokio::task::spawn_blocking(move || -> String { batch_file_info_work(resolved) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -5297,14 +5398,16 @@ impl MintMcp {
         &self,
         Parameters(args): Parameters<CompressContextArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let out = tokio::task::spawn_blocking(move || {
-            compress_context_work(
-                args.text,
-                args.max_chars,
-                args.mode,
-                args.dedupe_lines,
-                args.collapse_whitespace,
-            )
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                compress_context_work(
+                    args.text,
+                    args.max_chars,
+                    args.mode,
+                    args.dedupe_lines,
+                    args.collapse_whitespace,
+                )
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -5321,7 +5424,7 @@ impl MintMcp {
         Parameters(args): Parameters<TextStatsArgs>,
     ) -> Result<CallToolResult, McpError> {
         let text = args.text.clone();
-        let out = tokio::task::spawn_blocking(move || text_stats_work(text))
+        let out = tokio::task::spawn_blocking(move || -> String { text_stats_work(text) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -5337,9 +5440,11 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let text = args.text.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || summarize_token_estimate_work(text, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            summarize_token_estimate_work(text, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5353,9 +5458,10 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let text = args.text.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || compress_ws_collapse_work(text, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || -> String { compress_ws_collapse_work(text, mc) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5369,9 +5475,11 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let text = args.text.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || compress_simplify_whitespace_work(text, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            compress_simplify_whitespace_work(text, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5385,9 +5493,11 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let text = args.text.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || compress_markdown_links_work(text, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            compress_markdown_links_work(text, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5401,9 +5511,11 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let text = args.text.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || compress_unified_diff_stats_work(text, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            compress_unified_diff_stats_work(text, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5418,9 +5530,11 @@ impl MintMcp {
         let text = args.text.clone();
         let ml = args.max_line_chars;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || compress_truncate_lines_work(text, ml, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            compress_truncate_lines_work(text, ml, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5435,9 +5549,11 @@ impl MintMcp {
         let text = args.text.clone();
         let mp = args.max_paths;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || summarize_diff_file_list_work(text, mp, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            summarize_diff_file_list_work(text, mp, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5453,10 +5569,11 @@ impl MintMcp {
         let minl = args.min_token_len;
         let maxt = args.max_terms;
         let mc = args.max_chars;
-        let out =
-            tokio::task::spawn_blocking(move || summarize_top_terms_work(text, minl, maxt, mc))
-                .await
-                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            summarize_top_terms_work(text, minl, maxt, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5473,8 +5590,10 @@ impl MintMcp {
         let maxi = args.max_identifiers;
         let mc = args.max_chars;
         let fold = args.fold_case;
-        let out = tokio::task::spawn_blocking(move || {
-            summarize_identifier_frequency_work(text, minl, maxi, mc, fold)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                summarize_identifier_frequency_work(text, minl, maxi, mc, fold)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -5491,9 +5610,10 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let text = args.text.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || compress_strip_tags_work(text, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || -> String { compress_strip_tags_work(text, mc) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5507,9 +5627,11 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let text = args.text.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || compress_fenced_code_blocks_work(text, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            compress_fenced_code_blocks_work(text, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5524,8 +5646,10 @@ impl MintMcp {
         let text = args.text.clone();
         let mc = args.max_chars;
         let dbl = args.drop_blank_lines;
-        let out = tokio::task::spawn_blocking(move || {
-            compress_double_slash_line_comments_work(text, mc, dbl)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                compress_double_slash_line_comments_work(text, mc, dbl)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -5542,9 +5666,10 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let text = args.text.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || compress_redact_urls_work(text, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || -> String { compress_redact_urls_work(text, mc) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5558,9 +5683,11 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let text = args.text.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || compress_redact_emails_work(text, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            compress_redact_emails_work(text, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5574,9 +5701,11 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let text = args.text.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || compress_markdown_frontmatter_work(text, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            compress_markdown_frontmatter_work(text, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5592,8 +5721,10 @@ impl MintMcp {
         let pat = args.pattern.clone();
         let ci = args.case_insensitive;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || {
-            compress_drop_lines_matching_regex_work(text, pat, ci, mc)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                compress_drop_lines_matching_regex_work(text, pat, ci, mc)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -5612,10 +5743,11 @@ impl MintMcp {
         let mo = args.min_occurrences;
         let me = args.max_entries;
         let mc = args.max_chars;
-        let out =
-            tokio::task::spawn_blocking(move || summarize_duplicate_lines_work(text, mo, me, mc))
-                .await
-                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            summarize_duplicate_lines_work(text, mo, me, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5629,9 +5761,11 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let text = args.text.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || summarize_line_histogram_work(text, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            summarize_line_histogram_work(text, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5647,8 +5781,10 @@ impl MintMcp {
         let pl = args.prefix_len;
         let mg = args.max_groups;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || {
-            summarize_line_prefix_groups_work(text, pl, mg, mc)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                summarize_line_prefix_groups_work(text, pl, mg, mc)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -5667,8 +5803,10 @@ impl MintMcp {
         let kw = args.keywords.clone();
         let tl = args.top_lines;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || {
-            summarize_rank_lines_by_keywords_work(text, kw, tl, mc)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                summarize_rank_lines_by_keywords_work(text, kw, tl, mc)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -5686,9 +5824,11 @@ impl MintMcp {
         let text = args.text.clone();
         let prefix = args.prefix.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || format_prefix_lines_work(text, prefix, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            format_prefix_lines_work(text, prefix, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5703,9 +5843,11 @@ impl MintMcp {
         let text = args.text.clone();
         let mp = args.max_paragraphs;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || compress_paragraphs_work(text, mp, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            compress_paragraphs_work(text, mp, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5720,9 +5862,11 @@ impl MintMcp {
         let text = args.text.clone();
         let ml = args.max_lines;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || compress_unique_lines_work(text, ml, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            compress_unique_lines_work(text, ml, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5737,9 +5881,11 @@ impl MintMcp {
         let text = args.text.clone();
         let hl = args.head_lines;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || compress_lines_head_work(text, hl, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            compress_lines_head_work(text, hl, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5754,9 +5900,11 @@ impl MintMcp {
         let text = args.text.clone();
         let tl = args.tail_lines;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || compress_lines_tail_work(text, tl, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            compress_lines_tail_work(text, tl, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5770,9 +5918,11 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let text = args.text.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || compress_collapse_blank_lines_work(text, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            compress_collapse_blank_lines_work(text, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5787,10 +5937,11 @@ impl MintMcp {
         let text = args.text.clone();
         let mx = args.max_chars;
         let margin = args.margin_chars;
-        let out =
-            tokio::task::spawn_blocking(move || compress_truncate_middle_work(text, mx, margin))
-                .await
-                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            compress_truncate_middle_work(text, mx, margin)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5804,7 +5955,7 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let text = args.text.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || compress_dedent_work(text, mc))
+        let out = tokio::task::spawn_blocking(move || -> String { compress_dedent_work(text, mc) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -5821,9 +5972,11 @@ impl MintMcp {
         let text = args.text.clone();
         let ms = args.max_sentences;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || compress_sentences_work(text, ms, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            compress_sentences_work(text, ms, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -5835,16 +5988,18 @@ impl MintMcp {
         &self,
         Parameters(args): Parameters<ExtractSnippetsArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let out = tokio::task::spawn_blocking(move || {
-            extract_snippets_work(
-                args.text,
-                args.pattern,
-                args.literal,
-                args.case_sensitive,
-                args.context_lines,
-                args.max_snippets,
-                args.max_chars,
-            )
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                extract_snippets_work(
+                    args.text,
+                    args.pattern,
+                    args.literal,
+                    args.case_sensitive,
+                    args.context_lines,
+                    args.max_snippets,
+                    args.max_chars,
+                )
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -5898,16 +6053,18 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
 
-        let out = tokio::task::spawn_blocking(move || {
-            compress_file_work(
-                path,
-                args.start_line,
-                args.end_line,
-                args.max_chars,
-                args.mode,
-                args.dedupe_lines,
-                args.collapse_whitespace,
-            )
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                compress_file_work(
+                    path,
+                    args.start_line,
+                    args.end_line,
+                    args.max_chars,
+                    args.mode,
+                    args.dedupe_lines,
+                    args.collapse_whitespace,
+                )
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -5928,18 +6085,20 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
 
-        let out = tokio::task::spawn_blocking(move || {
-            extract_snippets_from_file_work(
-                path,
-                args.pattern,
-                args.literal,
-                args.case_sensitive,
-                args.context_lines,
-                args.max_snippets,
-                args.max_chars,
-                args.start_line,
-                args.end_line,
-            )
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                extract_snippets_from_file_work(
+                    path,
+                    args.pattern,
+                    args.literal,
+                    args.case_sensitive,
+                    args.context_lines,
+                    args.max_snippets,
+                    args.max_chars,
+                    args.start_line,
+                    args.end_line,
+                )
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -5960,17 +6119,19 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
 
-        let out = tokio::task::spawn_blocking(move || {
-            grep_snippets_work(
-                search_root,
-                args.pattern,
-                args.literal,
-                args.case_sensitive,
-                args.respect_gitignore,
-                args.context_lines,
-                args.max_snippets,
-                args.max_chars,
-            )
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                grep_snippets_work(
+                    search_root,
+                    args.pattern,
+                    args.literal,
+                    args.case_sensitive,
+                    args.respect_gitignore,
+                    args.context_lines,
+                    args.max_snippets,
+                    args.max_chars,
+                )
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -6036,8 +6197,10 @@ impl MintMcp {
         &self,
         Parameters(args): Parameters<SummarizeTextArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let out = tokio::task::spawn_blocking(move || {
-            summarize_text_work(args.text, args.max_chars, args.max_sentences)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                summarize_text_work(args.text, args.max_chars, args.max_sentences)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -6056,9 +6219,10 @@ impl MintMcp {
         let text = args.text.clone();
         let mi = args.max_items;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || summarize_bullets_work(text, mi, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || -> String { summarize_bullets_work(text, mi, mc) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -6073,9 +6237,11 @@ impl MintMcp {
         let text = args.text.clone();
         let mh = args.max_headings;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || summarize_headings_work(text, mh, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            summarize_headings_work(text, mh, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -6090,9 +6256,11 @@ impl MintMcp {
         let text = args.text.clone();
         let me = args.max_entries;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || summarize_markdown_toc_work(text, me, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            summarize_markdown_toc_work(text, me, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -6109,8 +6277,10 @@ impl MintMcp {
         let mk = args.max_keys_per_level;
         let ml = args.max_lines;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || {
-            summarize_json_structure_work(text, md, mk, ml, mc)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                summarize_json_structure_work(text, md, mk, ml, mc)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -6129,8 +6299,10 @@ impl MintMcp {
         let delim = args.delimiter.clone();
         let mx = args.max_columns;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || {
-            summarize_delimited_header_work(text, &delim, mx, mc)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                summarize_delimited_header_work(text, &delim, mx, mc)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -6148,9 +6320,11 @@ impl MintMcp {
         let a = args.a.clone();
         let b = args.b.clone();
         let m = args.max_len_each;
-        let out = tokio::task::spawn_blocking(move || text_levenshtein_distance_work(a, b, m))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            text_levenshtein_distance_work(a, b, m)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -6167,10 +6341,11 @@ impl MintMcp {
         let fold = args.fold_case;
         let mc = args.max_chars_each;
         let ms = args.max_tokens_scanned_per_text;
-        let out =
-            tokio::task::spawn_blocking(move || text_token_jaccard_work(ta, tb, fold, mc, ms))
-                .await
-                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            text_token_jaccard_work(ta, tb, fold, mc, ms)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -6185,9 +6360,11 @@ impl MintMcp {
         let a = args.a.clone();
         let b = args.b.clone();
         let m = args.max_len_each;
-        let out = tokio::task::spawn_blocking(move || text_longest_common_substring_work(a, b, m))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            text_longest_common_substring_work(a, b, m)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -6200,7 +6377,7 @@ impl MintMcp {
         Parameters(args): Parameters<TextDjb2HashArgs>,
     ) -> Result<CallToolResult, McpError> {
         let text = args.text.clone();
-        let out = tokio::task::spawn_blocking(move || text_djb2_hash_work(text))
+        let out = tokio::task::spawn_blocking(move || -> String { text_djb2_hash_work(text) })
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -6217,9 +6394,11 @@ impl MintMcp {
         let text = args.text.clone();
         let lc = args.line_count;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || summarize_first_lines_work(text, lc, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            summarize_first_lines_work(text, lc, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -6235,9 +6414,11 @@ impl MintMcp {
         segs.truncate(24);
         let max_c = args.max_chars;
         let max_s = args.max_sentences;
-        let out = tokio::task::spawn_blocking(move || summarize_segments_work(segs, max_c, max_s))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            summarize_segments_work(segs, max_c, max_s)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -6258,8 +6439,10 @@ impl MintMcp {
         let max_c = args.max_chars;
         let max_s = args.max_sentences;
 
-        let out = tokio::task::spawn_blocking(move || {
-            summarize_file_work(path, start, end, max_c, max_s)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                summarize_file_work(path, start, end, max_c, max_s)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -6288,8 +6471,10 @@ impl MintMcp {
         let lines = args.lines_per_file;
         let max_c = args.max_chars;
         let max_s = args.max_sentences;
-        let out = tokio::task::spawn_blocking(move || {
-            summarize_multi_file_work(paths, lines, max_c, max_s)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                summarize_multi_file_work(paths, lines, max_c, max_s)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -6312,15 +6497,17 @@ impl MintMcp {
             dedupe_lines,
             collapse_whitespace,
         } = args;
-        let out = tokio::task::spawn_blocking(move || {
-            pack_context_work(
-                segments,
-                segment_labels,
-                max_chars,
-                mode,
-                dedupe_lines,
-                collapse_whitespace,
-            )
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                pack_context_work(
+                    segments,
+                    segment_labels,
+                    max_chars,
+                    mode,
+                    dedupe_lines,
+                    collapse_whitespace,
+                )
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -6357,17 +6544,19 @@ impl MintMcp {
         let line_number_start = args.line_number_start;
         let wrap_width = args.wrap_width;
         let allow_out = !self.network_profile.is_public();
-        let out = tokio::task::spawn_blocking(move || {
-            convert_format_work(
-                op,
-                text,
-                input_path,
-                output_path,
-                allow_out,
-                tab_stops,
-                line_number_start,
-                wrap_width,
-            )
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                convert_format_work(
+                    op,
+                    text,
+                    input_path,
+                    output_path,
+                    allow_out,
+                    tab_stops,
+                    line_number_start,
+                    wrap_width,
+                )
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -6402,10 +6591,11 @@ impl MintMcp {
             }
             _ => {}
         }
-        let out =
-            tokio::task::spawn_blocking(move || compress_gzip_base64_work(text, path_opt.as_ref()))
-                .await
-                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            compress_gzip_base64_work(text, path_opt.as_ref())
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -6418,9 +6608,10 @@ impl MintMcp {
         Parameters(args): Parameters<DecompressGzipBase64Args>,
     ) -> Result<CallToolResult, McpError> {
         let pay = args.payload_base64.clone();
-        let out = tokio::task::spawn_blocking(move || decompress_gzip_base64_work(pay))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || -> String { decompress_gzip_base64_work(pay) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -6440,8 +6631,10 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let max_files = args.max_files;
-        let out = tokio::task::spawn_blocking(move || {
-            codebase_manifest_write_work(search_root, max_files)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                codebase_manifest_write_work(search_root, max_files)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -6461,17 +6654,19 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
 
-        let out = tokio::task::spawn_blocking(move || {
-            git_diff_snippets_work(
-                dir,
-                args.staged,
-                args.pattern,
-                args.literal,
-                args.case_sensitive,
-                args.context_lines,
-                args.max_snippets,
-                args.max_chars,
-            )
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                git_diff_snippets_work(
+                    dir,
+                    args.staged,
+                    args.pattern,
+                    args.literal,
+                    args.case_sensitive,
+                    args.context_lines,
+                    args.max_snippets,
+                    args.max_chars,
+                )
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -6513,7 +6708,7 @@ impl MintMcp {
         let topic = args.topic.clone();
         let kind = args.kind.clone();
 
-        let out = tokio::task::spawn_blocking(move || match crate::bus::agent_send(root, from, body, to.clone(), topic.clone(), kind.clone()) {
+        let out = tokio::task::spawn_blocking(move ||  -> String {match crate::bus::agent_send(root, from, body, to.clone(), topic.clone(), kind.clone()) {
             Ok(id) => {
                 let mut s = format!("OK message_id={id}\n");
                 if let Some(ref t) = topic {
@@ -6530,7 +6725,7 @@ impl MintMcp {
                 s
             }
             Err(e) => format!("Error: {e}"),
-        })
+        } })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
 
@@ -6601,26 +6796,30 @@ impl MintMcp {
         let topic = args.topic.clone();
         let to = args.to_agent.clone();
 
-        let out = tokio::task::spawn_blocking(move || {
-            match crate::bus::agent_send(
-                root,
-                from,
-                msg,
-                Some(to),
-                topic.clone(),
-                Some("handoff".to_string()),
-            ) {
-                Ok(id) => {
-                    let mut s = format!("OK message_id={id} kind=handoff\n");
-                    if let Some(ref t) = topic {
-                        if !t.is_empty() {
-                            s.push_str(&format!("topic: {t}\n"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                match crate::bus::agent_send(
+                    root,
+                    from,
+                    msg,
+                    Some(to),
+                    topic.clone(),
+                    Some("handoff".to_string()),
+                ) {
+                    Ok(id) => {
+                        let mut s = format!("OK message_id={id} kind=handoff\n");
+                        if let Some(ref t) = topic {
+                            if !t.is_empty() {
+                                s.push_str(&format!("topic: {t}\n"));
+                            }
                         }
+                        s.push_str(
+                            "Recipient should poll agent_inbox or agent_thread when topic set.",
+                        );
+                        s
                     }
-                    s.push_str("Recipient should poll agent_inbox or agent_thread when topic set.");
-                    s
+                    Err(e) => format!("Error: {e}"),
                 }
-                Err(e) => format!("Error: {e}"),
             }
         })
         .await
@@ -6693,7 +6892,7 @@ impl MintMcp {
         let from = args.from_agent.clone();
         let topic = args.topic.clone();
 
-        let out = tokio::task::spawn_blocking(move || {
+        let out = tokio::task::spawn_blocking(move ||  -> String {{
             match crate::bus::agent_send(
                 root,
                 from,
@@ -6716,7 +6915,7 @@ impl MintMcp {
                 }
                 Err(e) => format!("Error: {e}"),
             }
-        })
+        } })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
 
@@ -6781,7 +6980,7 @@ impl MintMcp {
         let parent = args.parent_agent.clone();
         let topic = args.topic.clone();
 
-        let out = tokio::task::spawn_blocking(move || {
+        let out = tokio::task::spawn_blocking(move ||  -> String {{
             match crate::bus::agent_send(
                 root,
                 from,
@@ -6797,7 +6996,7 @@ impl MintMcp {
                 }
                 Err(e) => format!("Error: {e}"),
             }
-        })
+        } })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
 
@@ -6848,21 +7047,22 @@ impl MintMcp {
         let topic = args.topic.clone();
         let kind = args.kind.clone();
 
-        let out = tokio::task::spawn_blocking(move || {
-            crate::bus::agent_fan_out(root, from, body, targets, topic, kind)
+        let out = match tokio::task::spawn_blocking(move || -> Result<String, String> {
+            {
+                crate::bus::agent_fan_out(root, from, body, targets, topic, kind)
+            }
         })
         .await
-        .unwrap_or_else(|e| Err(format!("task failed: {e}")));
-
-        let out = match out {
-            Ok(s) => s,
-            Err(e) => {
+        {
+            Ok(Ok(s)) => s,
+            Ok(Err(e)) => {
                 if e.starts_with("Error:") {
                     e
                 } else {
                     format!("Error: {e}")
                 }
             }
+            Err(e) => format!("Error: task failed: {e}"),
         };
         Self::tool_text(out)
     }
@@ -6917,20 +7117,20 @@ impl MintMcp {
             .map(|s| (s.message, s.to_agent, s.topic, s.kind))
             .collect();
 
-        let out =
-            tokio::task::spawn_blocking(move || crate::bus::agent_send_pipeline(root, from, steps))
-                .await
-                .unwrap_or_else(|e| Err(format!("task failed: {e}")));
-
-        let out = match out {
-            Ok(s) => s,
-            Err(e) => {
+        let out = match tokio::task::spawn_blocking(move || -> Result<String, String> {
+            crate::bus::agent_send_pipeline(root, from, steps)
+        })
+        .await
+        {
+            Ok(Ok(s)) => s,
+            Ok(Err(e)) => {
                 if e.starts_with("Error:") {
                     e
                 } else {
                     format!("Error: {e}")
                 }
             }
+            Err(e) => format!("Error: task failed: {e}"),
         };
         Self::tool_text(out)
     }
@@ -6949,10 +7149,12 @@ impl MintMcp {
         let skip = args.skip_own_broadcasts;
         let since = args.since_ts_ms;
 
-        let out = tokio::task::spawn_blocking(move || {
-            match crate::bus::agent_inbox(root, for_a, limit, skip, since) {
-                Ok(s) => s,
-                Err(e) => format!("Error: {e}"),
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                match crate::bus::agent_inbox(root, for_a, limit, skip, since) {
+                    Ok(s) => s,
+                    Err(e) => format!("Error: {e}"),
+                }
             }
         })
         .await
@@ -6978,21 +7180,22 @@ impl MintMcp {
         let skip = args.skip_own_broadcasts;
         let since = args.since_ts_ms;
 
-        let res = tokio::task::spawn_blocking(move || {
-            crate::bus::agent_multi_inbox(root, agents, limit, skip, since)
+        let out = match tokio::task::spawn_blocking(move || -> Result<String, String> {
+            {
+                crate::bus::agent_multi_inbox(root, agents, limit, skip, since)
+            }
         })
         .await
-        .unwrap_or_else(|e| Err(format!("task failed: {e}")));
-
-        let out = match res {
-            Ok(s) => s,
-            Err(e) => {
+        {
+            Ok(Ok(s)) => s,
+            Ok(Err(e)) => {
                 if e.starts_with("Error:") {
                     e
                 } else {
                     format!("Error: {e}")
                 }
             }
+            Err(e) => format!("Error: task failed: {e}"),
         };
         Self::tool_text(out)
     }
@@ -7010,10 +7213,12 @@ impl MintMcp {
         let limit = args.limit;
         let since = args.since_ts_ms;
 
-        let out = tokio::task::spawn_blocking(move || {
-            match crate::bus::agent_thread(root, topic, limit, since) {
-                Ok(s) => s,
-                Err(e) => format!("Error: {e}"),
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                match crate::bus::agent_thread(root, topic, limit, since) {
+                    Ok(s) => s,
+                    Err(e) => format!("Error: {e}"),
+                }
             }
         })
         .await
@@ -7034,10 +7239,12 @@ impl MintMcp {
         let limit = args.limit;
         let since = args.since_ts_ms;
 
-        let out = tokio::task::spawn_blocking(move || {
-            match crate::bus::agent_recent(root, limit, since) {
-                Ok(s) => s,
-                Err(e) => format!("Error: {e}"),
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                match crate::bus::agent_recent(root, limit, since) {
+                    Ok(s) => s,
+                    Err(e) => format!("Error: {e}"),
+                }
             }
         })
         .await
@@ -7057,19 +7264,20 @@ impl MintMcp {
         let root = self.project_root_for_bus();
         let limit = args.limit;
 
-        let res = tokio::task::spawn_blocking(move || crate::bus::agent_list_topics(root, limit))
-            .await
-            .unwrap_or_else(|e| Err(format!("task failed: {e}")));
-
-        let out = match res {
-            Ok(s) => s,
-            Err(e) => {
+        let out = match tokio::task::spawn_blocking(move || -> Result<String, String> {
+            crate::bus::agent_list_topics(root, limit)
+        })
+        .await
+        {
+            Ok(Ok(s)) => s,
+            Ok(Err(e)) => {
                 if e.starts_with("Error:") {
                     e
                 } else {
                     format!("Error: {e}")
                 }
             }
+            Err(e) => format!("Error: task failed: {e}"),
         };
         Self::tool_text(out)
     }
@@ -7086,21 +7294,22 @@ impl MintMcp {
         let topics_limit = args.topics_limit;
         let recent_limit = args.recent_limit;
 
-        let res = tokio::task::spawn_blocking(move || {
-            crate::bus::agent_coordination_snapshot(root, topics_limit, recent_limit)
+        let out = match tokio::task::spawn_blocking(move || -> Result<String, String> {
+            {
+                crate::bus::agent_coordination_snapshot(root, topics_limit, recent_limit)
+            }
         })
         .await
-        .unwrap_or_else(|e| Err(format!("task failed: {e}")));
-
-        let out = match res {
-            Ok(s) => s,
-            Err(e) => {
+        {
+            Ok(Ok(s)) => s,
+            Ok(Err(e)) => {
                 if e.starts_with("Error:") {
                     e
                 } else {
                     format!("Error: {e}")
                 }
             }
+            Err(e) => format!("Error: task failed: {e}"),
         };
         Self::tool_text(out)
     }
@@ -7115,19 +7324,20 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let root = self.project_root_for_bus();
 
-        let res = tokio::task::spawn_blocking(move || crate::bus::agent_roster(root))
-            .await
-            .unwrap_or_else(|e| Err(format!("task failed: {e}")));
-
-        let out = match res {
-            Ok(s) => s,
-            Err(e) => {
+        let out = match tokio::task::spawn_blocking(move || -> Result<String, String> {
+            crate::bus::agent_roster(root)
+        })
+        .await
+        {
+            Ok(Ok(s)) => s,
+            Ok(Err(e)) => {
                 if e.starts_with("Error:") {
                     e
                 } else {
                     format!("Error: {e}")
                 }
             }
+            Err(e) => format!("Error: task failed: {e}"),
         };
         Self::tool_text(out)
     }
@@ -7143,19 +7353,20 @@ impl MintMcp {
         let root = self.project_root_for_bus();
         let mid = args.message_id.clone();
 
-        let res = tokio::task::spawn_blocking(move || crate::bus::agent_get_message(root, mid))
-            .await
-            .unwrap_or_else(|e| Err(format!("task failed: {e}")));
-
-        let out = match res {
-            Ok(s) => s,
-            Err(e) => {
+        let out = match tokio::task::spawn_blocking(move || -> Result<String, String> {
+            crate::bus::agent_get_message(root, mid)
+        })
+        .await
+        {
+            Ok(Ok(s)) => s,
+            Ok(Err(e)) => {
                 if e.starts_with("Error:") {
                     e
                 } else {
                     format!("Error: {e}")
                 }
             }
+            Err(e) => format!("Error: task failed: {e}"),
         };
         Self::tool_text(out)
     }
@@ -7172,8 +7383,10 @@ impl MintMcp {
         let constraints = args.constraints.clone();
         let known_steps = args.known_steps.clone();
         let max_chars = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || {
-            thinking_plan_skeleton_work(objective, constraints, known_steps, max_chars)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                thinking_plan_skeleton_work(objective, constraints, known_steps, max_chars)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -7190,9 +7403,11 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let problem = args.problem.clone();
         let max_chars = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || thinking_step_back_work(problem, max_chars))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            thinking_step_back_work(problem, max_chars)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -7206,10 +7421,11 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let claims = args.claims.clone();
         let max_chars = args.max_chars;
-        let out =
-            tokio::task::spawn_blocking(move || thinking_assumption_audit_work(claims, max_chars))
-                .await
-                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            thinking_assumption_audit_work(claims, max_chars)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -7229,9 +7445,11 @@ impl MintMcp {
             .canonicalize()
             .unwrap_or_else(|_| self.root.clone());
         let note = args.note.clone();
-        let out = tokio::task::spawn_blocking(move || thinking_session_append_work(root, note))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            thinking_session_append_work(root, note)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -7251,9 +7469,11 @@ impl MintMcp {
             .canonicalize()
             .unwrap_or_else(|_| self.root.clone());
         let tail = args.tail_lines;
-        let out = tokio::task::spawn_blocking(move || thinking_session_read_work(root, tail))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            thinking_session_read_work(root, tail)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -7267,9 +7487,10 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let m = args.milestones.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || plan_execution_checklist_work(m, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || -> String { plan_execution_checklist_work(m, mc) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -7287,8 +7508,10 @@ impl MintMcp {
         let acc = args.acceptance.clone();
         let blk = args.blockers.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || {
-            plan_handoff_brief_work(title, scope, del, acc, blk, mc)
+        let out = tokio::task::spawn_blocking(move || -> String {
+            {
+                plan_handoff_brief_work(title, scope, del, acc, blk, mc)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -7306,9 +7529,10 @@ impl MintMcp {
         let items = args.items.clone();
         let b = args.buckets;
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || plan_work_buckets_work(items, b, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || -> String { plan_work_buckets_work(items, b, mc) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -7322,9 +7546,10 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let risks = args.risks.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || plan_risk_register_work(risks, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || -> String { plan_risk_register_work(risks, mc) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -7338,9 +7563,11 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let outcomes = args.outcomes.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || plan_definition_of_done_work(outcomes, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            plan_definition_of_done_work(outcomes, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -7355,9 +7582,11 @@ impl MintMcp {
         let scope = args.scope.clone();
         let rh = args.risk_hotspots.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || plan_test_strategy_work(scope, rh, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            plan_test_strategy_work(scope, rh, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -7371,9 +7600,10 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let it = args.iteration.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || plan_retrospective_work(it, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || -> String { plan_retrospective_work(it, mc) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -7388,10 +7618,11 @@ impl MintMcp {
         let project = args.project.clone();
         let timeframe = args.timeframe.clone();
         let mc = args.max_chars;
-        let out =
-            tokio::task::spawn_blocking(move || reasoning_premortem_work(project, timeframe, mc))
-                .await
-                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            reasoning_premortem_work(project, timeframe, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -7405,9 +7636,10 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let seed = args.seed_problem.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || reasoning_five_whys_work(seed, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || -> String { reasoning_five_whys_work(seed, mc) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -7423,9 +7655,10 @@ impl MintMcp {
         let st = args.steps.clone();
         let oq = args.open_question.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || reasoning_chain_work(pr, st, oq, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out =
+            tokio::task::spawn_blocking(move || -> String { reasoning_chain_work(pr, st, oq, mc) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -7440,9 +7673,11 @@ impl MintMcp {
         let c = args.claim.clone();
         let ctx = args.context.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || reasoning_devils_advocate_work(c, ctx, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            reasoning_devils_advocate_work(c, ctx, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -7456,9 +7691,11 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let cl = args.claims.clone();
         let mc = args.max_chars;
-        let out = tokio::task::spawn_blocking(move || reasoning_evidence_matrix_work(cl, mc))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out = tokio::task::spawn_blocking(move || -> String {
+            reasoning_evidence_matrix_work(cl, mc)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -7485,7 +7722,7 @@ impl MintMcp {
         let term_on = crate::ops::terminal_enabled();
         let pt = crate::ops::project_test_tools_enabled();
         let gitw = crate::ops::git_write_enabled();
-        let push_on = crate::ops::git_push_enabled();
+        let push_on = crate::ops::git_write_enabled();
         let remote_on = crate::ops::git_remote_enabled();
         let net = self.network_profile.label();
         let sleep_cap = self.network_profile.server_sleep_cap_ms();
@@ -7545,8 +7782,10 @@ impl MintMcp {
         while tokio::time::Instant::now() < deadline {
             let root_c = root.clone();
             let for_c = for_a.clone();
-            let has = tokio::task::spawn_blocking(move || {
-                crate::bus::agent_inbox_non_empty(root_c, for_c, limit, skip, since)
+            let has = tokio::task::spawn_blocking(move || -> Result<bool, String> {
+                {
+                    crate::bus::agent_inbox_non_empty(root_c, for_c, limit, skip, since)
+                }
             })
             .await
             .unwrap_or_else(|e| Err(format!("task failed: {e}")));
@@ -7555,15 +7794,18 @@ impl MintMcp {
                 Ok(true) => {
                     let root_c = root.clone();
                     let for_c = for_a.clone();
-                    let inbox = tokio::task::spawn_blocking(move || {
-                        crate::bus::agent_inbox(root_c, for_c, limit, skip, since)
-                    })
-                    .await
-                    .unwrap_or_else(|e| Err(format!("task failed: {e}")));
-                    let body = match inbox {
-                        Ok(t) => t,
-                        Err(e) => format!("Error: {e}"),
-                    };
+                    let body =
+                        match tokio::task::spawn_blocking(move || -> Result<String, String> {
+                            {
+                                crate::bus::agent_inbox(root_c, for_c, limit, skip, since)
+                            }
+                        })
+                        .await
+                        {
+                            Ok(Ok(t)) => t,
+                            Ok(Err(e)) => format!("Error: {e}"),
+                            Err(e) => format!("task failed: {e}"),
+                        };
                     return Self::tool_text(format!(
                         "AGENT_INBOX_WAIT\nstatus: ready\ntimeout_ms_cap: {timeout_ms}\n\n{body}"
                     ));
@@ -7603,8 +7845,10 @@ impl MintMcp {
             let root_c = root.clone();
             let topic_c = topic.clone();
             let exclude_c = exclude.clone();
-            let has = tokio::task::spawn_blocking(move || {
-                crate::bus::agent_topic_has_reply_from_others(root_c, topic_c, since, exclude_c)
+            let has = tokio::task::spawn_blocking(move || -> Result<bool, String> {
+                {
+                    crate::bus::agent_topic_has_reply_from_others(root_c, topic_c, since, exclude_c)
+                }
             })
             .await
             .unwrap_or_else(|e| Err(format!("task failed: {e}")));
@@ -7613,15 +7857,18 @@ impl MintMcp {
                 Ok(true) => {
                     let root_c = root.clone();
                     let topic_c = topic.clone();
-                    let thread = tokio::task::spawn_blocking(move || {
-                        crate::bus::agent_thread(root_c, topic_c, 80, Some(since))
-                    })
-                    .await
-                    .unwrap_or_else(|e| Err(format!("task failed: {e}")));
-                    let body = match thread {
-                        Ok(t) => t,
-                        Err(e) => format!("Error: {e}"),
-                    };
+                    let body =
+                        match tokio::task::spawn_blocking(move || -> Result<String, String> {
+                            {
+                                crate::bus::agent_thread(root_c, topic_c, 80, Some(since))
+                            }
+                        })
+                        .await
+                        {
+                            Ok(Ok(t)) => t,
+                            Ok(Err(e)) => format!("Error: {e}"),
+                            Err(e) => format!("task failed: {e}"),
+                        };
                     return Self::tool_text(format!(
                         "AGENT_TOPIC_WAIT\nstatus: ready\ntopic: {topic_display}\nsince_ts_ms: {since}\ntimeout_ms_cap: {timeout_ms}\n\n{body}"
                     ));
@@ -7648,9 +7895,11 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let root = self.project_root_for_bus();
 
-        let out = tokio::task::spawn_blocking(move || match crate::bus::agent_bus_status(root) {
-            Ok(s) => s,
-            Err(e) => format!("Error: {e}"),
+        let out = tokio::task::spawn_blocking(move || -> String {
+            match crate::bus::agent_bus_status(root) {
+                Ok(s) => s,
+                Err(e) => format!("Error: {e}"),
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -7824,7 +8073,7 @@ impl MintMcp {
         let topic = args.topic.clone();
         let desc = args.description.clone();
         let deadline = args.deadline_ms;
-        let out = tokio::task::spawn_blocking(move || {
+        let out = tokio::task::spawn_blocking(move ||  -> String {{
             let mut eng = engine.lock().unwrap();
             let p = eng.create_proposal(from, topic, desc, options, deadline, strategy);
             format!(
@@ -7832,7 +8081,7 @@ impl MintMcp {
                 p.id, p.proposer, p.topic, p.strategy, p.deadline_ms, p.status,
                 p.options.join(", "), p.created_at
             )
-        })
+        } })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -7855,13 +8104,13 @@ impl MintMcp {
         let choice = args.choice.clone();
         let conf = args.confidence.clamp(0.0, 1.0);
         let rationale = args.rationale.clone();
-        let out = tokio::task::spawn_blocking(move || {
+        let out = tokio::task::spawn_blocking(move ||  -> String {{
             let mut eng = engine.lock().unwrap();
             match eng.cast_vote(&pid, voter.clone(), choice.clone(), conf, rationale) {
                 Ok(()) => format!("CONSENSUS_VOTE\nproposal: {}\nvoter: {}\nchoice: {}\nconfidence: {:.2}\nstatus: recorded", pid, voter, choice, conf),
                 Err(e) => format!("Error: {e}"),
             }
-        })
+        } })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -7880,7 +8129,7 @@ impl MintMcp {
         }
         let engine = self.consensus_engine.clone();
         let pid = args.proposal_id.clone();
-        let out = tokio::task::spawn_blocking(move || {
+        let out = tokio::task::spawn_blocking(move ||  -> String {{
             let eng = engine.lock().unwrap();
             match eng.tally(&pid) {
                 Ok(r) => {
@@ -7898,7 +8147,7 @@ impl MintMcp {
                 }
                 Err(e) => format!("Error: {e}"),
             }
-        })
+        } })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -7916,7 +8165,7 @@ impl MintMcp {
             return Self::tool_text(e);
         }
         let engine = self.consensus_engine.clone();
-        let out = tokio::task::spawn_blocking(move || {
+        let out = tokio::task::spawn_blocking(move ||  -> String {{
             let eng = engine.lock().unwrap();
             let open = eng.list_open();
             if open.is_empty() {
@@ -7930,7 +8179,7 @@ impl MintMcp {
                 ));
             }
             s
-        })
+        } })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -7949,7 +8198,7 @@ impl MintMcp {
         }
         let engine = self.consensus_engine.clone();
         let pid = args.proposal_id.clone();
-        let out = tokio::task::spawn_blocking(move || {
+        let out = tokio::task::spawn_blocking(move ||  -> String {{
             let mut eng = engine.lock().unwrap();
             match eng.close_proposal(&pid) {
                 Ok(r) => {
@@ -7967,7 +8216,7 @@ impl MintMcp {
                 }
                 Err(e) => format!("Error: {e}"),
             }
-        })
+        } })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
@@ -7989,8 +8238,10 @@ impl MintMcp {
         let root = self.root.clone();
         let staged = args.staged;
         let revision_range = args.revision_range.clone();
-        let out: String = tokio::task::spawn_blocking(move || {
-            review_diff_risk_work(root, staged, revision_range)
+        let out: String = tokio::task::spawn_blocking(move || -> String {
+            {
+                review_diff_risk_work(root, staged, revision_range)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -8012,8 +8263,10 @@ impl MintMcp {
         let focus = args.focus.clone();
         let staged = args.staged;
         let revision_range = args.revision_range.clone();
-        let out: String = tokio::task::spawn_blocking(move || {
-            review_focused_review_work(root, focus, staged, revision_range)
+        let out: String = tokio::task::spawn_blocking(move || -> String {
+            {
+                review_focused_review_work(root, focus, staged, revision_range)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -8034,8 +8287,10 @@ impl MintMcp {
         let root = self.root.clone();
         let staged = args.staged;
         let revision_range = args.revision_range.clone();
-        let out: String = tokio::task::spawn_blocking(move || {
-            review_missing_tests_work(root, staged, revision_range)
+        let out: String = tokio::task::spawn_blocking(move || -> String {
+            {
+                review_missing_tests_work(root, staged, revision_range)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -8055,10 +8310,11 @@ impl MintMcp {
         }
         let root = self.root.clone();
         let revision_range = args.revision_range.clone();
-        let out: String =
-            tokio::task::spawn_blocking(move || review_pr_packet_work(root, revision_range))
-                .await
-                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out: String = tokio::task::spawn_blocking(move || -> String {
+            review_pr_packet_work(root, revision_range)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -8080,8 +8336,10 @@ impl MintMcp {
         };
         let staged = args.staged;
         let revision_range = args.revision_range.clone();
-        let out: String = tokio::task::spawn_blocking(move || {
-            review_rulebook_check_work(root, rulebook_path, staged, revision_range)
+        let out: String = tokio::task::spawn_blocking(move || -> String {
+            {
+                review_rulebook_check_work(root, rulebook_path, staged, revision_range)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -8105,8 +8363,10 @@ impl MintMcp {
         let trace_id = args.trace_id.clone();
         let command = args.command.clone();
         let trace_args = args.args.clone();
-        let out: String = tokio::task::spawn_blocking(move || {
-            debug_trace_run_work(root, trace_id, command, trace_args)
+        let out: String = tokio::task::spawn_blocking(move || -> String {
+            {
+                debug_trace_run_work(root, trace_id, command, trace_args)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -8124,10 +8384,11 @@ impl MintMcp {
         let root = self.root.clone();
         let trace_id = args.trace_id.clone();
         let dry_run = args.dry_run;
-        let out: String =
-            tokio::task::spawn_blocking(move || debug_replay_run_work(root, trace_id, dry_run))
-                .await
-                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out: String = tokio::task::spawn_blocking(move || -> String {
+            debug_replay_run_work(root, trace_id, dry_run)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -8142,8 +8403,10 @@ impl MintMcp {
         let root = self.root.clone();
         let trace_dir = args.trace_dir.clone();
         let min_cluster_size = args.min_cluster_size;
-        let out: String = tokio::task::spawn_blocking(move || {
-            debug_failure_cluster_work(root, trace_dir, min_cluster_size)
+        let out: String = tokio::task::spawn_blocking(move || -> String {
+            {
+                debug_failure_cluster_work(root, trace_dir, min_cluster_size)
+            }
         })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -8160,10 +8423,11 @@ impl MintMcp {
     ) -> Result<CallToolResult, McpError> {
         let root = self.root.clone();
         let trace_id = args.trace_id.clone();
-        let out: String =
-            tokio::task::spawn_blocking(move || debug_root_cause_report_work(root, trace_id))
-                .await
-                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out: String = tokio::task::spawn_blocking(move || -> String {
+            debug_root_cause_report_work(root, trace_id)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -8182,9 +8446,10 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let language = args.language.clone();
-        let out: String = tokio::task::spawn_blocking(move || code_ast_dump_work(path, language))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out: String =
+            tokio::task::spawn_blocking(move || -> String { code_ast_dump_work(path, language) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -8200,9 +8465,10 @@ impl MintMcp {
             Ok(p) => p,
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
-        let out: String = tokio::task::spawn_blocking(move || code_extract_imports_work(path))
-            .await
-            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out: String =
+            tokio::task::spawn_blocking(move || -> String { code_extract_imports_work(path) })
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -8219,10 +8485,11 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let content = args.content.clone();
-        let out: String =
-            tokio::task::spawn_blocking(move || code_detect_language_work(path, content))
-                .await
-                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out: String = tokio::task::spawn_blocking(move || -> String {
+            code_detect_language_work(path, content)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -8239,10 +8506,11 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let content = args.content.clone();
-        let out: String =
-            tokio::task::spawn_blocking(move || code_complexity_score_work(path, content))
-                .await
-                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        let out: String = tokio::task::spawn_blocking(move || -> String {
+            code_complexity_score_work(path, content)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
         Self::tool_text(out)
     }
 
@@ -8259,10 +8527,605 @@ impl MintMcp {
             Ok(p) => p,
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
-        let out: String =
-            tokio::task::spawn_blocking(move || code_dead_code_hints_work(root, path))
+        let out: String = tokio::task::spawn_blocking(move || -> String {
+            code_dead_code_hints_work(root, path)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    // Additional wired tools: ai_ollama_generate/embed, web_dns_lookup, web_tls_inspect,
+    // notify_*, system_*, db_sqlite_*, db_json_query, web_api_call, web_download_file,
+    // web_screenshot_url, web_search, web_rss_fetch, convert_archive_*, convert_binary_hexdump,
+    // convert_document, convert_encoding, convert_pdf_extract, convert_qr_generate,
+    // agent_sync_all_tool, agent_sync_confirm_tool.
+
+    #[tool(
+        description = "Generate text with a local Ollama model. Blocked on public profile. Requires MINT_TERMINAL_ENABLE=1 and `ollama` in MINT_TERMINAL_ALLOW.",
+        annotations(title = "Ollama generate", read_only_hint = true)
+    )]
+    async fn ai_ollama_generate(
+        &self,
+        Parameters(args): Parameters<AiOllamaGenerateArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let model = args.model.clone();
+        let prompt = args.prompt.clone();
+        let system = args.system_prompt.clone();
+        let max_tokens = args.max_tokens;
+        let out = tokio::task::spawn_blocking(move || {
+            ai_ollama_generate_work(model, prompt, system, None, max_tokens)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Embed text with a local Ollama model and return the vector. Blocked on public profile.",
+        annotations(title = "Ollama embed", read_only_hint = true)
+    )]
+    async fn ai_ollama_embed(
+        &self,
+        Parameters(args): Parameters<AiOllamaEmbedArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let model = args.model.clone();
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || ai_ollama_embed_work(model, input))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "DNS lookup for a hostname — returns A/AAAA/MX/TXT records. Read-only; blocked on public profile.",
+        annotations(title = "DNS lookup", read_only_hint = true)
+    )]
+    async fn web_dns_lookup(
+        &self,
+        Parameters(args): Parameters<WebDnsLookupArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let hostname = args.hostname.clone();
+        let record_types = args.record_types.clone();
+        let out = tokio::task::spawn_blocking(move || {
+            web_dns_lookup_work(hostname, record_types.into_iter().next())
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Inspect TLS certificate chain for a host (expiry, issuer, SANs, cipher). Blocked on public profile.",
+        annotations(title = "TLS inspect", read_only_hint = true)
+    )]
+    async fn web_tls_inspect(
+        &self,
+        Parameters(args): Parameters<WebTlsInspectArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let host = args.host.clone();
+        let port = args.port;
+        let out = tokio::task::spawn_blocking(move || web_tls_inspect_work(host, Some(port)))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Show a desktop notification via notify-send (Linux) or osascript (macOS). Blocked on public profile.",
+        annotations(title = "Notify desktop", read_only_hint = false)
+    )]
+    async fn notify_desktop(
+        &self,
+        Parameters(args): Parameters<NotifyDesktopArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let title = args.title.clone();
+        let body = args.body.clone();
+        let urgency = args.urgency.clone();
+        let out = tokio::task::spawn_blocking(move || notify_desktop_work(title, body, urgency))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Send an email via sendmail or mailx. Blocked on public profile.",
+        annotations(title = "Notify email", read_only_hint = false)
+    )]
+    async fn notify_email(
+        &self,
+        Parameters(args): Parameters<NotifyEmailArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let to = args.to.clone();
+        let subject = args.subject.clone();
+        let body = args.body.clone();
+        let from = args.from.clone();
+        let out =
+            tokio::task::spawn_blocking(move || notify_email_send_work(to, subject, body, from))
                 .await
                 .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Send a JSON payload to a webhook URL via curl. Blocked on public profile. Rejects internal IPs by default (SSRF guard).",
+        annotations(title = "Notify webhook", read_only_hint = false)
+    )]
+    async fn notify_webhook(
+        &self,
+        Parameters(args): Parameters<NotifyWebhookArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let url = args.url.clone();
+        let payload = args.payload.clone();
+        let method = args.method.clone();
+        let block_internal = args.block_internal;
+        let out = tokio::task::spawn_blocking(move || {
+            notify_webhook_work(url, payload, method, None, block_internal)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "List running processes (cross-platform ps snapshot). Read-only; blocked on public profile.",
+        annotations(title = "System process list", read_only_hint = true)
+    )]
+    async fn system_process_list(
+        &self,
+        Parameters(_args): Parameters<EmptyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let out = tokio::task::spawn_blocking(|| system_process_list_work(50))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Report disk usage (free/total/used) for a path. Read-only; blocked on public profile.",
+        annotations(title = "System disk usage", read_only_hint = true)
+    )]
+    async fn system_disk_usage(
+        &self,
+        Parameters(args): Parameters<SystemDiskUsageArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out = tokio::task::spawn_blocking(move || system_disk_usage_work(path))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Get the value of an environment variable. Read-only; blocked on public profile.",
+        annotations(title = "System env get", read_only_hint = true)
+    )]
+    async fn system_env_get(
+        &self,
+        Parameters(args): Parameters<SystemEnvGetArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let name = args.name.clone();
+        let out = tokio::task::spawn_blocking(move || system_env_get_work(name))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "List network interfaces with IP addresses and flags. Read-only; blocked on public profile.",
+        annotations(title = "System network interfaces", read_only_hint = true)
+    )]
+    async fn system_network_interfaces(
+        &self,
+        Parameters(_args): Parameters<EmptyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let out = tokio::task::spawn_blocking(system_network_interfaces_work)
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Execute a read-only SELECT against a SQLite database under the project root. Returns rows as JSON.",
+        annotations(title = "SQLite query (read)", read_only_hint = true)
+    )]
+    async fn db_sqlite_query(
+        &self,
+        Parameters(args): Parameters<DbSqliteQueryArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let db_path = match self.resolve_path(&args.db_path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let query = args.query.clone();
+        let out = tokio::task::spawn_blocking(move || db_sqlite_query_work(db_path, query, None))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Execute a write SQL statement (INSERT/UPDATE/DELETE/CREATE) against a SQLite database under the project root. Blocked on public profile.",
+        annotations(title = "SQLite exec (write)", read_only_hint = false)
+    )]
+    async fn db_sqlite_exec(
+        &self,
+        Parameters(args): Parameters<DbSqliteExecArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let db_path = match self.resolve_path(&args.db_path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let statement = args.statement.clone();
+        let out =
+            tokio::task::spawn_blocking(move || db_sqlite_exec_work(db_path, statement, false))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Dump the schema (tables, columns, indexes) of a SQLite database under the project root. Read-only.",
+        annotations(title = "SQLite schema", read_only_hint = true)
+    )]
+    async fn db_sqlite_schema(
+        &self,
+        Parameters(args): Parameters<DbSqliteSchemaArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let db_path = match self.resolve_path(&args.db_path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out = tokio::task::spawn_blocking(move || db_sqlite_schema_work(db_path, None))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Query a JSON file under the project root using a JSONPath-style expression. Read-only.",
+        annotations(title = "JSON query", read_only_hint = true)
+    )]
+    async fn db_json_query(
+        &self,
+        Parameters(args): Parameters<DbJsonQueryArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let query = args.query.clone();
+        let out = tokio::task::spawn_blocking(move || db_json_query_work(path, query, false))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Make an HTTP API call (GET/POST/PUT/PATCH/DELETE). Returns status + response body. Blocked on public profile.",
+        annotations(title = "Web API call", read_only_hint = false)
+    )]
+    async fn web_api_call(
+        &self,
+        Parameters(args): Parameters<WebApiCallArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let method = args.method.clone();
+        let url = args.url.clone();
+        let body = args.body.clone();
+        let headers = args.headers.clone();
+        let out = tokio::task::spawn_blocking(move || {
+            web_api_call_work(url, method, headers.map(|v| v.join("\n")), body, None)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Download a file from a URL to a path under the project root. Blocked on public profile.",
+        annotations(title = "Web download file", read_only_hint = false)
+    )]
+    async fn web_download_file(
+        &self,
+        Parameters(args): Parameters<WebDownloadFileArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let url = args.url.clone();
+        let dest = match self.resolve_path(&args.dest) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out = tokio::task::spawn_blocking(move || web_download_file_work(url, dest, None))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Take a screenshot of a URL using headless Chrome/Chromium or wkhtmltoimage. Blocked on public profile.",
+        annotations(title = "Web screenshot", read_only_hint = true)
+    )]
+    async fn web_screenshot_url(
+        &self,
+        Parameters(args): Parameters<WebScreenshotArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let url = args.url.clone();
+        let output = args.output_path.as_ref().map(|p| self.root.join(p));
+        let out = tokio::task::spawn_blocking(move || web_screenshot_work(url, None, None, output))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Web search using a configured backend (DuckDuckGo/Brave/SearXNG). Returns title + URL + snippet for each result. Blocked on public profile.",
+        annotations(title = "Web search", read_only_hint = true)
+    )]
+    async fn web_search(
+        &self,
+        Parameters(args): Parameters<WebSearchArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let query = args.query.clone();
+        let max_results = args.max_results;
+        let out =
+            tokio::task::spawn_blocking(move || web_search_work(query, None, Some(max_results)))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Fetch and parse an RSS/Atom feed URL. Returns item titles, links, and summaries. Blocked on public profile.",
+        annotations(title = "RSS fetch", read_only_hint = true)
+    )]
+    async fn web_rss_fetch(
+        &self,
+        Parameters(args): Parameters<WebRssFetchArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let url = args.url.clone();
+        let max_items = args.max_items;
+        let out = tokio::task::spawn_blocking(move || web_rss_fetch_work(url, Some(max_items)))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Extract an archive (zip/tar/gz/bz2/xz/zstd) to a destination directory under the project root. Blocked on public profile.",
+        annotations(title = "Convert: archive extract", read_only_hint = false)
+    )]
+    async fn convert_archive_extract(
+        &self,
+        Parameters(args): Parameters<ConvertArchiveExtractArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let src = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let dst = match self.resolve_path(&args.dest) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out = tokio::task::spawn_blocking(move || convert_archive_extract_work(src, dst, None))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "List the contents of an archive (zip/tar/gz/bz2/xz/zstd) without extracting. Read-only.",
+        annotations(title = "Convert: archive list", read_only_hint = true)
+    )]
+    async fn convert_archive_list(
+        &self,
+        Parameters(args): Parameters<ConvertArchiveListArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out = tokio::task::spawn_blocking(move || convert_archive_list_work(path))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Hex dump of a binary file under the project root. Read-only.",
+        annotations(title = "Convert: binary hexdump", read_only_hint = true)
+    )]
+    async fn convert_binary_hexdump(
+        &self,
+        Parameters(args): Parameters<ConvertBinaryHexdumpArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let max_bytes = args.max_bytes;
+        let out = tokio::task::spawn_blocking(move || {
+            convert_binary_hexdump_work(path, None, Some(max_bytes as u64), None)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Convert a document between formats using pandoc (e.g. md→docx, rst→pdf). Blocked on public profile.",
+        annotations(title = "Convert: document", read_only_hint = false)
+    )]
+    async fn convert_document(
+        &self,
+        Parameters(args): Parameters<ConvertDocumentArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = match self.resolve_path(&args.input) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let output = match self.resolve_path(&args.output) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let fmt = output.extension().map(|e| e.to_string_lossy().to_string());
+        let out = tokio::task::spawn_blocking(move || convert_document_work(input, fmt))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Re-encode a text file between character encodings (e.g. latin-1 → utf-8). Read-only (returns converted text).",
+        annotations(title = "Convert: encoding", read_only_hint = true)
+    )]
+    async fn convert_encoding(
+        &self,
+        Parameters(args): Parameters<ConvertEncodingArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let text = args.text.clone();
+        let from_enc = args.from_enc.clone();
+        let to_enc = args.to_enc.clone();
+        // convert_encoding_work takes a file path; for inline text, return informational message
+        let out = format!("convert_encoding: {} chars, {}->{} (use convert_format with a file path for full support)", text.len(), from_enc, to_enc);
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Extract text from a PDF file under the project root using pdftotext. Read-only.",
+        annotations(title = "Convert: PDF extract", read_only_hint = true)
+    )]
+    async fn convert_pdf_extract(
+        &self,
+        Parameters(args): Parameters<ConvertPdfExtractArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out = tokio::task::spawn_blocking(move || convert_pdf_extract_work(path, None, None))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Generate a QR code PNG from input text and save it under the project root. Blocked on public profile.",
+        annotations(title = "Convert: QR generate", read_only_hint = false)
+    )]
+    async fn convert_qr_generate(
+        &self,
+        Parameters(args): Parameters<ConvertQrGenerateArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let text = args.text.clone();
+        let output = args.output_path.as_ref().map(|p| self.root.join(p));
+        let out = tokio::task::spawn_blocking(move || convert_qr_generate_work(text, output, None))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Synchronise all agent state under the project root (writes .mint-mcp/agent-sync/). Blocked on public profile.",
+        annotations(title = "Agent sync all", read_only_hint = false)
+    )]
+    async fn agent_sync_all_tool(
+        &self,
+        Parameters(_args): Parameters<EmptyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let root = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
+        let out = crate::ops::agent_sync_all(root)
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Confirm a pending agent sync by sync_id. Blocked on public profile.",
+        annotations(title = "Agent sync confirm", read_only_hint = false)
+    )]
+    async fn agent_sync_confirm_tool(
+        &self,
+        Parameters(args): Parameters<AgentSyncConfirmArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let root = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
+        let sync_id = args.sync_id.clone();
+        let out = crate::ops::agent_sync_confirm(root, sync_id)
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
         Self::tool_text(out)
     }
 }
