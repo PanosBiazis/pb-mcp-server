@@ -1375,11 +1375,15 @@ mod tests {
             "column": 10,
             "action_kind": "quickfix"
         }));
-        // IDEA may or may not be available, but args should be reflected
-        assert_eq!(result["path"], "/tmp/a.rs");
-        assert_eq!(result["line"], 5);
-        assert_eq!(result["column"], 10);
-        assert_eq!(result["action_kind"], "quickfix");
+        // IDEA may or may not be installed; if not, we get a tool_available=false response
+        if result.get("tool_available") == Some(&json!(false)) {
+            assert!(result.get("error").is_some());
+        } else {
+            assert_eq!(result["path"], "/tmp/a.rs");
+            assert_eq!(result["line"], 5);
+            assert_eq!(result["column"], 10);
+            assert_eq!(result["action_kind"], "quickfix");
+        }
     }
 
     #[test]
@@ -1411,8 +1415,13 @@ mod tests {
             "config_name": "Run App",
             "debug": true
         }));
-        assert_eq!(result["mode"], "debug");
-        assert_eq!(result["config_name"], "Run App");
+        // IDEA may or may not be installed; if not, we get a tool_available=false response
+        if result.get("tool_available") == Some(&json!(false)) {
+            assert!(result.get("error").is_some());
+        } else {
+            assert_eq!(result["mode"], "debug");
+            assert_eq!(result["config_name"], "Run App");
+        }
     }
 
     #[test]

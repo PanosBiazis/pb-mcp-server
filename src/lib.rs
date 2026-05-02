@@ -34,6 +34,7 @@
 
 #![warn(missing_docs)]
 #![warn(rust_2018_idioms)]
+#![deny(unsafe_code)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
@@ -100,7 +101,7 @@ pub use bus::{AgentMessage, MAX_AGENT_MESSAGE_BODY_CHARS};
 pub use error::{Error, Result};
 pub use ops::MAX_RESPONSE_CHARS;
 pub use profiles::ToolProfile;
-// pub use server::MintMcp; // TODO: Implement server module
+pub use server::MintMcp;
 
 /// Current version of the server
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -112,7 +113,7 @@ pub const RUST_VERSION: &str = "1.75.0";
 pub const BUS_DIR: &str = ".mint-mcp";
 
 /// Default maximum file read size in bytes
-pub const DEFAULT_MAX_FILE_READ_BYTES: u64 = 512 * 1024;
+pub const DEFAULT_MAX_FILE_READ_BYTES: u64 = 4 * 1024 * 1024;
 
 /// Default maximum response characters
 pub const DEFAULT_MAX_RESPONSE_CHARS: usize = 20_000;
@@ -164,7 +165,7 @@ pub mod prelude {
     pub use crate::ops::MAX_RESPONSE_CHARS;
     pub use crate::profiles::ToolProfile;
     pub use crate::resilience::{CircuitBreaker, CircuitBreakerConfig};
-    // pub use crate::server::MintMcp; // TODO: Implement server module
+    pub use crate::server::MintMcp;
     pub use schemars::JsonSchema;
     pub use serde::{Deserialize, Serialize};
 }

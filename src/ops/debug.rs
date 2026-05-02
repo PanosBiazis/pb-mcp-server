@@ -927,7 +927,7 @@ mod tests {
 
     #[test]
     fn test_debug_replay_run_dry() {
-        let (temp, root) = setup_temp_dir();
+        let (_temp, root) = setup_temp_dir();
 
         // First, create a trace
         let _ = debug_trace_run_work(
@@ -946,7 +946,7 @@ mod tests {
 
     #[test]
     fn test_debug_replay_run_live() {
-        let (temp, root) = setup_temp_dir();
+        let (_temp, root) = setup_temp_dir();
 
         // Create a trace
         let _ = debug_trace_run_work(
@@ -978,7 +978,7 @@ mod tests {
 
     #[test]
     fn test_debug_failure_cluster_with_failures() {
-        let (temp, root) = setup_temp_dir();
+        let (_temp, root) = setup_temp_dir();
 
         // Create a trace with a failure
         let _ = debug_trace_run_work(
@@ -1001,7 +1001,7 @@ mod tests {
 
     #[test]
     fn test_debug_root_cause_report_all_success() {
-        let (temp, root) = setup_temp_dir();
+        let (_temp, root) = setup_temp_dir();
 
         // Create a trace with a successful command
         let _ = debug_trace_run_work(
@@ -1018,7 +1018,7 @@ mod tests {
 
     #[test]
     fn test_debug_root_cause_report_with_failure() {
-        let (temp, root) = setup_temp_dir();
+        let (_temp, root) = setup_temp_dir();
 
         // Create a trace with a failure
         let _ = debug_trace_run_work(

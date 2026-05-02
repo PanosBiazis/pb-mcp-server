@@ -298,7 +298,8 @@ impl TorProxy {
                 .parse::<SocketAddr>()
                 .unwrap_or_else(|_| "127.0.0.1:9050".parse().unwrap()),
             std::time::Duration::from_secs(2),
-        ).is_ok()
+        )
+        .is_ok()
     }
 
     /// Send data through a Tor-proxied connection and read the response.
@@ -558,8 +559,8 @@ mod tests {
         assert_eq!(cfg.max_circuit_retries, back.max_circuit_retries);
 
         // YAML roundtrip
-        let yaml = serde_yaml::to_string(&cfg).unwrap();
-        let back_yaml: TorConfig = serde_yaml::from_str(&yaml).unwrap();
+        let yaml = serde_yml::to_string(&cfg).unwrap();
+        let back_yaml: TorConfig = serde_yml::from_str(&yaml).unwrap();
         assert_eq!(cfg.socks5_addr, back_yaml.socks5_addr);
         assert_eq!(cfg.enabled, back_yaml.enabled);
     }

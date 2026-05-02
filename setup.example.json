@@ -1,0 +1,41 @@
+{
+  "pb-mcp-server": {
+    "command": "/path/to/pb-mcp-server/target/release/pb-mcp-server",
+    "args": [],
+    "env": {
+      "PB_PROJECT_ROOT": "/path/to/your/project",
+      "PB_MCP_PROFILE": "experimental-lab",
+      "PB_NETWORK_PROFILE": "local",
+      "PB_TERMINAL_ENABLE": "1",
+      "PB_TERMINAL_ALLOW": "git,cargo,npm,python,pytest,rustc,go",
+      "PB_GIT_PUSH_ENABLE": "1",
+      "PB_GIT_REMOTE_ENABLE": "1",
+      "PB_PROJECT_TEST_ENABLE": "1",
+      "RUST_LOG": "info"
+    }
+  },
+  "pb-mcp-server-core": {
+    "command": "/path/to/pb-mcp-server/target/release/pb-mcp-server",
+    "args": [],
+    "env": {
+      "PB_PROJECT_ROOT": "/path/to/your/project",
+      "PB_MCP_PROFILE": "core-code",
+      "RUST_LOG": "warn"
+    }
+  },
+  "pb-mcp-server-local": {
+    "command": "/path/to/pb-mcp-server/target/release/pb-mcp-server",
+    "args": [],
+    "env": {
+      "PB_PROJECT_ROOT": "/path/to/your/project",
+      "PB_MCP_PROFILE": "local-power",
+      "PB_NETWORK_PROFILE": "local",
+      "PB_TERMINAL_ENABLE": "1",
+      "PB_TERMINAL_ALLOW": "git,cargo,npm,python,pytest,rustc,go",
+      "PB_GIT_PUSH_ENABLE": "1",
+      "PB_GIT_REMOTE_ENABLE": "1",
+      "PB_PROJECT_TEST_ENABLE": "1",
+      "RUST_LOG": "warn"
+    }
+  }
+}

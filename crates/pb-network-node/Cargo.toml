@@ -1,0 +1,12 @@
+[package]
+name = "pb-network-node"
+version = "0.2.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+pb-mcp-server = { path = "../..", features = ["network-node"] }
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+serde_json = "1"

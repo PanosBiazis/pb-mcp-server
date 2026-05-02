@@ -526,8 +526,8 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-impl From<serde_yaml::Error> for Error {
-    fn from(err: serde_yaml::Error) -> Self {
+impl From<serde_yml::Error> for Error {
+    fn from(err: serde_yml::Error) -> Self {
         Error::YamlError {
             reason: err.to_string(),
         }

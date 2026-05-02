@@ -2531,3 +2531,475 @@ strip = true in release profile reduces attack surface
 Comprehensive unit test coverage across all security modules
 
 The most urgent actions are: remove setup.json from the repo and git history, fix verify_under_root to use Path::starts_with, and address the TOCTOU race in path validation.
+
+
+analyze my whole code/project on github (https://github.com/PanosBiazis/pb-mcp-server) for errors,warnings,bugs,vulnerabilities,sensitive data
+Completed 12 steps
+pb-mcp-server-analysis
+pb-mcp-server — Comprehensive Code Analysis Report
+Repository: PanosBiazis/pb-mcp-server
+Date: May 2, 2026
+Scope: Errors, warnings, bugs, vulnerabilities, and sensitive data exposure
+
+Executive Summary
+The pb-mcp-server project is a well-structured Rust MCP server with a mature security module (path guards, rate limiting, command policies, tamper-evident audit logs). The codebase shows high engineering quality overall. However, several issues were identified across five categories: sensitive data exposure in committed config, security misconfigurations, potential bugs/logic issues, missing hardening, and dependency/configuration warnings.
+
+🔴 Critical — Sensitive Data Exposure
+setup.json exposes personal machine paths (committed to public repo)
+The file setup.json is committed to the public repository and contains real absolute paths from your local machine:
+
+json
+"command": "/media/panosboy/ExtHD/panag/Documents/projects/AAP/tools/rust/pb-mcp-server/target/release/pb-mcp-server",
+"PB_PROJECT_ROOT": "/media/panosboy/ExtHD/panag/Documents/projects/AAP",
+Reveals your real username (panosboy) and full directory structure
+
+Reveals your external hard drive label (ExtHD)
+
+Reveals your project folder hierarchy (panag/Documents/projects/AAP)
+
+The Windows path section also reveals: C:\pb-mcp-server\ — a dev machine path
+
+This is an OPSEC leak — for a public repo, this deanonymizes your filesystem
+
+Fix: Add setup.json to .gitignore. Replace with a setup.example.json template using placeholder paths (/your/project/root, %USERPROFILE%\...). Remove the current setup.json from git history with git filter-repo or BFG.
+
+Cargo.toml exposes personal email
+text
+authors = ["PanosBiazis <panosbiazis2003@gmail.com>"]
+While this is common for open-source crates, it is a personal email exposed in a public repository. Consider using a dedicated developer email or removing the authors field (it is deprecated in recent Rust editions and not required for crates.io).
+
+🟠 High — Security Issues
+1. tokio-tungstenite uses native-tls (not rustls)
+In Cargo.toml:
+
+text
+tokio-tungstenite = { version = "0.24", features = ["native-tls"], optional = true }
+The project uses rustls everywhere else (e.g., rig-core uses reqwest-rustls), but WebSocket connections fall back to the system's native TLS, which may include outdated root CAs or weaker cipher suites on some systems. This is inconsistent and potentially weaker than the rest of the TLS stack.
+
+Fix: Change to features = ["rustls-tls-native-roots"] for consistency.
+
+2. reqwest missing TLS feature specification
+text
+[dependencies.reqwest]
+version = "0.12"
+features = ["json", "gzip", "brotli", "stream"]
+No TLS backend is specified for reqwest. This defaults to native-tls implicitly on most systems. For a security-focused server, explicitly specifying rustls-tls is strongly recommended.
+
+Fix: Add "rustls-tls" to reqwest features and remove any implicit native-tls.
+
+3. Audit log silently degrades to no-op
+In src/security/mod.rs:
+
+rust
+let audit_log = Arc::new(AuditLog::new(&root).ok());
+If the audit directory is not writable, audit logging silently becomes a no-op. The audit_record() method returns Ok(0) in this case. This means security-relevant operations can proceed completely unlogged without any notification.
+
+Fix: At minimum, emit a tracing::warn!() when audit init fails. For production use, consider making audit log initialization a hard requirement under the LocalPower and ExperimentalLab profiles.
+
+4. check_tool_access does not audit the operation
+The convenience method check_tool_access() in SecurityContext performs rate-limiting and path validation but does not record an audit entry. This means calls through this code path are rate-limited but leave no audit trail.
+
+Fix: Call self.audit_record() inside check_tool_access() or ensure all callers add audit entries manually.
+
+5. tor-bridge feature is empty (false security)
+text
+tor-bridge = [] # Uses subprocess torsocks/tor CLI
+The feature flag exists but contains no code. Any code path gated on cfg(feature = "tor-bridge") that calls external torsocks/tor CLI processes has no compile-time guarantee that those binaries exist. This could give false confidence about anonymization.
+
+Fix: Either implement the feature properly or add a compile-time env!("TOR_BIN_PATH") check, or remove the feature entirely until implemented.
+
+🟡 Medium — Bugs / Logic Issues
+1. risk_level() returns "unknown" for valid values
+In src/security/mod.rs:
+
+rust
+pub fn risk_level(&self) -> &'static str {
+    match self.profile.risk_level() {
+        1 => "low",
+        2 => "low",
+        3 => "medium",
+        4 => "high",
+        5 => "high",
+        _ => "unknown",
+    }
+}
+The wildcard arm _ => "unknown" is dead code if risk_level() is guaranteed to return 1–5, but if the profile enum is ever extended with a new variant, it silently returns "unknown" instead of failing loudly. This is a logic gap.
+
+Fix: Assert or use an exhaustive match at the ToolProfile level; or add unreachable!() for the wildcard if risk levels are guaranteed bounded.
+
+2. SecurityContext::new() signature mismatch with docs
+The documentation example at the top of src/security/mod.rs shows:
+
+rust
+let ctx = SecurityContext::new("/project/root", ToolProfile::CoreCode)?;
+But the actual signature is:
+
+rust
+pub fn new(root: impl Into<PathBuf>) -> Result<Self> {
+The ToolProfile argument is not accepted by new() — callers must use with_profile(). This doc example is incorrect and misleading.
+
+Fix: Update the doc example to use SecurityContext::with_profile(root, ToolProfile::CoreCode)?.
+
+3. MINT_* environment variable prefix in setup.json
+The setup.json uses MINT_* prefixed env vars (MINT_TERMINAL_ENABLE, MINT_GIT_PUSH_ENABLE, etc.) while the rest of the codebase and docs reference PB_* prefixed vars (PB_PROJECT_ROOT, PB_MCP_PROFILE). This is an inconsistency that could cause silent misconfiguration — the server reads PB_* vars, so MINT_* ones may be ignored entirely.
+
+Fix: Audit which prefix the server actually reads (likely PB_*) and update setup.json accordingly, or add backward-compat aliases in the startup code.
+
+4. serde_yaml = "0.9" — deprecated/unmaintained crate
+text
+serde_yaml = "0.9"
+serde_yaml 0.9 is the last release of the original crate maintained by dtolnay, which was archived. While not a security vulnerability per se, using an unmaintained YAML parser for configuration files introduces risk over time.
+
+Fix: Migrate to serde_yml (the maintained fork) or switch YAML config files to TOML, which is already in your dependency set.
+
+🟡 Medium — Missing Hardening
+1. No #![deny(unsafe_code)] at crate root
+The src/lib.rs and src/main.rs do not include #![deny(unsafe_code)]. For a security-sensitive MCP server, this lint should be enforced globally to catch accidental unsafe usage during development.
+
+2. No #![warn(clippy::...)] lint configuration
+There is no .cargo/config.toml or workspace-level clippy configuration enforcing strict lints. Given the size of the project (e.g., main.rs is 358 KB), undetected clippy warnings (like unused results, integer overflow in debug math, etc.) may accumulate.
+
+Fix: Add a [lints.rust] and [lints.clippy] section to Cargo.toml or a .cargo/config.toml with appropriate deny/warn entries.
+
+3. main.rs is extremely large (358 KB)
+The file src/main.rs is 358,647 bytes — roughly 10,000+ lines of Rust. This is a significant maintainability risk:
+
+Harder to review for security issues
+
+Harder to test in isolation
+
+Clippy and compile errors become harder to diagnose
+
+Fix: Modularize main.rs progressively into the existing module structure.
+
+4. No Cargo.lock exclusion policy in release pipeline
+Cargo.lock is committed (correct for binaries), but there is no cargo audit step in the .github/ workflows to detect known CVEs in dependencies. Given that the project has ~40 direct dependencies including axum, reqwest, openssl-adjacent crates (via native-tls), a periodic audit is essential.
+
+Fix: Add cargo audit to the CI/CD pipeline (.github/workflows/).
+
+🔵 Low — Warnings / Configuration Notes
+1. setup.json env-var inconsistency (prefix collision)
+The Windows pb-mcp-server-local block uses PB_TERMINAL_ENABLE while the Linux block uses MINT_TERMINAL_ENABLE. If these env vars map to the same feature in the server code, only one prefix will work.
+
+2. full feature accidentally pulls dashboard
+text
+full = ["default", "local-power", "experimental-lab", "agent-workers", "network-node", "dashboard"]
+The full feature includes dashboard (egui-based GUI). This means cargo build --features full on a headless server or CI environment will attempt to compile eframe/egui, which require display system headers. This can break CI unexpectedly.
+
+Fix: Separate full-headless and full-gui feature groups.
+
+3. lto = "thin" in release profile — consider lto = "fat" for security-critical binary
+text
+[profile.release]
+lto = "thin"
+For a security-focused tool, lto = "fat" provides maximum dead-code elimination and reduces the binary attack surface, at the cost of longer build times. For a tool that runs as an MCP server, build time is not critical.
+
+4. Benchmarks commented out
+text
+# [[bench]]
+# name = \"bus_performance\"
+Benchmarks are commented out with no note about when they'll be re-enabled. For a message-bus-heavy application like this, these should be tracked and re-enabled.
+
+Summary Table
+Severity	Issue	File	Action
+🔴 Critical	Personal paths committed to public repo	setup.json	Remove from git, add to .gitignore, use template
+🔴 Critical	Personal email in public manifest	Cargo.toml	Replace with public/anon email or remove
+🟠 High	tokio-tungstenite uses native-tls	Cargo.toml	Switch to rustls-tls
+🟠 High	reqwest no explicit TLS backend	Cargo.toml	Add rustls-tls feature
+🟠 High	Audit log silently degrades to no-op	security/mod.rs	Warn on init failure, enforce for high-risk profiles
+🟠 High	check_tool_access leaves no audit trail	security/mod.rs	Add audit recording
+🟠 High	tor-bridge is empty stub	Cargo.toml	Implement or remove
+🟡 Medium	risk_level() wildcard logic gap	security/mod.rs	Use unreachable!() or exhaustive match
+🟡 Medium	Doc example shows wrong new() signature	security/mod.rs	Fix doc example
+🟡 Medium	MINT_* vs PB_* env var prefix mismatch	setup.json	Standardize on PB_*
+🟡 Medium	serde_yaml 0.9 archived crate	Cargo.toml	Migrate to serde_yml
+🟡 Medium	No #![deny(unsafe_code)]	lib.rs, main.rs	Add crate-level lint
+🟡 Medium	No clippy lint config	Cargo.toml	Add [lints.clippy]
+🟡 Medium	main.rs is 358 KB	src/main.rs	Modularize progressively
+🟡 Medium	No cargo audit in CI	.github/	Add audit step
+🔵 Low	PB_ vs MINT_ in Windows config block	setup.json	Standardize
+🔵 Low	full feature breaks headless CI	Cargo.toml	Split GUI/headless features
+🔵 Low	lto = "thin" in release	Cargo.toml	Consider lto = "fat"
+🔵 Low	Benchmarks commented out	Cargo.toml	Re-enable or track as issue
+pb-mcp-server — Comprehensive Code Analysis Report
+Repository: PanosBiazis/pb-mcp-server
+Date: May 2, 2026
+Scope: Errors, warnings, bugs, vulnerabilities, and sensitive data exposure
+
+Executive Summary
+The pb-mcp-server project is a well-structured Rust MCP server with a mature security module (path guards, rate limiting, command policies, tamper-evident audit logs). The codebase shows high engineering quality overall. However, several issues were identified across five categories: sensitive data exposure in committed config, security misconfigurations, potential bugs/logic issues, missing hardening, and dependency/configuration warnings.
+
+🔴 Critical — Sensitive Data Exposure
+setup.json exposes personal machine paths (committed to public repo)
+The file setup.json is committed to the public repository and contains real absolute paths from your local machine:
+
+json
+"command": "/media/panosboy/ExtHD/panag/Documents/projects/AAP/tools/rust/pb-mcp-server/target/release/pb-mcp-server",
+"PB_PROJECT_ROOT": "/media/panosboy/ExtHD/panag/Documents/projects/AAP",
+Reveals your real username (panosboy) and full directory structure
+
+Reveals your external hard drive label (ExtHD)
+
+Reveals your project folder hierarchy (panag/Documents/projects/AAP)
+
+The Windows path section also reveals: C:\pb-mcp-server\ — a dev machine path
+
+This is an OPSEC leak — for a public repo, this deanonymizes your filesystem
+
+Fix: Add setup.json to .gitignore. Replace with a setup.example.json template using placeholder paths (/your/project/root, %USERPROFILE%\...). Remove the current setup.json from git history with git filter-repo or BFG.
+
+Cargo.toml exposes personal email
+text
+authors = ["PanosBiazis <panosbiazis2003@gmail.com>"]
+While this is common for open-source crates, it is a personal email exposed in a public repository. Consider using a dedicated developer email or removing the authors field (it is deprecated in recent Rust editions and not required for crates.io).
+
+🟠 High — Security Issues
+1. tokio-tungstenite uses native-tls (not rustls)
+In Cargo.toml:
+
+text
+tokio-tungstenite = { version = "0.24", features = ["native-tls"], optional = true }
+The project uses rustls everywhere else (e.g., rig-core uses reqwest-rustls), but WebSocket connections fall back to the system's native TLS, which may include outdated root CAs or weaker cipher suites on some systems. This is inconsistent and potentially weaker than the rest of the TLS stack.
+
+Fix: Change to features = ["rustls-tls-native-roots"] for consistency.
+
+2. reqwest missing TLS feature specification
+text
+[dependencies.reqwest]
+version = "0.12"
+features = ["json", "gzip", "brotli", "stream"]
+No TLS backend is specified for reqwest. This defaults to native-tls implicitly on most systems. For a security-focused server, explicitly specifying rustls-tls is strongly recommended.
+
+Fix: Add "rustls-tls" to reqwest features and remove any implicit native-tls.
+
+3. Audit log silently degrades to no-op
+In src/security/mod.rs:
+
+rust
+let audit_log = Arc::new(AuditLog::new(&root).ok());
+If the audit directory is not writable, audit logging silently becomes a no-op. The audit_record() method returns Ok(0) in this case. This means security-relevant operations can proceed completely unlogged without any notification.
+
+Fix: At minimum, emit a tracing::warn!() when audit init fails. For production use, consider making audit log initialization a hard requirement under the LocalPower and ExperimentalLab profiles.
+
+4. check_tool_access does not audit the operation
+The convenience method check_tool_access() in SecurityContext performs rate-limiting and path validation but does not record an audit entry. This means calls through this code path are rate-limited but leave no audit trail.
+
+Fix: Call self.audit_record() inside check_tool_access() or ensure all callers add audit entries manually.
+
+5. tor-bridge feature is empty (false security)
+text
+tor-bridge = [] # Uses subprocess torsocks/tor CLI
+The feature flag exists but contains no code. Any code path gated on cfg(feature = "tor-bridge") that calls external torsocks/tor CLI processes has no compile-time guarantee that those binaries exist. This could give false confidence about anonymization.
+
+Fix: Either implement the feature properly or add a compile-time env!("TOR_BIN_PATH") check, or remove the feature entirely until implemented.
+
+🟡 Medium — Bugs / Logic Issues
+1. risk_level() returns "unknown" for valid values
+In src/security/mod.rs:
+
+rust
+pub fn risk_level(&self) -> &'static str {
+    match self.profile.risk_level() {
+        1 => "low",
+        2 => "low",
+        3 => "medium",
+        4 => "high",
+        5 => "high",
+        _ => "unknown",
+    }
+}
+The wildcard arm _ => "unknown" is dead code if risk_level() is guaranteed to return 1–5, but if the profile enum is ever extended with a new variant, it silently returns "unknown" instead of failing loudly. This is a logic gap.
+
+Fix: Assert or use an exhaustive match at the ToolProfile level; or add unreachable!() for the wildcard if risk levels are guaranteed bounded.
+
+2. SecurityContext::new() signature mismatch with docs
+The documentation example at the top of src/security/mod.rs shows:
+
+rust
+let ctx = SecurityContext::new("/project/root", ToolProfile::CoreCode)?;
+But the actual signature is:
+
+rust
+pub fn new(root: impl Into<PathBuf>) -> Result<Self> {
+The ToolProfile argument is not accepted by new() — callers must use with_profile(). This doc example is incorrect and misleading.
+
+Fix: Update the doc example to use SecurityContext::with_profile(root, ToolProfile::CoreCode)?.
+
+3. MINT_* environment variable prefix in setup.json
+The setup.json uses MINT_* prefixed env vars (MINT_TERMINAL_ENABLE, MINT_GIT_PUSH_ENABLE, etc.) while the rest of the codebase and docs reference PB_* prefixed vars (PB_PROJECT_ROOT, PB_MCP_PROFILE). This is an inconsistency that could cause silent misconfiguration — the server reads PB_* vars, so MINT_* ones may be ignored entirely.
+
+Fix: Audit which prefix the server actually reads (likely PB_*) and update setup.json accordingly, or add backward-compat aliases in the startup code.
+
+4. serde_yaml = "0.9" — deprecated/unmaintained crate
+text
+serde_yaml = "0.9"
+serde_yaml 0.9 is the last release of the original crate maintained by dtolnay, which was archived. While not a security vulnerability per se, using an unmaintained YAML parser for configuration files introduces risk over time.
+
+Fix: Migrate to serde_yml (the maintained fork) or switch YAML config files to TOML, which is already in your dependency set.
+
+🟡 Medium — Missing Hardening
+1. No #![deny(unsafe_code)] at crate root
+The src/lib.rs and src/main.rs do not include #![deny(unsafe_code)]. For a security-sensitive MCP server, this lint should be enforced globally to catch accidental unsafe usage during development.
+
+2. No #![warn(clippy::...)] lint configuration
+There is no .cargo/config.toml or workspace-level clippy configuration enforcing strict lints. Given the size of the project (e.g., main.rs is 358 KB), undetected clippy warnings (like unused results, integer overflow in debug math, etc.) may accumulate.
+
+Fix: Add a [lints.rust] and [lints.clippy] section to Cargo.toml or a .cargo/config.toml with appropriate deny/warn entries.
+
+3. main.rs is extremely large (358 KB)
+The file src/main.rs is 358,647 bytes — roughly 10,000+ lines of Rust. This is a significant maintainability risk:
+
+Harder to review for security issues
+
+Harder to test in isolation
+
+Clippy and compile errors become harder to diagnose
+
+Fix: Modularize main.rs progressively into the existing module structure.
+
+4. No Cargo.lock exclusion policy in release pipeline
+Cargo.lock is committed (correct for binaries), but there is no cargo audit step in the .github/ workflows to detect known CVEs in dependencies. Given that the project has ~40 direct dependencies including axum, reqwest, openssl-adjacent crates (via native-tls), a periodic audit is essential.
+
+Fix: Add cargo audit to the CI/CD pipeline (.github/workflows/).
+
+🔵 Low — Warnings / Configuration Notes
+1. setup.json env-var inconsistency (prefix collision)
+The Windows pb-mcp-server-local block uses PB_TERMINAL_ENABLE while the Linux block uses MINT_TERMINAL_ENABLE. If these env vars map to the same feature in the server code, only one prefix will work.
+
+2. full feature accidentally pulls dashboard
+text
+full = ["default", "local-power", "experimental-lab", "agent-workers", "network-node", "dashboard"]
+The full feature includes dashboard (egui-based GUI). This means cargo build --features full on a headless server or CI environment will attempt to compile eframe/egui, which require display system headers. This can break CI unexpectedly.
+
+Fix: Separate full-headless and full-gui feature groups.
+
+3. lto = "thin" in release profile — consider lto = "fat" for security-critical binary
+text
+[profile.release]
+lto = "thin"
+For a security-focused tool, lto = "fat" provides maximum dead-code elimination and reduces the binary attack surface, at the cost of longer build times. For a tool that runs as an MCP server, build time is not critical.
+
+4. Benchmarks commented out
+text
+# [[bench]]
+# name = \"bus_performance\"
+Benchmarks are commented out with no note about when they'll be re-enabled
+
+Prepared using GPT-5.4 Thinking
+Now try again,analyze my whole code/project on github (https://github.com/PanosBiazis/pb-mcp-server) for errors,warnings,bugs,vulnerabilities,sensitive data
+Completed 8 steps
+Here’s a focused pass over the repo, grounded in the actual files, with concrete issues and next steps.
+
+Sensitive data and privacy
+setup.json is committed with your real local paths and username, e.g. /media/panosboy/ExtHD/panag/Documents/projects/AAP/... and C:\\pb-mcp-server\\..., plus the project root on both Linux and Windows.
+This leaks machine layout and account name; not a secret, but unnecessary fingerprinting on a public repo. Treat this as local config: add setup.json to .gitignore, and replace it with a setup.example.json containing generic paths and safe defaults.
+
+The env blocks in setup.json show which powerful flags you use: MINT_TERMINAL_ENABLE=1, MINT_GIT_PUSH_ENABLE=1, MINT_GIT_REMOTE_ENABLE=1, MINT_PROJECT_TEST_ENABLE=1, or their PB_* equivalents for the Windows profile.
+Again, they’re not secrets, but they clearly advertise that this profile allows shell, git push, etc.; ensure users know this is for local/trusted use only, not shared/remote deployments.
+
+Cargo.toml includes your personal email in authors = ["PanosBiazis <panosbiazis2003@gmail.com>"].
+That’s common for open source, but just be aware it will be scraped and spammed; if you want less exposure, move the address into README or use a project-specific email.
+
+A targeted secret scan via GitHub’s API is blocked because GitHub Advanced Security is disabled for the repo.
+A manual check of setup.json, Cargo.toml, and other root files shows no API keys, OAuth tokens, or passwords, only toggles and paths.
+
+Security model and potential vulnerabilities
+SecurityContext and profiles
+src/security/mod.rs is well-structured: it composes PathGuard, CommandPolicy, RateLimiter, and AuditLog into a SecurityContext, with behavior driven by ToolProfile (CoreCode, ReviewRefactor, AgentOrchestration, LocalPower, PublicSafe, ExperimentalLab, etc.).
+Profiles correctly gate writes and execution (e.g. LocalPower allows both, PublicSafe allows neither), and tests confirm this behavior.
+
+Path validation goes through profile-specific constructors: PathGuard::new_public_safe for PublicSafe, new_local_trusted for LocalPower, else new.
+Tests show traversal attempts like ../../../etc/passwd are rejected, and write/exec paths are blocked when the profile disallows them, which is good defense-in-depth.
+
+Audit logging behavior
+In SecurityContext::with_profile, the audit log is initialized as Arc::new(AuditLog::new(&root).ok()) and stored as Arc<Option<AuditLog>>.
+If the audit directory isn’t writable, AuditLog::new fails and you silently get None, so all auditing is disabled with no warning. You do handle the “no log” case in the methods (they just return Ok(0) or an empty result), but the failure is invisible.
+Recommendation: log at least a warn! when initialization fails, and consider making it fatal for PublicSafe or production profiles.
+
+audit_record, audit_query, audit_verify_integrity, and audit_export_json all degrade to safe defaults when audit_log is None or when the underlying calls fail.
+That’s safe from a runtime perspective but can hide disk/IO corruption; for integrity verification in particular you might want to distinguish “no log / IO error” from “chain verified successfully”.
+
+Combined tool access check
+SecurityContext::check_tool_access(tool_name, path, requires_write) does three things: rate-limit (via check_and_record_rate_limit), optional path validation, and then returns Ok(()).
+It does not call validate_command or audit_record; it’s meant for tools that only touch the filesystem and rate limits, not for those that spawn processes. For tools that also run commands or need auditing, you must explicitly add separate calls to validate_command and audit_record in your handlers.
+
+Because check_tool_access already records the operation into the rate limiter, any manual calls to record should be consistent to avoid double-counting. The tests show you use it as the “one-stop” for rate-limited operations in the security module’s own examples.
+
+TLS / networking
+Cargo.toml composes networking like this: reqwest 0.12 with json, gzip, brotli, and stream features enabled, plus tokio-tungstenite 0.24 with native-tls.
+That means HTTP is using reqwest’s default TLS backend (platform-specific), and WebSockets explicitly use the OS’s TLS stack. If your goal is a uniform, modern TLS story, consider switching both to rustls-backed features (reqwest with rustls-tls and tokio-tungstenite with rustls-tls-native-roots).
+
+libp2p is behind the network-node feature, and Tor bridge is declared as a feature but has no implementation (comment: “Uses subprocess torsocks/tor CLI”).
+That’s fine as a roadmap, but at the moment tor-bridge = [] provides no extra protection; document that clearly so people don’t assume true Tor routing just by enabling the feature.
+
+Logic issues and minor bugs
+The docs in security/mod.rs show an example SecurityContext::new("/project/root", ToolProfile::CoreCode)?;, but the real signature is pub fn new(root: impl Into<PathBuf>) with no profile parameter.
+The profile-specific version is with_profile(root, ToolProfile). This is only a doc bug but could confuse users—update the example to use with_profile or new_public/new_local to match the actual API.
+
+SecurityContext::risk_level() maps the ToolProfile::risk_level() integer 1–5 to "low", "medium", or "high", and uses _ => "unknown" as a fallback.
+This fallback will silently mask any misconfigured or future profile values; it’s not a security hole, but adding an assertion or logging on the default arm would make profile errors more visible.
+
+Several audit functions (audit_verify_integrity, audit_export_json) swallow internal errors and return “successful-looking” defaults even when verification/export fails.
+That behavior is safe but can make debugging audit log corruption harder; consider surfacing an error variant or at least logging when underlying calls fail.
+
+The environment variable naming in setup.json mixes MINT_* names for the Linux profiles and PB_* for the Windows profile (PB_NETWORK_PROFILE, PB_TERMINAL_ENABLE vs MINT_NETWORK_PROFILE, MINT_TERMINAL_ENABLE).
+That can become a source of subtle misconfigurations as people move configs between machines; standardizing on one prefix and documenting the expected env set per profile would reduce confusion.
+
+Maintainability and “warning” level issues
+The repository root shows src/main.rs at roughly 350 KB, plus additional substantial modules in security, bus, metrics, gateway, etc.
+That main file contains huge swaths of argument structs and wiring; from a security-review perspective, this makes it hard to spot mistakes. You already factored out some of this into tool_args_wired.rs / tools_wired.rs; continuing to split the monolith (e.g., per tool group) will improve readability and reduce the chance of subtle bugs.
+
+lib.rs and main.rs do not enforce #![deny(unsafe_code)] at the crate root, even though the code as visible appears purely safe Rust.
+Adding that attribute would prevent accidental introduction of unsafe blocks later and is a low-cost hardening step.
+
+Cargo.toml defines a powerful full feature that pulls in local-power, experimental-lab, agent-workers, network-node, and dashboard in one shot.
+That’s convenient for local experimentation but can explode binary size and attack surface if someone compiles --features full for production. It’s worth documenting recommended feature sets (e.g. public-safe + web-tools-safe for remote, core-code/review-refactor for CI) to avoid over-enabling functionality.
+
+At the root, there is no .github/workflows entry in the listed contents and thus no visible CI enforcing cargo fmt, cargo clippy, tests, or cargo audit at merge time.
+Adding a basic GitHub Actions pipeline for formatting, linting, testing, and dependency auditing would catch a lot of issues before they land.
+
+Secrets and credential exposure
+Manual inspection of the files we can see (Cargo.toml, setup.json, module headers) shows no hard-coded secrets like API keys, OAuth tokens, or passwords.
+Everything in env is either a toggle (*_ENABLE), a profile name (*_PROFILE), or a path and logging configuration.
+
+Because GitHub Advanced Security is off, you’re not currently benefiting from GitHub’s built-in secret scanner for this repo.
+Enabling it (if you’re comfortable) would give you an additional automated layer of protection on each push.
+
+Concrete hardening checklist
+If you want practical next steps, these are the highest-impact changes:
+
+Treat setup.json as local-only.
+
+Add it to .gitignore.
+
+Create setup.example.json with placeholder paths and safe profile/env defaults.
+
+Move your real config out of the repo (e.g. into ~/.config or a private dotfile).
+
+Make audit failures visible.
+
+On AuditLog::new failure, log a warning (or return an error in PublicSafe/production builds) instead of silently setting None.
+
+Consider bubbling up integrity and export failures instead of always returning “success-looking” defaults.
+
+Centralize tool security behavior.
+
+Ensure every tool handler that can read/write/execute files calls check_tool_access and, where appropriate, validate_command and audit_record (not just path/rate checks).
+
+For especially sensitive tools, always record an audit entry, even on failures.
+
+Tighten TLS and unsafe guarantees.
+
+Consider switching reqwest and tokio-tungstenite to rustls-backed TLS across the board for consistency.
+
+Add #![deny(unsafe_code)] to crate roots to prevent accidental unsafe introduction.
+
+Improve structure and CI.
+
+Continue to break down src/main.rs into smaller, focused modules to make both feature development and security review easier.
+
+Add a GitHub Actions workflow that runs cargo fmt --check, cargo clippy --all-targets --all-features, cargo test --all-features, and cargo audit on pushes/PRs.
+
+This covers what can be reasonably analyzed from the public repo without running the code or pulling in the entire 350 KB main.rs into a single view. If you want, the next pass can zoom into specific areas (e.g., gateway HTTP handlers, network node/libp2p usage, or particular tools) for deeper, line-by-line review.
+
+Prepared by Deep Research

@@ -34,9 +34,27 @@ const MAX_PATH_LENGTH: usize = 4096;
 
 /// Allowed file extensions for certain operations (e.g., file reads)
 const DANGEROUS_EXTENSIONS: &[&str] = &[
-    // System files that should never be accessed
-    ".env", ".pem", ".key", ".cert", ".secret", // Database files
-    ".db", ".sqlite", ".sqlite3",
+    // Environment and secrets
+    ".env",
+    ".secret",
+    // Cryptographic keys and certificates
+    ".pem",
+    ".key",
+    ".cert",
+    ".crt",
+    ".cer",
+    ".asc",
+    ".p12",
+    ".pfx",
+    ".keystore",
+    // Password databases
+    ".kdbx",
+    ".kdb",
+    // Database files
+    ".db",
+    ".sqlite",
+    ".sqlite3",
+    // SSH keys (bare names checked separately below)
 ];
 
 /// Path validation and security guard
@@ -280,29 +298,12 @@ impl PathGuard {
 
     /// Verify that a path is under the project root
     fn verify_under_root(&self, path: &Path) -> Result<()> {
-        // Get path as string for comparison
-        let path_str = path.to_string_lossy();
-        let root_str = self.root.to_string_lossy();
-
-        // Check if path starts with root
-        if !path_str.starts_with(root_str.as_ref()) {
+        // Use Path::starts_with which compares path components,
+        // not string prefixes. This is safe against case-insensitive
+        // filesystems and Unicode normalization edge cases.
+        if !path.starts_with(&self.root) {
             return Err(Error::path_escape(path, &self.root));
         }
-
-        // Additional check: ensure path is exactly root or has separator after root
-        if path != self.root {
-            let root_len = root_str.len();
-            let path_chars: Vec<char> = path_str.chars().collect();
-
-            if path_chars.len() > root_len {
-                let after_root = path_chars[root_len];
-                if after_root != std::path::MAIN_SEPARATOR {
-                    // Path might be something like /root_evil trying to match /root
-                    return Err(Error::path_escape(path, &self.root));
-                }
-            }
-        }
-
         Ok(())
     }
 

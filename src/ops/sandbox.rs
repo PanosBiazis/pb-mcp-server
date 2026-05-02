@@ -1348,7 +1348,7 @@ mod tests {
         let traversal_path = root.join("../../../etc/passwd");
         // This may or may not resolve outside root depending on the
         // filesystem, but the canonicalize check should catch it.
-        let result = path_is_under_root(&root, &traversal_path);
+        let _result = path_is_under_root(&root, &traversal_path);
         // If it resolves outside root, it should fail
         if let Ok(canonical) = traversal_path.canonicalize() {
             assert!(path_is_under_root(&root, &canonical).is_err());
