@@ -81,8 +81,11 @@ pub fn ai_inference_integration_guide_work() -> Value {
 
 /// Stub for AI stack probe
 pub fn ai_stack_probe_work(_args: Value) -> Value {
-    let stack_type = _args.get("stack_type").and_then(|v| v.as_str()).unwrap_or("general");
-    
+    let stack_type = _args
+        .get("stack_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("general");
+
     serde_json::json!({
         "stack_type": stack_type,
         "probe_results": {
@@ -121,24 +124,36 @@ pub fn ai_stack_probe_work(_args: Value) -> Value {
 /// Stub for batch file info
 pub fn batch_file_info_work(_paths: Vec<PathBuf>) -> String {
     use std::fs;
-    
+
     let mut results = Vec::new();
-    
+
     for path in _paths {
         if let Ok(metadata) = fs::metadata(&path) {
-            let file_type = if metadata.is_file() { "file" } else if metadata.is_dir() { "directory" } else { "other" };
+            let file_type = if metadata.is_file() {
+                "file"
+            } else if metadata.is_dir() {
+                "directory"
+            } else {
+                "other"
+            };
             let size = metadata.len();
-            let modified = metadata.modified()
+            let modified = metadata
+                .modified()
                 .map(|t| format!("{:?}", t))
                 .unwrap_or_else(|_| "Unknown".to_string());
-            
-            results.push(format!("{} ({}): {} bytes, modified: {}", 
-                path.display(), file_type, size, modified));
+
+            results.push(format!(
+                "{} ({}): {} bytes, modified: {}",
+                path.display(),
+                file_type,
+                size,
+                modified
+            ));
         } else {
             results.push(format!("{}: Error accessing file", path.display()));
         }
     }
-    
+
     results.join("\n")
 }
 
@@ -149,23 +164,29 @@ pub fn batch_file_info_work(_paths: Vec<PathBuf>) -> String {
 /// Stub for codebase cargo dependency names
 pub fn codebase_cargo_dependency_names_work(_manifest_path: PathBuf) -> String {
     use std::fs;
-    
+
     if let Ok(content) = fs::read_to_string(&_manifest_path) {
         if let Ok(cargo_toml) = content.parse::<toml::Value>() {
             let mut dependencies = Vec::new();
-            
+
             if let Some(deps) = cargo_toml.get("dependencies").and_then(|d| d.as_table()) {
                 dependencies.extend(deps.keys().map(|k| k.to_string()));
             }
-            
-            if let Some(dev_deps) = cargo_toml.get("dev-dependencies").and_then(|d| d.as_table()) {
+
+            if let Some(dev_deps) = cargo_toml
+                .get("dev-dependencies")
+                .and_then(|d| d.as_table())
+            {
                 dependencies.extend(dev_deps.keys().map(|k| format!("{} (dev)", k)));
             }
-            
-            if let Some(build_deps) = cargo_toml.get("build-dependencies").and_then(|d| d.as_table()) {
+
+            if let Some(build_deps) = cargo_toml
+                .get("build-dependencies")
+                .and_then(|d| d.as_table())
+            {
                 dependencies.extend(build_deps.keys().map(|k| format!("{} (build)", k)));
             }
-            
+
             dependencies.sort();
             format!("Dependencies found:\n{}", dependencies.join("\n"))
         } else {
@@ -178,14 +199,14 @@ pub fn codebase_cargo_dependency_names_work(_manifest_path: PathBuf) -> String {
 
 /// Stub for codebase duplicate basenames
 pub fn codebase_duplicate_basenames_work(_search_root: PathBuf, _scan: usize) -> String {
-    use std::fs;
     use std::collections::HashMap;
-    use std::path::Path;
+    use std::fs;
     
+
     let mut basename_counts = HashMap::new();
     let mut duplicates = Vec::new();
     let mut files_scanned = 0;
-    
+
     if let Ok(entries) = fs::read_dir(&_search_root) {
         for entry in entries.flatten().take(_scan) {
             let path = entry.path();
@@ -194,7 +215,7 @@ pub fn codebase_duplicate_basenames_work(_search_root: PathBuf, _scan: usize) ->
                     if let Some(name_str) = name.to_str() {
                         let count = basename_counts.entry(name_str.to_string()).or_insert(0);
                         *count += 1;
-                        
+
                         if *count == 2 {
                             duplicates.push(name_str.to_string());
                         }
@@ -204,7 +225,7 @@ pub fn codebase_duplicate_basenames_work(_search_root: PathBuf, _scan: usize) ->
             }
         }
     }
-    
+
     let mut result = format!("Scanned {} files\n\n", files_scanned);
     if duplicates.is_empty() {
         result.push_str("No duplicate basenames found.");
@@ -214,7 +235,7 @@ pub fn codebase_duplicate_basenames_work(_search_root: PathBuf, _scan: usize) ->
             result.push_str(&format!("- {}\n", basename));
         }
     }
-    
+
     result
 }
 
@@ -225,23 +246,23 @@ pub fn codebase_index_work(
     _sketch: bool,
     _max_sym: usize,
 ) -> String {
-    use std::fs;
     use ignore::WalkBuilder;
-    
+    use std::fs;
+
     let mut file_info = Vec::new();
     let mut total_files = 0;
     let mut total_lines = 0;
-    
+
     let mut walk = WalkBuilder::new(&_search_root);
     walk.git_ignore(true);
     walk.ignore(true);
     walk.hidden(false);
-    
+
     for result in walk.build() {
         if let Ok(entry) = result {
             if entry.file_type().map_or(false, |ft| ft.is_file()) {
                 total_files += 1;
-                
+
                 if let Ok(metadata) = entry.metadata() {
                     let path = entry.path();
                     let size = metadata.len();
@@ -250,41 +271,49 @@ pub fn codebase_index_work(
                     } else {
                         0
                     };
-                    
+
                     total_lines += lines;
-                    
+
                     if file_info.len() < _max_files {
-                        file_info.push((
-                            path.to_string_lossy().to_string(),
-                            size,
-                            lines
-                        ));
+                        file_info.push((path.to_string_lossy().to_string(), size, lines));
                     }
                 }
             }
         }
     }
-    
+
     // Sort by size descending
     file_info.sort_by(|a, b| b.1.cmp(&a.1));
-    
+
     let mut result = String::from("Codebase Index:\n\n");
     result.push_str(&format!("Total files: {}\n", total_files));
     result.push_str(&format!("Total lines: {}\n", total_lines));
     result.push_str(&format!("Files analyzed: {}\n\n", file_info.len()));
-    
+
     if _sketch {
         result.push_str("Largest files:\n");
         for (i, (path, size, lines)) in file_info.iter().take(_max_sym).enumerate() {
-            result.push_str(&format!("{}. {} ({} bytes, {} lines)\n", i + 1, path, size, lines));
+            result.push_str(&format!(
+                "{}. {} ({} bytes, {} lines)\n",
+                i + 1,
+                path,
+                size,
+                lines
+            ));
         }
     } else {
         result.push_str("File details:\n");
         for (i, (path, size, lines)) in file_info.iter().enumerate() {
-            result.push_str(&format!("{}. {} ({} bytes, {} lines)\n", i + 1, path, size, lines));
+            result.push_str(&format!(
+                "{}. {} ({} bytes, {} lines)\n",
+                i + 1,
+                path,
+                size,
+                lines
+            ));
         }
     }
-    
+
     result
 }
 
@@ -296,10 +325,10 @@ pub fn codebase_largest_files_work(
     _max_sym: usize,
 ) -> String {
     use std::fs;
-    use std::path::Path;
     
+
     let mut file_sizes = Vec::new();
-    
+
     if let Ok(entries) = fs::read_dir(&_repo) {
         for entry in entries.flatten() {
             if let Ok(metadata) = entry.metadata() {
@@ -312,41 +341,41 @@ pub fn codebase_largest_files_work(
             }
         }
     }
-    
+
     // Sort by size descending
     file_sizes.sort_by(|a, b| b.1.cmp(&a.1));
-    
+
     let mut result = String::from("Largest files in codebase:\n\n");
     for (i, (path, size)) in file_sizes.iter().take(_max_sym).enumerate() {
         result.push_str(&format!("{}. {} ({} bytes)\n", i + 1, path, size));
     }
-    
+
     result
 }
 
 /// Stub for codebase manifest write
 pub fn codebase_manifest_write_work(_search_root: PathBuf, _max_files: usize) -> String {
-    use std::fs;
     use ignore::WalkBuilder;
     
+
     let mut cargo_files = Vec::new();
     let mut walk = WalkBuilder::new(&_search_root);
     walk.git_ignore(true);
     walk.ignore(true);
     walk.hidden(false);
-    
+
     for entry in walk.build().flatten().take(_max_files) {
         let path = entry.path();
         if path.file_name().map_or(false, |n| n == "Cargo.toml") {
             cargo_files.push(path.display().to_string());
         }
     }
-    
+
     let mut result = format!("Found {} Cargo.toml files:\n\n", cargo_files.len());
     for file in cargo_files {
         result.push_str(&format!("{}\n", file));
     }
-    
+
     result
 }
 
@@ -357,34 +386,42 @@ pub fn codebase_path_list_work(
     _max_depth: Option<usize>,
 ) -> String {
     use ignore::WalkBuilder;
-    
+
     let mut paths = Vec::new();
     let mut walk = WalkBuilder::new(&_search_root);
     walk.git_ignore(true);
     walk.ignore(true);
     walk.hidden(false);
-    
+
     if let Some(max_depth) = _max_depth {
         walk.max_depth(Some(max_depth));
     }
-    
+
     for entry in walk.build().flatten() {
         if paths.len() >= _max_paths {
             break;
         }
-        
+
         let path = entry.path();
         if let Ok(rel_path) = path.strip_prefix(&_search_root) {
             paths.push(rel_path.display().to_string());
         }
     }
-    
+
     paths.sort();
     let total = paths.len();
-    let shown = paths.into_iter().take(_max_paths).collect::<Vec<_>>().join("\n");
-    
+    let shown = paths
+        .into_iter()
+        .take(_max_paths)
+        .collect::<Vec<_>>()
+        .join("\n");
+
     if total > _max_paths {
-        format!("{}\n...[{} more paths truncated]", shown, total - _max_paths)
+        format!(
+            "{}\n...[{} more paths truncated]",
+            shown,
+            total - _max_paths
+        )
     } else {
         shown
     }
@@ -396,19 +433,19 @@ pub fn codebase_shallow_hash_work(
     _max_files: usize,
     _sample: usize,
 ) -> String {
-    use std::fs;
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
     use ignore::WalkBuilder;
-    
+    use std::collections::hash_map::DefaultHasher;
+    use std::fs;
+    use std::hash::{Hash, Hasher};
+
     let mut hasher = DefaultHasher::new();
     let mut files_processed = 0;
-    
+
     let mut walk = WalkBuilder::new(&_search_root);
     walk.git_ignore(true);
     walk.ignore(true);
     walk.hidden(false);
-    
+
     for entry in walk.build().flatten().take(_max_files) {
         let path = entry.path();
         if path.is_file() {
@@ -416,26 +453,33 @@ pub fn codebase_shallow_hash_work(
                 // Hash file path, size, and modified time
                 path.display().to_string().hash(&mut hasher);
                 metadata.len().hash(&mut hasher);
-                metadata.modified().map(|t| t.elapsed().map_or(0, |d| d.as_secs())).unwrap_or(0).hash(&mut hasher);
+                metadata
+                    .modified()
+                    .map(|t| t.elapsed().map_or(0, |d| d.as_secs()))
+                    .unwrap_or(0)
+                    .hash(&mut hasher);
                 files_processed += 1;
             }
         }
     }
-    
+
     let hash_value = hasher.finish();
-    format!("Processed {} files\nShallow hash: {:x}", files_processed, hash_value)
+    format!(
+        "Processed {} files\nShallow hash: {:x}",
+        files_processed, hash_value
+    )
 }
 
 pub fn ollama_generate_work(_model: String, _prompt: String, _max_tokens: usize) -> String {
     use std::process::Command;
-    
+
     // Generate text using Ollama
     let output = Command::new("ollama")
         .arg("run")
         .arg(&_model)
         .arg(&_prompt)
         .output();
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
@@ -446,64 +490,72 @@ pub fn ollama_generate_work(_model: String, _prompt: String, _max_tokens: usize)
                     text.to_string()
                 }
             } else {
-                format!("Failed to generate with Ollama: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to generate with Ollama: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running ollama run: {}", e)
+        Err(e) => format!("Error running ollama run: {}", e),
     }
 }
 
 /// Stub for codebase word index
 pub fn codebase_word_index_work(_search_root: PathBuf, _max_files: usize, _top_n: usize) -> String {
-    use std::fs;
-    use std::collections::HashMap;
     use ignore::WalkBuilder;
-    
+    use std::collections::HashMap;
+    use std::fs;
+
     let mut word_counts = HashMap::new();
     let mut files_processed = 0;
-    
+
     let walk = WalkBuilder::new(&_search_root)
         .git_ignore(true)
         .ignore(true)
         .hidden(false)
         .build();
-    
+
     for entry in walk.flatten() {
         if files_processed >= _max_files {
             break;
         }
-        
+
         let path = entry.path();
         if path.is_file() {
             if let Ok(content) = fs::read_to_string(path) {
                 // Extract words (alphanumeric sequences)
                 use regex::Regex;
-                let word_regex = Regex::new(r"\b\w+\b").unwrap_or_else(|_| Regex::new(r".").unwrap());
-                
+                let word_regex =
+                    Regex::new(r"\b\w+\b").unwrap_or_else(|_| Regex::new(r".").unwrap());
+
                 for caps in word_regex.captures_iter(&content) {
                     if let Some(word_match) = caps.get(0) {
                         let word = word_match.as_str().to_lowercase();
-                        if word.len() >= 3 { // Skip very short words
+                        if word.len() >= 3 {
+                            // Skip very short words
                             *word_counts.entry(word).or_insert(0) += 1;
                         }
                     }
                 }
-                
+
                 files_processed += 1;
             }
         }
     }
-    
+
     let mut words: Vec<(String, usize)> = word_counts.into_iter().collect();
     words.sort_by(|a, b| b.1.cmp(&a.1));
-    
+
     let mut result = Vec::new();
-    result.push(format!("Word index for {} files (showing top {} words):", files_processed, _top_n));
-    
+    result.push(format!(
+        "Word index for {} files (showing top {} words):",
+        files_processed, _top_n
+    ));
+
     for (word, count) in words.into_iter().take(_top_n) {
         result.push(format!("{}: {} occurrences", word, count));
     }
-    
+
     result.join("\n")
 }
 
@@ -539,7 +591,8 @@ pub fn coding_agent_toolchains_catalog_work() -> String {
         ],
         "total_toolchains": 5,
         "version": "0.2.0"
-    }).to_string()
+    })
+    .to_string()
 }
 
 /// Stub for codebase symbol graph
@@ -549,9 +602,9 @@ pub fn codebase_symbol_graph_work(
     _max_chars: usize,
 ) -> String {
     use std::fs;
-    
+
     let mut symbols = Vec::new();
-    
+
     if let Ok(entries) = fs::read_dir(&_repo) {
         for entry in entries.flatten() {
             let path = entry.path();
@@ -563,7 +616,10 @@ pub fn codebase_symbol_graph_work(
                             if let Some(func_name) = line.split('(').next() {
                                 let name = func_name.trim_start_matches("fn ").trim();
                                 if !name.is_empty() {
-                                    symbols.push((name.to_string(), path.to_string_lossy().to_string()));
+                                    symbols.push((
+                                        name.to_string(),
+                                        path.to_string_lossy().to_string(),
+                                    ));
                                 }
                             }
                         }
@@ -572,7 +628,7 @@ pub fn codebase_symbol_graph_work(
             }
         }
     }
-    
+
     let mut result = String::from("Symbol Graph:\n\n");
     for (i, (symbol, file)) in symbols.iter().take(_max_snippets).enumerate() {
         let truncated_symbol = if symbol.len() > _max_chars {
@@ -582,7 +638,7 @@ pub fn codebase_symbol_graph_work(
         };
         result.push_str(&format!("{}. {} -> {}\n", i + 1, truncated_symbol, file));
     }
-    
+
     result
 }
 
@@ -594,7 +650,7 @@ pub fn compress_collapse_blank_lines_work(_text: String, _mc: usize) -> String {
     let lines: Vec<&str> = _text.lines().collect();
     let mut result = Vec::new();
     let mut prev_blank = false;
-    
+
     for line in lines {
         if line.trim().is_empty() {
             if !prev_blank {
@@ -606,7 +662,7 @@ pub fn compress_collapse_blank_lines_work(_text: String, _mc: usize) -> String {
             prev_blank = false;
         }
     }
-    
+
     let output = result.join("\n");
     if output.len() > _mc {
         format!("{}...[truncated]", &output[.._mc.min(output.len())])
@@ -623,30 +679,40 @@ pub fn compress_context_work(
     _collapse_whitespace: bool,
 ) -> String {
     let mut processed_text = _text;
-    
+
     // Remove duplicate lines if requested
     if _dedupe_lines {
         let lines: Vec<&str> = processed_text.lines().collect();
         let mut seen = std::collections::HashSet::new();
-        let unique_lines: Vec<&str> = lines.iter().filter(|&&line| {
-            if seen.contains(line) {
-                false
-            } else {
-                seen.insert(line);
-                true
-            }
-        }).cloned().collect();
+        let unique_lines: Vec<&str> = lines
+            .iter()
+            .filter(|&&line| {
+                if seen.contains(line) {
+                    false
+                } else {
+                    seen.insert(line);
+                    true
+                }
+            })
+            .cloned()
+            .collect();
         processed_text = unique_lines.join("\n");
     }
-    
+
     // Collapse whitespace if requested
     if _collapse_whitespace {
-        processed_text = processed_text.split_whitespace().collect::<Vec<_>>().join(" ");
+        processed_text = processed_text
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
     }
-    
+
     // Truncate to max_chars
     if processed_text.len() > _max_chars {
-        format!("{}...[truncated]", &processed_text[.._max_chars.min(processed_text.len())])
+        format!(
+            "{}...[truncated]",
+            &processed_text[.._max_chars.min(processed_text.len())]
+        )
     } else {
         processed_text
     }
@@ -657,7 +723,7 @@ pub fn compress_dedent_work(_text: String, _mc: usize) -> String {
     if lines.is_empty() {
         return String::new();
     }
-    
+
     // Find minimum indentation (excluding empty lines)
     let mut min_indent = usize::MAX;
     for line in &lines {
@@ -666,20 +732,23 @@ pub fn compress_dedent_work(_text: String, _mc: usize) -> String {
             min_indent = min_indent.min(indent);
         }
     }
-    
+
     if min_indent == 0 || min_indent == usize::MAX {
         return _text;
     }
-    
+
     // Remove minimum indentation from each line
-    let result: Vec<String> = lines.iter().map(|line| {
-        if line.len() >= min_indent {
-            line[min_indent..].to_string()
-        } else {
-            line.to_string()
-        }
-    }).collect();
-    
+    let result: Vec<String> = lines
+        .iter()
+        .map(|line| {
+            if line.len() >= min_indent {
+                line[min_indent..].to_string()
+            } else {
+                line.to_string()
+            }
+        })
+        .collect();
+
     let output = result.join("\n");
     if output.len() > _mc {
         format!("{}...[truncated]", &output[.._mc.min(output.len())])
@@ -690,21 +759,24 @@ pub fn compress_dedent_work(_text: String, _mc: usize) -> String {
 
 pub fn compress_double_slash_line_comments_work(_text: String, _mc: usize, _dbl: bool) -> String {
     let lines: Vec<&str> = _text.lines().collect();
-    let result: Vec<String> = lines.iter().filter_map(|line| {
-        let trimmed = line.trim();
-        if trimmed.starts_with("//") {
-            if _dbl && trimmed.starts_with("////") {
-                Some(line.to_string())
-            } else if !_dbl {
-                None // Remove all // comments
+    let result: Vec<String> = lines
+        .iter()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            if trimmed.starts_with("//") {
+                if _dbl && trimmed.starts_with("////") {
+                    Some(line.to_string())
+                } else if !_dbl {
+                    None // Remove all // comments
+                } else {
+                    Some(line.to_string())
+                }
             } else {
                 Some(line.to_string())
             }
-        } else {
-            Some(line.to_string())
-        }
-    }).collect();
-    
+        })
+        .collect();
+
     let output = result.join("\n");
     if output.len() > _mc {
         format!("{}...[truncated]", &output[.._mc.min(output.len())])
@@ -720,16 +792,20 @@ pub fn compress_drop_lines_matching_regex_work(
     _mc: usize,
 ) -> String {
     use regex::Regex;
-    
+
     let regex = if _ci {
         Regex::new(&format!("(?i){}", &_pat)).unwrap_or_else(|_| Regex::new(r".").unwrap())
     } else {
         Regex::new(&_pat).unwrap_or_else(|_| Regex::new(r".").unwrap())
     };
-    
+
     let lines: Vec<&str> = _text.lines().collect();
-    let result: Vec<String> = lines.iter().filter(|line| !regex.is_match(line)).map(|line| line.to_string()).collect();
-    
+    let result: Vec<String> = lines
+        .iter()
+        .filter(|line| !regex.is_match(line))
+        .map(|line| line.to_string())
+        .collect();
+
     let output = result.join("\n");
     if output.len() > _mc {
         format!("{}...[truncated]", &output[.._mc.min(output.len())])
@@ -742,7 +818,7 @@ pub fn compress_fenced_code_blocks_work(_text: String, _mc: usize) -> String {
     let lines: Vec<&str> = _text.lines().collect();
     let mut result = Vec::new();
     let mut in_code_block = false;
-    
+
     for line in lines {
         if line.trim().starts_with("```") {
             in_code_block = !in_code_block;
@@ -750,7 +826,7 @@ pub fn compress_fenced_code_blocks_work(_text: String, _mc: usize) -> String {
             result.push(line);
         }
     }
-    
+
     let output = result.join("\n");
     if output.len() > _mc {
         format!("{}...[truncated]", &output[.._mc.min(output.len())])
@@ -769,24 +845,25 @@ pub fn compress_file_work(
     _collapse_whitespace: bool,
 ) -> String {
     use std::fs;
-    
+
     if let Ok(content) = fs::read_to_string(&_path) {
         let lines: Vec<&str> = content.lines().collect();
         let start = _start_line.unwrap_or(0).min(lines.len().saturating_sub(1));
         let end = _end_line.unwrap_or(lines.len()).min(lines.len());
-        
-        let selected_lines: Vec<String> = lines.iter()
+
+        let selected_lines: Vec<String> = lines
+            .iter()
             .skip(start)
             .take(end - start)
             .map(|line| line.to_string())
             .collect();
-        
+
         let mut result = selected_lines.join("\n");
-        
+
         if _collapse_whitespace {
             result = result.split_whitespace().collect::<Vec<_>>().join(" ");
         }
-        
+
         if result.len() > _max_chars {
             format!("{}...[truncated]", &result[.._max_chars.min(result.len())])
         } else {
@@ -798,22 +875,27 @@ pub fn compress_file_work(
 }
 
 pub fn compress_gzip_base64_work(_text: Option<String>, _path: Option<&PathBuf>) -> String {
-    use std::collections::HashMap;
     
+
     // This is a basic implementation - in a real scenario you'd use base64 and flate2 crates
     serde_json::json!({
         "status": "not_implemented",
         "message": "Gzip compression requires compression library integration",
         "has_text": _text.is_some(),
         "has_path": _path.is_some()
-    }).to_string()
+    })
+    .to_string()
 }
 
 pub fn compress_lines_head_work(_text: String, _head_lines: usize, _max_chars: usize) -> String {
     let lines: Vec<&str> = _text.lines().collect();
     let lines_to_take = lines.len().min(_head_lines);
-    let result: Vec<String> = lines.iter().take(lines_to_take).map(|line| line.to_string()).collect();
-    
+    let result: Vec<String> = lines
+        .iter()
+        .take(lines_to_take)
+        .map(|line| line.to_string())
+        .collect();
+
     let output = result.join("\n");
     if output.len() > _max_chars {
         format!("{}...[truncated]", &output[.._max_chars.min(output.len())])
@@ -824,9 +906,17 @@ pub fn compress_lines_head_work(_text: String, _head_lines: usize, _max_chars: u
 
 pub fn compress_lines_tail_work(_text: String, _tail_lines: usize, _max_chars: usize) -> String {
     let lines: Vec<&str> = _text.lines().collect();
-    let start_index = if lines.len() > _tail_lines { lines.len() - _tail_lines } else { 0 };
-    let result: Vec<String> = lines.iter().skip(start_index).map(|line| line.to_string()).collect();
-    
+    let start_index = if lines.len() > _tail_lines {
+        lines.len() - _tail_lines
+    } else {
+        0
+    };
+    let result: Vec<String> = lines
+        .iter()
+        .skip(start_index)
+        .map(|line| line.to_string())
+        .collect();
+
     let output = result.join("\n");
     if output.len() > _max_chars {
         format!("{}...[truncated]", &output[.._max_chars.min(output.len())])
@@ -839,7 +929,7 @@ pub fn compress_markdown_frontmatter_work(_text: String, _max_chars: usize) -> S
     let lines: Vec<&str> = _text.lines().collect();
     let mut result = Vec::new();
     let mut in_frontmatter = false;
-    
+
     for line in lines {
         if line.trim() == "---" {
             if !in_frontmatter {
@@ -854,7 +944,7 @@ pub fn compress_markdown_frontmatter_work(_text: String, _max_chars: usize) -> S
             result.push(line);
         }
     }
-    
+
     let output = result.join("\n");
     if output.len() > _max_chars {
         format!("{}...[truncated]", &output[.._max_chars.min(output.len())])
@@ -865,11 +955,12 @@ pub fn compress_markdown_frontmatter_work(_text: String, _max_chars: usize) -> S
 
 pub fn compress_markdown_links_work(_text: String, _mc: usize) -> String {
     use regex::Regex;
-    
+
     // Remove markdown links [text](url) keeping just the text
-    let link_regex = Regex::new(r"\[([^\]]+)\]\([^)]+\)").unwrap_or_else(|_| Regex::new(r".").unwrap());
+    let link_regex =
+        Regex::new(r"\[([^\]]+)\]\([^)]+\)").unwrap_or_else(|_| Regex::new(r".").unwrap());
     let result = link_regex.replace_all(&_text, "$1");
-    
+
     let output = result.to_string();
     if output.len() > _mc {
         format!("{}...[truncated]", &output[.._mc.min(output.len())])
@@ -878,11 +969,19 @@ pub fn compress_markdown_links_work(_text: String, _mc: usize) -> String {
     }
 }
 
-pub fn compress_paragraphs_work(_text: String, _max_paragraphs: usize, _max_chars: usize) -> String {
+pub fn compress_paragraphs_work(
+    _text: String,
+    _max_paragraphs: usize,
+    _max_chars: usize,
+) -> String {
     let paragraphs: Vec<&str> = _text.split("\n\n").collect();
     let paragraphs_to_take = paragraphs.len().min(_max_paragraphs);
-    let result: Vec<String> = paragraphs.iter().take(paragraphs_to_take).map(|p| p.to_string()).collect();
-    
+    let result: Vec<String> = paragraphs
+        .iter()
+        .take(paragraphs_to_take)
+        .map(|p| p.to_string())
+        .collect();
+
     let output = result.join("\n\n");
     if output.len() > _max_chars {
         format!("{}...[truncated]", &output[.._max_chars.min(output.len())])
@@ -893,11 +992,12 @@ pub fn compress_paragraphs_work(_text: String, _max_paragraphs: usize, _max_char
 
 pub fn compress_redact_emails_work(_text: String, _mc: usize) -> String {
     use regex::Regex;
-    
+
     // Redact email addresses
-    let email_regex = Regex::new(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b").unwrap_or_else(|_| Regex::new(r".").unwrap());
+    let email_regex = Regex::new(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
+        .unwrap_or_else(|_| Regex::new(r".").unwrap());
     let result = email_regex.replace_all(&_text, "[REDACTED_EMAIL]");
-    
+
     let output = result.to_string();
     if output.len() > _mc {
         format!("{}...[truncated]", &output[.._mc.min(output.len())])
@@ -908,11 +1008,11 @@ pub fn compress_redact_emails_work(_text: String, _mc: usize) -> String {
 
 pub fn compress_redact_urls_work(_text: String, _mc: usize) -> String {
     use regex::Regex;
-    
+
     // Redact URLs
     let url_regex = Regex::new(r"https?://[^\s]+").unwrap_or_else(|_| Regex::new(r".").unwrap());
     let result = url_regex.replace_all(&_text, "[REDACTED_URL]");
-    
+
     let output = result.to_string();
     if output.len() > _mc {
         format!("{}...[truncated]", &output[.._mc.min(output.len())])
@@ -929,10 +1029,10 @@ pub fn compress_sentences_work(_text: String, _max_sentences: usize, _max_chars:
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .collect();
-    
+
     let sentences_to_take = sentences.len().min(_max_sentences);
     let result: Vec<String> = sentences.iter().take(sentences_to_take).cloned().collect();
-    
+
     let output = result.join(" ");
     if output.len() > _max_chars {
         format!("{}...[truncated]", &output[.._max_chars.min(output.len())])
@@ -952,11 +1052,11 @@ pub fn compress_simplify_whitespace_work(_text: String, _mc: usize) -> String {
 
 pub fn compress_strip_tags_work(_text: String, _mc: usize) -> String {
     use regex::Regex;
-    
+
     // Remove HTML tags
     let tag_regex = Regex::new(r"<[^>]*>").unwrap_or_else(|_| Regex::new(r".").unwrap());
     let result = tag_regex.replace_all(&_text, "");
-    
+
     let output = result.to_string();
     if output.len() > _mc {
         format!("{}...[truncated]", &output[.._mc.min(output.len())])
@@ -968,47 +1068,59 @@ pub fn compress_strip_tags_work(_text: String, _mc: usize) -> String {
 pub fn compress_truncate_lines_work(_text: String, _max_lines: usize, _max_chars: usize) -> String {
     let lines: Vec<&str> = _text.lines().collect();
     let lines_to_take = lines.len().min(_max_lines);
-    let result: Vec<String> = lines.iter().take(lines_to_take).map(|line| {
-        if line.len() > _max_chars {
-            format!("{}...", &line[.._max_chars.min(line.len())])
-        } else {
-            line.to_string()
-        }
-    }).collect();
-    
+    let result: Vec<String> = lines
+        .iter()
+        .take(lines_to_take)
+        .map(|line| {
+            if line.len() > _max_chars {
+                format!("{}...", &line[.._max_chars.min(line.len())])
+            } else {
+                line.to_string()
+            }
+        })
+        .collect();
+
     let output = result.join("\n");
     if lines.len() > _max_lines {
-        format!("{}\n...[{} lines truncated]", output, lines.len() - _max_lines)
+        format!(
+            "{}\n...[{} lines truncated]",
+            output,
+            lines.len() - _max_lines
+        )
     } else {
         output
     }
 }
 
-pub fn compress_truncate_middle_work(_text: String, _max_chars: usize, _margin_chars: usize) -> String {
+pub fn compress_truncate_middle_work(
+    _text: String,
+    _max_chars: usize,
+    _margin_chars: usize,
+) -> String {
     if _text.len() <= _max_chars {
         return _text;
     }
-    
+
     if _max_chars <= 2 * _margin_chars {
         return format!("{}...[truncated]", &_text[.._max_chars.min(_text.len())]);
     }
-    
-    let middle_chars = _max_chars - 2 * _margin_chars;
+
+    let _middle_chars = _max_chars - 2 * _margin_chars;
     let start = &_text[.._margin_chars];
     let end = &_text[_text.len().saturating_sub(_margin_chars)..];
-    
+
     format!("{}...{}", start, end)
 }
 
 pub fn compress_unified_diff_stats_work(_text: String, _mc: usize) -> String {
-    use regex::Regex;
     
+
     // Extract diff stats (lines added/removed)
     let lines: Vec<&str> = _text.lines().collect();
     let mut added = 0;
     let mut removed = 0;
     let mut files = 0;
-    
+
     for line in lines {
         if line.starts_with("+++") {
             files += 1;
@@ -1018,9 +1130,12 @@ pub fn compress_unified_diff_stats_work(_text: String, _mc: usize) -> String {
             removed += 1;
         }
     }
-    
-    let result = format!("Diff Statistics:\nFiles changed: {}\nLines added: {}\nLines removed: {}", files, added, removed);
-    
+
+    let result = format!(
+        "Diff Statistics:\nFiles changed: {}\nLines added: {}\nLines removed: {}",
+        files, added, removed
+    );
+
     if result.len() > _mc {
         format!("{}...[truncated]", &result[.._mc.min(result.len())])
     } else {
@@ -1030,23 +1145,26 @@ pub fn compress_unified_diff_stats_work(_text: String, _mc: usize) -> String {
 
 pub fn compress_unique_lines_work(_text: String, _max_lines: usize, _max_chars: usize) -> String {
     use std::collections::HashSet;
-    
+
     let lines: Vec<&str> = _text.lines().collect();
     let mut seen = HashSet::new();
-    let unique_lines: Vec<String> = lines.iter().filter_map(|line| {
-        if line.trim().is_empty() {
-            None
-        } else if seen.contains(line) {
-            None
-        } else {
-            seen.insert(line);
-            Some(line.to_string())
-        }
-    }).collect();
-    
+    let unique_lines: Vec<String> = lines
+        .iter()
+        .filter_map(|line| {
+            if line.trim().is_empty() {
+                None
+            } else if seen.contains(line) {
+                None
+            } else {
+                seen.insert(line);
+                Some(line.to_string())
+            }
+        })
+        .collect();
+
     let lines_to_take = unique_lines.len().min(_max_lines);
     let result: Vec<String> = unique_lines.iter().take(lines_to_take).cloned().collect();
-    
+
     let output = result.join("\n");
     if output.len() > _max_chars {
         format!("{}...[truncated]", &output[.._max_chars.min(output.len())])
@@ -1058,10 +1176,10 @@ pub fn compress_unique_lines_work(_text: String, _max_lines: usize, _max_chars: 
 pub fn compress_ws_collapse_work(_text: String, _mc: usize) -> String {
     // Collapse consecutive whitespace characters to single space
     use regex::Regex;
-    
+
     let ws_regex = Regex::new(r"\s+").unwrap_or_else(|_| Regex::new(r".").unwrap());
     let result = ws_regex.replace_all(&_text.trim(), " ");
-    
+
     let output = result.to_string();
     if output.len() > _mc {
         format!("{}...[truncated]", &output[.._mc.min(output.len())])
@@ -1084,8 +1202,8 @@ pub fn convert_format_work(
     _line_number_start: usize,
     _wrap_width: usize,
 ) -> String {
-    use std::collections::HashMap;
     
+
     // This is a basic implementation - in a real scenario you'd integrate with format conversion libraries
     serde_json::json!({
         "status": "not_implemented",
@@ -1095,7 +1213,8 @@ pub fn convert_format_work(
         "tab_stops": _tab_stops,
         "line_number_start": _line_number_start,
         "wrap_width": _wrap_width
-    }).to_string()
+    })
+    .to_string()
 }
 
 // ============================================================================
@@ -1103,14 +1222,15 @@ pub fn convert_format_work(
 // ============================================================================
 
 pub fn decompress_gzip_base64_work(_text: String) -> String {
-    use std::collections::HashMap;
     
+
     // This is a basic implementation - in a real scenario you'd use base64 and flate2 crates
     serde_json::json!({
         "status": "not_implemented",
         "message": "Gzip decompression requires compression library integration",
         "input_length": _text.len()
-    }).to_string()
+    })
+    .to_string()
 }
 
 // ============================================================================
@@ -1129,7 +1249,7 @@ pub fn extract_snippets_work(
     let lines: Vec<&str> = _text.lines().collect();
     let mut results = Vec::new();
     let mut found_snippets = 0;
-    
+
     for (line_index, line) in lines.iter().enumerate() {
         let matches = if _literal {
             if _case_sensitive {
@@ -1142,33 +1262,46 @@ pub fn extract_snippets_work(
             let regex = if _case_sensitive {
                 Regex::new(&_pattern).unwrap_or_else(|_| Regex::new(r".").unwrap())
             } else {
-                Regex::new(&format!("(?i){}", &_pattern)).unwrap_or_else(|_| Regex::new(r".").unwrap())
+                Regex::new(&format!("(?i){}", &_pattern))
+                    .unwrap_or_else(|_| Regex::new(r".").unwrap())
             };
             regex.is_match(line)
         };
-        
+
         if matches {
             let start = line_index.saturating_sub(_context_lines);
             let end = (line_index + _context_lines + 1).min(lines.len());
-            
-            let context: Vec<String> = lines[start..end].iter().enumerate().map(|(i, l)| {
-                let prefix = if i + start == line_index { ">>> " } else { "    " };
-                format!("{}{}", prefix, l)
-            }).collect();
-            
+
+            let context: Vec<String> = lines[start..end]
+                .iter()
+                .enumerate()
+                .map(|(i, l)| {
+                    let prefix = if i + start == line_index {
+                        ">>> "
+                    } else {
+                        "    "
+                    };
+                    format!("{}{}", prefix, l)
+                })
+                .collect();
+
             results.push(format!("Line {}:\n{}", line_index + 1, context.join("\n")));
-            
+
             found_snippets += 1;
             if found_snippets >= _max_snippets {
                 break;
             }
         }
     }
-    
+
     if results.is_empty() {
         "No matches found".to_string()
     } else {
-        let output = format!("Found {} snippets:\n\n{}", found_snippets, results.join("\n---\n\n"));
+        let output = format!(
+            "Found {} snippets:\n\n{}",
+            found_snippets,
+            results.join("\n---\n\n")
+        );
         if output.len() > _max_chars {
             format!("{}...[truncated]", &output[.._max_chars.min(output.len())])
         } else {
@@ -1189,10 +1322,18 @@ pub fn extract_snippets_from_file_work(
     _end_line: Option<usize>,
 ) -> String {
     use std::fs;
-    
+
     if let Ok(content) = fs::read_to_string(&_path) {
         // Use the existing extract_snippets_work logic
-        extract_snippets_work(content, _pattern, _literal, _case_sensitive, _context_lines, _max_snippets, 10000)
+        extract_snippets_work(
+            content,
+            _pattern,
+            _literal,
+            _case_sensitive,
+            _context_lines,
+            _max_snippets,
+            10000,
+        )
     } else {
         "Error: Could not read file".to_string()
     }
@@ -1200,10 +1341,11 @@ pub fn extract_snippets_from_file_work(
 
 pub fn format_prefix_lines_work(_text: String, _prefix: String, _mc: usize) -> String {
     let lines: Vec<&str> = _text.lines().collect();
-    let result: Vec<String> = lines.iter().map(|line| {
-        format!("{}{}", _prefix, line)
-    }).collect();
-    
+    let result: Vec<String> = lines
+        .iter()
+        .map(|line| format!("{}{}", _prefix, line))
+        .collect();
+
     let output = result.join("\n");
     if output.len() > _mc {
         format!("{}...[truncated]", &output[.._mc.min(output.len())])
@@ -1218,7 +1360,7 @@ pub fn format_prefix_lines_work(_text: String, _prefix: String, _mc: usize) -> S
 
 pub fn gh_pr_list_work(_dir: PathBuf, _limit: usize, _state: &str) -> String {
     use std::process::Command;
-    
+
     let output = Command::new("gh")
         .arg("pr")
         .arg("list")
@@ -1228,38 +1370,44 @@ pub fn gh_pr_list_work(_dir: PathBuf, _limit: usize, _state: &str) -> String {
         .arg(_state)
         .current_dir(&_dir)
         .output();
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 String::from_utf8_lossy(&result.stdout).trim().to_string()
             } else {
-                format!("Failed to list PRs: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to list PRs: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running gh pr list: {}", e)
+        Err(e) => format!("Error running gh pr list: {}", e),
     }
 }
 
 pub fn gh_pr_view_work(_dir: PathBuf, _pr: &str) -> String {
     use std::process::Command;
-    
+
     let output = Command::new("gh")
         .arg("pr")
         .arg("view")
         .arg(_pr)
         .current_dir(&_dir)
         .output();
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 String::from_utf8_lossy(&result.stdout).trim().to_string()
             } else {
-                format!("Failed to view PR: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to view PR: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running gh pr view: {}", e)
+        Err(e) => format!("Error running gh pr view: {}", e),
     }
 }
 
@@ -1270,12 +1418,12 @@ pub fn git_add_or_commit_work(
     _message: Option<String>,
 ) -> String {
     use std::process::Command;
-    
+
     match _action {
         "add" => {
             let mut cmd = Command::new("git");
             cmd.arg("add").current_dir(&_dir);
-            
+
             if let Some(files) = _files {
                 for file in files {
                     cmd.arg(&file);
@@ -1283,55 +1431,57 @@ pub fn git_add_or_commit_work(
             } else {
                 cmd.arg(".");
             }
-            
+
             let output = cmd.output();
             match output {
                 Ok(result) => {
                     if result.status.success() {
                         "Files added successfully".to_string()
                     } else {
-                        format!("Failed to add files: {}", String::from_utf8_lossy(&result.stderr))
+                        format!(
+                            "Failed to add files: {}",
+                            String::from_utf8_lossy(&result.stderr)
+                        )
                     }
                 }
-                Err(e) => format!("Error running git add: {}", e)
+                Err(e) => format!("Error running git add: {}", e),
             }
         }
         "commit" => {
             let mut cmd = Command::new("git");
             cmd.arg("commit").current_dir(&_dir);
-            
+
             if let Some(message) = _message {
                 cmd.arg("-m").arg(&message);
             } else {
                 cmd.arg("-m").arg("Commit message");
             }
-            
+
             let output = cmd.output();
             match output {
                 Ok(result) => {
                     if result.status.success() {
                         "Commit created successfully".to_string()
                     } else {
-                        format!("Failed to commit: {}", String::from_utf8_lossy(&result.stderr))
+                        format!(
+                            "Failed to commit: {}",
+                            String::from_utf8_lossy(&result.stderr)
+                        )
                     }
                 }
-                Err(e) => format!("Error running git commit: {}", e)
+                Err(e) => format!("Error running git commit: {}", e),
             }
         }
-        _ => format!("Unknown action: {}", _action)
+        _ => format!("Unknown action: {}", _action),
     }
 }
 
-pub fn git_branch_extension_work(
-    _dir: PathBuf,
-    _action: &str,
-    _bn: Option<String>,
-) -> String {
+pub fn git_branch_extension_work(_dir: PathBuf, _action: &str, _bn: Option<String>) -> String {
     use std::process::Command;
-    
+
     let mut cmd = Command::new("git");
     cmd.arg("branch").current_dir(&_dir);
-    
+
     match _action {
         "list" => {
             cmd.arg("-a");
@@ -1354,91 +1504,100 @@ pub fn git_branch_extension_work(
             return format!("Unknown branch action: {}", _action);
         }
     }
-    
+
     let output = cmd.output();
     match output {
         Ok(result) => {
             if result.status.success() {
                 String::from_utf8_lossy(&result.stdout).trim().to_string()
             } else {
-                format!("Failed to perform branch operation: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to perform branch operation: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running git branch: {}", e)
+        Err(e) => format!("Error running git branch: {}", e),
     }
 }
 
 pub fn git_checkout_work(_dir: PathBuf, _target: String) -> String {
     use std::process::Command;
-    
+
     let output = Command::new("git")
         .arg("checkout")
         .arg(&_target)
         .current_dir(&_dir)
         .output();
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 format!("Successfully checked out {}", _target)
             } else {
-                format!("Failed to checkout {}: {}", _target, String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to checkout {}: {}",
+                    _target,
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running git checkout: {}", e)
+        Err(e) => format!("Error running git checkout: {}", e),
     }
 }
 
-pub fn git_cherry_pick_work(
-    _dir: PathBuf,
-    _commits: Vec<String>,
-    _no_commit: bool,
-) -> String {
+pub fn git_cherry_pick_work(_dir: PathBuf, _commits: Vec<String>, _no_commit: bool) -> String {
     use std::process::Command;
-    
+
     let mut cmd = Command::new("git");
     cmd.arg("cherry-pick").current_dir(&_dir);
-    
+
     if _no_commit {
         cmd.arg("--no-commit");
     }
-    
+
     for commit in &_commits {
         cmd.arg(&commit);
     }
-    
+
     let output = cmd.output();
     match output {
         Ok(result) => {
             if result.status.success() {
                 format!("Successfully cherry-picked {} commits", _commits.len())
             } else {
-                format!("Failed to cherry-pick commits: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to cherry-pick commits: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running git cherry-pick: {}", e)
+        Err(e) => format!("Error running git cherry-pick: {}", e),
     }
 }
 
 pub fn git_describe_work(_dir: PathBuf) -> String {
     use std::process::Command;
-    
+
     let output = Command::new("git")
         .arg("describe")
         .arg("--tags")
         .arg("--always")
         .current_dir(&_dir)
         .output();
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 String::from_utf8_lossy(&result.stdout).trim().to_string()
             } else {
-                format!("Failed to describe: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to describe: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running git describe: {}", e)
+        Err(e) => format!("Error running git describe: {}", e),
     }
 }
 
@@ -1453,22 +1612,22 @@ pub fn git_diff_snippets_work(
     _max_chars: usize,
 ) -> String {
     use std::process::Command;
-    
+
     let mut cmd = Command::new("git");
     cmd.arg("diff").current_dir(&_dir);
-    
+
     if _staged {
         cmd.arg("--cached");
     }
-    
+
     if let Ok(output) = cmd.output() {
         let diff = String::from_utf8_lossy(&output.stdout);
         let lines: Vec<&str> = diff.lines().collect();
-        
+
         let mut snippets = Vec::new();
         let mut current_snippet = Vec::new();
         let mut in_diff = false;
-        
+
         for line in lines {
             if line.starts_with("diff --git") {
                 if !current_snippet.is_empty() {
@@ -1485,7 +1644,7 @@ pub fn git_diff_snippets_work(
                     current_snippet.clear();
                 }
                 current_snippet.push(line);
-                
+
                 if current_snippet.join("\n").len() > _max_chars {
                     snippets.push(current_snippet.join("\n"));
                     current_snippet.clear();
@@ -1493,16 +1652,16 @@ pub fn git_diff_snippets_work(
                 }
             }
         }
-        
+
         if !current_snippet.is_empty() {
             snippets.push(current_snippet.join("\n"));
         }
-        
+
         let mut result = String::from("Diff snippets:\n\n");
         for (i, snippet) in snippets.iter().take(_max_snippets).enumerate() {
             result.push_str(&format!("--- Snippet {} ---\n{}\n\n", i + 1, snippet));
         }
-        
+
         result
     } else {
         "Failed to get diff".to_string()
@@ -1511,76 +1670,90 @@ pub fn git_diff_snippets_work(
 
 pub fn git_diff_stat_work(_dir: PathBuf, _staged: bool, _rev: Option<String>) -> String {
     use std::process::Command;
-    
+
     let mut cmd = Command::new("git");
     cmd.arg("diff").arg("--stat").current_dir(&_dir);
-    
+
     if _staged {
         cmd.arg("--staged");
     }
-    
+
     if let Some(rev) = _rev {
         cmd.arg(&rev);
     }
-    
+
     let output = cmd.output();
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 String::from_utf8_lossy(&result.stdout).trim().to_string()
             } else {
-                format!("Failed to get diff stat: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to get diff stat: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running git diff: {}", e)
+        Err(e) => format!("Error running git diff: {}", e),
     }
 }
 
 pub fn git_fetch_work(_dir: PathBuf) -> String {
     use std::process::Command;
-    
-    let output = Command::new("git")
-        .arg("fetch")
-        .current_dir(&_dir)
-        .output();
-    
+
+    let output = Command::new("git").arg("fetch").current_dir(&_dir).output();
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 "Git fetch completed successfully".to_string()
             } else {
-                format!("Failed to fetch: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to fetch: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running git fetch: {}", e)
+        Err(e) => format!("Error running git fetch: {}", e),
     }
 }
 
 pub fn git_last_commit_work(_dir: PathBuf, _style: &str) -> String {
     use std::process::Command;
-    
+
     let mut cmd = Command::new("git");
     cmd.arg("log").arg("-1").current_dir(&_dir);
-    
+
     match _style {
-        "short" => { cmd.arg("--oneline"); }
-        "hash" => { cmd.arg("--format=%H"); }
-        "message" => { cmd.arg("--format=%s"); }
-        _ => { cmd.arg("--oneline"); }
+        "short" => {
+            cmd.arg("--oneline");
+        }
+        "hash" => {
+            cmd.arg("--format=%H");
+        }
+        "message" => {
+            cmd.arg("--format=%s");
+        }
+        _ => {
+            cmd.arg("--oneline");
+        }
     }
-    
+
     let output = cmd.output();
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 String::from_utf8_lossy(&result.stdout).trim().to_string()
             } else {
-                format!("Failed to get last commit: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to get last commit: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running git log: {}", e)
+        Err(e) => format!("Error running git log: {}", e),
     }
 }
 
@@ -1593,10 +1766,10 @@ pub fn git_log_or_diff_work(
     _authors: Vec<String>,
 ) -> String {
     use std::process::Command;
-    
+
     let mut cmd = Command::new("git");
     cmd.current_dir(&_dir);
-    
+
     match _action {
         "log" => {
             cmd.arg("log").arg("--oneline").arg("-10");
@@ -1621,7 +1794,7 @@ pub fn git_log_or_diff_work(
         }
         _ => return "Invalid action".to_string(),
     }
-    
+
     if let Ok(output) = cmd.output() {
         String::from_utf8_lossy(&output.stdout).to_string()
     } else {
@@ -1629,7 +1802,12 @@ pub fn git_log_or_diff_work(
     }
 }
 
-pub fn git_log_work(_repo: PathBuf, _limit: usize, _path_in_repo: Option<String>, _oneline: bool) -> String {
+pub fn git_log_work(
+    _repo: PathBuf,
+    _limit: usize,
+    _path_in_repo: Option<String>,
+    _oneline: bool,
+) -> String {
     // This function is implemented in src/ops/mod.rs
     // The stub is kept for compilation compatibility
     "Use the implementation in src/ops/mod.rs".to_string()
@@ -1637,98 +1815,114 @@ pub fn git_log_work(_repo: PathBuf, _limit: usize, _path_in_repo: Option<String>
 
 pub fn git_ls_files_work(_dir: PathBuf, _mode: &str) -> String {
     use std::process::Command;
-    
+
     let mut cmd = Command::new("git");
     cmd.arg("ls-files").current_dir(&_dir);
-    
+
     match _mode {
-        "modified" => { cmd.arg("--modified"); }
-        "deleted" => { cmd.arg("--deleted"); }
-        "others" => { cmd.arg("--others"); }
-        "ignored" => { cmd.arg("--ignored"); }
-        "exclude-standard" => { cmd.arg("--exclude-standard"); }
+        "modified" => {
+            cmd.arg("--modified");
+        }
+        "deleted" => {
+            cmd.arg("--deleted");
+        }
+        "others" => {
+            cmd.arg("--others");
+        }
+        "ignored" => {
+            cmd.arg("--ignored");
+        }
+        "exclude-standard" => {
+            cmd.arg("--exclude-standard");
+        }
         _ => {} // default: all files
     }
-    
+
     let output = cmd.output();
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 String::from_utf8_lossy(&result.stdout).trim().to_string()
             } else {
-                format!("Failed to list files: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to list files: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running git ls-files: {}", e)
+        Err(e) => format!("Error running git ls-files: {}", e),
     }
 }
 
 pub fn git_merge_base_work(_dir: PathBuf, _a: String, _b: String) -> String {
     use std::process::Command;
-    
+
     let output = Command::new("git")
         .arg("merge-base")
         .arg(&_a)
         .arg(&_b)
         .current_dir(&_dir)
         .output();
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 String::from_utf8_lossy(&result.stdout).trim().to_string()
             } else {
-                format!("Failed to find merge base: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to find merge base: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running git merge-base: {}", e)
+        Err(e) => format!("Error running git merge-base: {}", e),
     }
 }
 
 pub fn git_pull_work(_dir: PathBuf) -> String {
     use std::process::Command;
-    
-    let output = Command::new("git")
-        .arg("pull")
-        .current_dir(&_dir)
-        .output();
-    
+
+    let output = Command::new("git").arg("pull").current_dir(&_dir).output();
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 "Git pull completed successfully".to_string()
             } else {
-                format!("Failed to pull: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to pull: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running git pull: {}", e)
+        Err(e) => format!("Error running git pull: {}", e),
     }
 }
 
 pub fn git_push_work(_dir: PathBuf) -> String {
     use std::process::Command;
-    
-    let output = Command::new("git")
-        .arg("push")
-        .current_dir(&_dir)
-        .output();
-    
+
+    let output = Command::new("git").arg("push").current_dir(&_dir).output();
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 "Git push completed successfully".to_string()
             } else {
-                format!("Failed to push: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to push: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running git push: {}", e)
+        Err(e) => format!("Error running git push: {}", e),
     }
 }
 
 pub fn git_reflog_work(_dir: PathBuf, _limit: usize) -> String {
     use std::process::Command;
-    
+
     let output = Command::new("git")
         .arg("reflog")
         .arg("--oneline")
@@ -1736,74 +1930,79 @@ pub fn git_reflog_work(_dir: PathBuf, _limit: usize) -> String {
         .arg(_limit.to_string())
         .current_dir(&_dir)
         .output();
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 String::from_utf8_lossy(&result.stdout).trim().to_string()
             } else {
-                format!("Failed to get reflog: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to get reflog: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running git reflog: {}", e)
+        Err(e) => format!("Error running git reflog: {}", e),
     }
 }
 
 pub fn git_remote_list_work(_dir: PathBuf) -> String {
     use std::process::Command;
-    
+
     let output = Command::new("git")
         .arg("remote")
         .arg("-v")
         .current_dir(&_dir)
         .output();
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 String::from_utf8_lossy(&result.stdout).trim().to_string()
             } else {
-                format!("Failed to list remotes: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to list remotes: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running git remote: {}", e)
+        Err(e) => format!("Error running git remote: {}", e),
     }
 }
 
-pub fn git_revert_work(
-    _dir: PathBuf,
-    _commits: Vec<String>,
-    _no_commit: bool,
-) -> String {
+pub fn git_revert_work(_dir: PathBuf, _commits: Vec<String>, _no_commit: bool) -> String {
     use std::process::Command;
-    
+
     let mut cmd = Command::new("git");
     cmd.arg("revert").current_dir(&_dir);
-    
+
     if _no_commit {
         cmd.arg("--no-commit");
     }
-    
+
     for commit in &_commits {
         cmd.arg(&commit);
     }
-    
+
     let output = cmd.output();
     match output {
         Ok(result) => {
             if result.status.success() {
                 format!("Successfully reverted {} commits", _commits.len())
             } else {
-                format!("Failed to revert commits: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to revert commits: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running git revert: {}", e)
+        Err(e) => format!("Error running git revert: {}", e),
     }
 }
 
 pub fn git_shortlog_work(_dir: PathBuf, _limit: usize) -> String {
     use std::process::Command;
-    
+
     let output = Command::new("git")
         .arg("shortlog")
         .arg("-n")
@@ -1812,16 +2011,19 @@ pub fn git_shortlog_work(_dir: PathBuf, _limit: usize) -> String {
         .arg(_limit.to_string())
         .current_dir(&_dir)
         .output();
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 String::from_utf8_lossy(&result.stdout).trim().to_string()
             } else {
-                format!("Failed to get shortlog: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to get shortlog: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running git shortlog: {}", e)
+        Err(e) => format!("Error running git shortlog: {}", e),
     }
 }
 
@@ -1833,45 +2035,51 @@ pub fn git_show_work(_repo: PathBuf, _rev: String, _patch: bool) -> String {
 
 pub fn git_stash_list_work(_dir: PathBuf) -> String {
     use std::process::Command;
-    
+
     let output = Command::new("git")
         .arg("stash")
         .arg("list")
         .current_dir(&_dir)
         .output();
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 String::from_utf8_lossy(&result.stdout).trim().to_string()
             } else {
-                format!("Failed to list stashes: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to list stashes: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running git stash list: {}", e)
+        Err(e) => format!("Error running git stash list: {}", e),
     }
 }
 
 pub fn git_stash_push_work(_dir: PathBuf, _message: Option<String>) -> String {
     use std::process::Command;
-    
+
     let mut cmd = Command::new("git");
     cmd.arg("stash").arg("push").current_dir(&_dir);
-    
+
     if let Some(message) = _message {
         cmd.arg("-m").arg(&message);
     }
-    
+
     let output = cmd.output();
     match output {
         Ok(result) => {
             if result.status.success() {
                 "Stash created successfully".to_string()
             } else {
-                format!("Failed to create stash: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to create stash: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running git stash push: {}", e)
+        Err(e) => format!("Error running git stash push: {}", e),
     }
 }
 
@@ -1883,24 +2091,27 @@ pub fn git_status_work(_dir: PathBuf) -> String {
 
 pub fn git_tag_list_work(_dir: PathBuf, _pattern: Option<String>) -> String {
     use std::process::Command;
-    
+
     let mut cmd = Command::new("git");
     cmd.arg("tag").current_dir(&_dir);
-    
+
     if let Some(pattern) = _pattern {
         cmd.arg("-l").arg(&pattern);
     }
-    
+
     let output = cmd.output();
     match output {
         Ok(result) => {
             if result.status.success() {
                 String::from_utf8_lossy(&result.stdout).trim().to_string()
             } else {
-                format!("Failed to list tags: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to list tags: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running git tag: {}", e)
+        Err(e) => format!("Error running git tag: {}", e),
     }
 }
 
@@ -1911,10 +2122,10 @@ pub fn git_worktree_extension_work(
     _branch: Option<String>,
 ) -> String {
     use std::process::Command;
-    
+
     let mut cmd = Command::new("git");
     cmd.arg("worktree").current_dir(&_dir);
-    
+
     match _action {
         "add" => {
             if let Some(path) = _wp {
@@ -1940,38 +2151,45 @@ pub fn git_worktree_extension_work(
             return format!("Unknown worktree action: {}", _action);
         }
     }
-    
+
     let output = cmd.output();
     match output {
         Ok(result) => {
             if result.status.success() {
                 format!("Worktree {} completed successfully", _action)
             } else {
-                format!("Failed to perform worktree {}: {}", _action, String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to perform worktree {}: {}",
+                    _action,
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running git worktree {}: {}", _action, e)
+        Err(e) => format!("Error running git worktree {}: {}", _action, e),
     }
 }
 
 pub fn git_worktree_list_work(_dir: PathBuf) -> String {
     use std::process::Command;
-    
+
     let output = Command::new("git")
         .arg("worktree")
         .arg("list")
         .current_dir(&_dir)
         .output();
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 String::from_utf8_lossy(&result.stdout).trim().to_string()
             } else {
-                format!("Failed to list worktrees: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to list worktrees: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running git worktree list: {}", e)
+        Err(e) => format!("Error running git worktree list: {}", e),
     }
 }
 
@@ -1984,7 +2202,7 @@ pub fn gitkraken_cloud_catalog_work() -> String {
                 "name": "Repository Management",
                 "tools": [
                     "Create repository",
-                    "Clone repository", 
+                    "Clone repository",
                     "Import repository",
                     "Repository settings"
                 ]
@@ -2014,7 +2232,8 @@ pub fn gitkraken_cloud_catalog_work() -> String {
             "Advanced merge tools",
             "Visual repository browsing"
         ]
-    }).to_string()
+    })
+    .to_string()
 }
 
 pub fn gitkraken_hosted_tool_redirect_work(_name: &str) -> String {
@@ -2025,25 +2244,27 @@ pub fn gitkraken_hosted_tool_redirect_work(_name: &str) -> String {
         "cloud": "https://www.gitkraken.com/cloud",
         "support": "https://support.gitkraken.com"
     });
-    
+
     if let Some(url) = tool_map.get(_name).and_then(|v| v.as_str()) {
         serde_json::json!({
             "tool": _name,
             "redirect_url": url,
             "description": format!("Redirect to {}", _name)
-        }).to_string()
+        })
+        .to_string()
     } else {
         serde_json::json!({
             "error": "Tool not found",
             "available_tools": tool_map,
             "requested_tool": _name
-        }).to_string()
+        })
+        .to_string()
     }
 }
 
 pub fn glab_mr_list_work(_dir: PathBuf, _limit: usize) -> String {
     use std::process::Command;
-    
+
     let output = Command::new("glab")
         .arg("mr")
         .arg("list")
@@ -2051,38 +2272,44 @@ pub fn glab_mr_list_work(_dir: PathBuf, _limit: usize) -> String {
         .arg(_limit.to_string())
         .current_dir(&_dir)
         .output();
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 String::from_utf8_lossy(&result.stdout).trim().to_string()
             } else {
-                format!("Failed to list MRs: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to list MRs: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running glab mr list: {}", e)
+        Err(e) => format!("Error running glab mr list: {}", e),
     }
 }
 
 pub fn glab_mr_show_work(_dir: PathBuf, _mr: &str) -> String {
     use std::process::Command;
-    
+
     let output = Command::new("glab")
         .arg("mr")
         .arg("show")
         .arg(_mr)
         .current_dir(&_dir)
         .output();
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 String::from_utf8_lossy(&result.stdout).trim().to_string()
             } else {
-                format!("Failed to show MR: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to show MR: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running glab mr show: {}", e)
+        Err(e) => format!("Error running glab mr show: {}", e),
     }
 }
 
@@ -2096,12 +2323,12 @@ pub fn grep_snippets_work(
     _max_snippets: usize,
     _max_chars: usize,
 ) -> String {
-    use std::fs;
     use ignore::WalkBuilder;
-    
+    use std::fs;
+
     let mut results = Vec::new();
     let mut found_snippets = 0;
-    
+
     let mut walk = WalkBuilder::new(&_search_root);
     if _respect_gitignore {
         walk.git_ignore(true);
@@ -2111,17 +2338,17 @@ pub fn grep_snippets_work(
         walk.ignore(false);
     }
     walk.hidden(false);
-    
+
     for entry in walk.build().flatten() {
         if found_snippets >= _max_snippets {
             break;
         }
-        
+
         let path = entry.path();
         if path.is_file() {
             if let Ok(content) = fs::read_to_string(path) {
                 let lines: Vec<&str> = content.lines().collect();
-                
+
                 for (line_index, line) in lines.iter().enumerate() {
                     let matches = if _literal {
                         if _case_sensitive {
@@ -2134,26 +2361,36 @@ pub fn grep_snippets_work(
                         let regex = if _case_sensitive {
                             Regex::new(&_pattern).unwrap_or_else(|_| Regex::new(r".").unwrap())
                         } else {
-                            Regex::new(&format!("(?i){}", &_pattern)).unwrap_or_else(|_| Regex::new(r".").unwrap())
+                            Regex::new(&format!("(?i){}", &_pattern))
+                                .unwrap_or_else(|_| Regex::new(r".").unwrap())
                         };
                         regex.is_match(line)
                     };
-                    
+
                     if matches {
                         let start = line_index.saturating_sub(_context_lines);
                         let end = (line_index + _context_lines + 1).min(lines.len());
-                        
-                        let context: Vec<String> = lines[start..end].iter().enumerate().map(|(i, l)| {
-                            let prefix = if i + start == line_index { ">>> " } else { "    " };
-                            format!("{}{}", prefix, l)
-                        }).collect();
-                        
-                        results.push(format!("{}:{}\n{}", 
-                            path.display(), 
-                            line_index + 1, 
+
+                        let context: Vec<String> = lines[start..end]
+                            .iter()
+                            .enumerate()
+                            .map(|(i, l)| {
+                                let prefix = if i + start == line_index {
+                                    ">>> "
+                                } else {
+                                    "    "
+                                };
+                                format!("{}{}", prefix, l)
+                            })
+                            .collect();
+
+                        results.push(format!(
+                            "{}:{}\n{}",
+                            path.display(),
+                            line_index + 1,
                             context.join("\n")
                         ));
-                        
+
                         found_snippets += 1;
                         if found_snippets >= _max_snippets {
                             break;
@@ -2163,11 +2400,15 @@ pub fn grep_snippets_work(
             }
         }
     }
-    
+
     if results.is_empty() {
         "No matches found".to_string()
     } else {
-        let output = format!("Found {} snippets:\n\n{}", found_snippets, results.join("\n---\n\n"));
+        let output = format!(
+            "Found {} snippets:\n\n{}",
+            found_snippets,
+            results.join("\n---\n\n")
+        );
         if output.len() > _max_chars {
             format!("{}...[truncated]", &output[.._max_chars.min(output.len())])
         } else {
@@ -2195,7 +2436,8 @@ pub fn mcp_env_hints_work() -> String {
             "Text analysis and statistics",
             "Workspace context management"
         ]
-    }).to_string()
+    })
+    .to_string()
 }
 
 // ============================================================================
@@ -2204,18 +2446,25 @@ pub fn mcp_env_hints_work() -> String {
 
 pub fn notify_desktop_work(_args: Value) -> Value {
     use std::process::Command;
-    
-    let title = _args.get("title").and_then(|v| v.as_str()).unwrap_or("Notification");
+
+    let title = _args
+        .get("title")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Notification");
     let message = _args.get("message").and_then(|v| v.as_str()).unwrap_or("");
-    let urgency = _args.get("urgency").and_then(|v| v.as_str()).unwrap_or("normal");
-    
+    let urgency = _args
+        .get("urgency")
+        .and_then(|v| v.as_str())
+        .unwrap_or("normal");
+
     // Use notify-send for Linux desktop notifications
     let output = Command::new("notify-send")
-        .arg("-u").arg(urgency)
+        .arg("-u")
+        .arg(urgency)
         .arg(title)
         .arg(message)
         .output();
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
@@ -2235,20 +2484,20 @@ pub fn notify_desktop_work(_args: Value) -> Value {
         Err(e) => serde_json::json!({
             "error": "Failed to execute notification command",
             "details": e.to_string()
-        })
+        }),
     }
 }
 
 pub fn notify_email_send_work(_args: Value) -> Value {
     let to = _args.get("to").and_then(|v| v.as_str()).unwrap_or("");
     let subject = _args.get("subject").and_then(|v| v.as_str()).unwrap_or("");
-    let body = _args.get("body").and_then(|v| v.as_str()).unwrap_or("");
+    let _body = _args.get("body").and_then(|v| v.as_str()).unwrap_or("");
     let smtp_server = _args.get("smtp_server").and_then(|v| v.as_str());
-    
+
     if to.is_empty() {
         return serde_json::json!({"error": "Recipient email is required"});
     }
-    
+
     // Basic implementation - in a real scenario you'd use SMTP library
     serde_json::json!({
         "status": "not_implemented",
@@ -2261,14 +2510,21 @@ pub fn notify_email_send_work(_args: Value) -> Value {
 
 pub fn notify_webhook_work(_args: Value) -> Value {
     let url = _args.get("url").and_then(|v| v.as_str()).unwrap_or("");
-    let method = _args.get("method").and_then(|v| v.as_str()).unwrap_or("POST");
+    let method = _args
+        .get("method")
+        .and_then(|v| v.as_str())
+        .unwrap_or("POST");
     let payload = _args.get("payload");
-    let headers = _args.get("headers").and_then(|v| v.as_object()).cloned().unwrap_or_default();
-    
+    let headers = _args
+        .get("headers")
+        .and_then(|v| v.as_object())
+        .cloned()
+        .unwrap_or_default();
+
     if url.is_empty() {
         return serde_json::json!({"error": "Webhook URL is required"});
     }
-    
+
     // Basic implementation - in a real scenario you'd use HTTP client
     serde_json::json!({
         "status": "not_implemented",
@@ -2286,14 +2542,15 @@ pub fn notify_webhook_work(_args: Value) -> Value {
 
 pub fn ocr_tesseract_file_work(_path: &PathBuf, _lang: &str, _max_chars: usize) -> String {
     use std::process::Command;
-    
+
     // Basic implementation using tesseract OCR if available
     let output = Command::new("tesseract")
         .arg(_path.to_str().unwrap_or(""))
         .arg("stdout")
-        .arg("-l").arg(_lang)
+        .arg("-l")
+        .arg(_lang)
         .output();
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
@@ -2307,33 +2564,33 @@ pub fn ocr_tesseract_file_work(_path: &PathBuf, _lang: &str, _max_chars: usize) 
                 format!("OCR failed: {}", String::from_utf8_lossy(&result.stderr))
             }
         }
-        Err(e) => format!("Failed to run tesseract: {}", e)
+        Err(e) => format!("Failed to run tesseract: {}", e),
     }
 }
 
 pub fn ocr_tesseract_image_work(_image_data: &[u8], _lang: &str, _max_chars: usize) -> String {
-    use std::process::Command;
-    use std::io::Write;
     use std::fs;
-    
+    use std::process::Command;
+
     // Create temporary file for image
     let temp_dir = std::env::temp_dir();
     let temp_file = temp_dir.join("temp_ocr_image.png");
-    
+
     if let Err(e) = fs::write(&temp_file, _image_data) {
         return format!("Failed to write temporary image file: {}", e);
     }
-    
+
     // Run tesseract on temporary file
     let output = Command::new("tesseract")
         .arg(temp_file.to_str().unwrap_or(""))
         .arg("stdout")
-        .arg("-l").arg(_lang)
+        .arg("-l")
+        .arg(_lang)
         .output();
-    
+
     // Clean up temporary file
     let _ = fs::remove_file(&temp_file);
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
@@ -2347,7 +2604,7 @@ pub fn ocr_tesseract_image_work(_image_data: &[u8], _lang: &str, _max_chars: usi
                 format!("OCR failed: {}", String::from_utf8_lossy(&result.stderr))
             }
         }
-        Err(e) => format!("Failed to run tesseract: {}", e)
+        Err(e) => format!("Failed to run tesseract: {}", e),
     }
 }
 
@@ -2357,41 +2614,42 @@ pub fn ocr_tesseract_image_work(_image_data: &[u8], _lang: &str, _max_chars: usi
 
 pub fn ollama_list_models_work() -> String {
     use std::process::Command;
-    
+
     // List Ollama models using ollama command
-    let output = Command::new("ollama")
-        .arg("list")
-        .output();
-    
+    let output = Command::new("ollama").arg("list").output();
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 String::from_utf8_lossy(&result.stdout).trim().to_string()
             } else {
-                format!("Failed to list Ollama models: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to list Ollama models: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running ollama list: {}", e)
+        Err(e) => format!("Error running ollama list: {}", e),
     }
 }
 
 pub fn ollama_chat_work(_model: String, _messages: Vec<String>, _max_tokens: usize) -> String {
     use std::process::Command;
-    
+
     // Create a simple chat message
     let chat_prompt = if _messages.is_empty() {
         "Hello".to_string()
     } else {
         _messages.join("\n")
     };
-    
+
     // Generate response using Ollama
     let output = Command::new("ollama")
         .arg("run")
         .arg(&_model)
         .arg(&chat_prompt)
         .output();
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
@@ -2402,10 +2660,13 @@ pub fn ollama_chat_work(_model: String, _messages: Vec<String>, _max_tokens: usi
                     text.to_string()
                 }
             } else {
-                format!("Failed to chat with Ollama: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to chat with Ollama: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running ollama run: {}", e)
+        Err(e) => format!("Error running ollama run: {}", e),
     }
 }
 
@@ -2418,7 +2679,8 @@ pub fn ai_openai_chat_work(_messages: Vec<String>, _model: String, _max_tokens: 
         "model": _model,
         "messages_count": _messages.len(),
         "max_tokens": _max_tokens
-    }).to_string()
+    })
+    .to_string()
 }
 
 // ============================================================================
@@ -2434,36 +2696,51 @@ pub fn pack_context_work(
     _collapse_whitespace: bool,
 ) -> String {
     let mut result = Vec::new();
-    result.push(format!("Packing {} segments with mode: {}", _segments.len(), _mode));
-    
+    result.push(format!(
+        "Packing {} segments with mode: {}",
+        _segments.len(),
+        _mode
+    ));
+
     for (index, segment) in _segments.iter().enumerate() {
         let label = if let Some(labels) = &_segment_labels {
-            labels.get(index).cloned().unwrap_or_else(|| format!("Segment {}", index + 1))
+            labels
+                .get(index)
+                .cloned()
+                .unwrap_or_else(|| format!("Segment {}", index + 1))
         } else {
             format!("Segment {}", index + 1)
         };
-        
+
         let mut processed_segment = segment.clone();
-        
+
         if _dedupe_lines {
             let mut lines: Vec<&str> = processed_segment.lines().collect();
             lines.sort();
             lines.dedup();
             processed_segment = lines.join("\n");
         }
-        
+
         if _collapse_whitespace {
-            processed_segment = processed_segment.split_whitespace().collect::<Vec<_>>().join(" ");
+            processed_segment = processed_segment
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ");
         }
-        
-        result.push(format!("{}: {} chars (processed: {} chars)", label, segment.len(), processed_segment.len()));
-        
+
+        result.push(format!(
+            "{}: {} chars (processed: {} chars)",
+            label,
+            segment.len(),
+            processed_segment.len()
+        ));
+
         if result.join("\n").len() > _max_chars {
             result.push("[Output truncated due to size limit]".to_string());
             break;
         }
     }
-    
+
     result.join("\n")
 }
 
@@ -2471,18 +2748,21 @@ pub fn pack_context_work(
 // Project tools
 // ============================================================================
 
-pub fn project_cargo_check_build_args(_package: Option<&str>, _workspace: bool) -> Result<Vec<String>, String> {
+pub fn project_cargo_check_build_args(
+    _package: Option<&str>,
+    _workspace: bool,
+) -> Result<Vec<String>, String> {
     let mut args = vec!["check".to_string()];
-    
+
     if _workspace {
         args.push("--workspace".to_string());
     }
-    
+
     if let Some(pkg) = _package {
         args.push("--package".to_string());
         args.push(pkg.to_string());
     }
-    
+
     Ok(args)
 }
 
@@ -2495,61 +2775,67 @@ pub fn project_cargo_test_build_args(
     _nocapture: bool,
 ) -> Result<Vec<String>, String> {
     let mut args = vec!["test".to_string()];
-    
+
     if _workspace {
         args.push("--workspace".to_string());
     }
-    
+
     if let Some(pkg) = _package {
         args.push("--package".to_string());
         args.push(pkg.to_string());
     }
-    
+
     if let Some(filter) = _test_filter {
         args.push(filter.to_string());
     }
-    
+
     if _no_run {
         args.push("--no-run".to_string());
     }
-    
+
     if let Some(jobs) = _jobs {
         args.push("--jobs".to_string());
         args.push(jobs.to_string());
     }
-    
+
     if _nocapture {
         args.push("--nocapture".to_string());
     }
-    
+
     Ok(args)
 }
 
-pub fn project_cargo_test_args(_package: Option<&str>, _workspace: bool, _release: bool, _target: Option<&str>, _test_name: Option<&str>) -> Result<Vec<String>, String> {
+pub fn project_cargo_test_args(
+    _package: Option<&str>,
+    _workspace: bool,
+    _release: bool,
+    _target: Option<&str>,
+    _test_name: Option<&str>,
+) -> Result<Vec<String>, String> {
     let mut args = vec!["test".to_string()];
-    
+
     if _workspace {
         args.push("--workspace".to_string());
     }
-    
+
     if _release {
         args.push("--release".to_string());
     }
-    
+
     if let Some(trgt) = _target {
         args.push("--target".to_string());
         args.push(trgt.to_string());
     }
-    
+
     if let Some(pkg) = _package {
         args.push("--package".to_string());
         args.push(pkg.to_string());
     }
-    
+
     if let Some(test) = _test_name {
         args.push(test.to_string());
     }
-    
+
     Ok(args)
 }
 
@@ -2560,32 +2846,36 @@ pub fn project_pytest_build_args(
     _maxfail: Option<u32>,
 ) -> Result<Vec<String>, String> {
     let mut args = vec!["pytest".to_string()];
-    
+
     if _quiet {
         args.push("-q".to_string());
     }
-    
+
     if let Some(keyword) = _keyword {
         args.push("-k".to_string());
         args.push(keyword.to_string());
     }
-    
+
     if let Some(maxfail) = _maxfail {
         args.push("--maxfail".to_string());
         args.push(maxfail.to_string());
     }
-    
+
     args.push(_test_path.to_string());
-    
+
     Ok(args)
 }
 
-pub fn repository_get_file_content_work(_dir: PathBuf, _filepath: String, _gitref: Option<String>) -> String {
+pub fn repository_get_file_content_work(
+    _dir: PathBuf,
+    _filepath: String,
+    _gitref: Option<String>,
+) -> String {
     use std::fs;
     use std::process::Command;
-    
+
     let full_path = _dir.join(&_filepath);
-    
+
     // Try to read from git if gitref is provided
     if let Some(git_ref) = _gitref {
         let output = Command::new("git")
@@ -2593,7 +2883,7 @@ pub fn repository_get_file_content_work(_dir: PathBuf, _filepath: String, _gitre
             .arg(&format!("{}:{}", git_ref, _filepath))
             .current_dir(&_dir)
             .output();
-        
+
         match output {
             Ok(result) => {
                 if result.status.success() {
@@ -2603,11 +2893,11 @@ pub fn repository_get_file_content_work(_dir: PathBuf, _filepath: String, _gitre
             Err(_) => {} // Fall back to file system
         }
     }
-    
+
     // Read from file system
     match fs::read_to_string(&full_path) {
         Ok(content) => content,
-        Err(e) => format!("Error reading file {}: {}", full_path.display(), e)
+        Err(e) => format!("Error reading file {}: {}", full_path.display(), e),
     }
 }
 
@@ -2617,44 +2907,56 @@ pub fn repository_get_file_content_work(_dir: PathBuf, _filepath: String, _gitre
 
 pub fn review_diff_risk_work(_args: Value) -> Value {
     let diff_content = _args.get("diff").and_then(|v| v.as_str()).unwrap_or("");
-    let risk_level = _args.get("risk_level").and_then(|v| v.as_str()).unwrap_or("medium");
-    
+    let _risk_level = _args
+        .get("risk_level")
+        .and_then(|v| v.as_str())
+        .unwrap_or("medium");
+
     if diff_content.is_empty() {
         return serde_json::json!({"error": "Diff content is required"});
     }
-    
+
     // Basic risk analysis based on diff patterns
     let mut risk_factors = Vec::new();
     let mut risk_score = 0;
-    
+
     // Check for risky patterns
-    if diff_content.contains("DELETE") || diff_content.contains("DROP") || diff_content.contains("TRUNCATE") {
+    if diff_content.contains("DELETE")
+        || diff_content.contains("DROP")
+        || diff_content.contains("TRUNCATE")
+    {
         risk_factors.push("Destructive operations detected");
         risk_score += 30;
     }
-    
-    if diff_content.contains("password") || diff_content.contains("secret") || diff_content.contains("key") {
+
+    if diff_content.contains("password")
+        || diff_content.contains("secret")
+        || diff_content.contains("key")
+    {
         risk_factors.push("Potential secrets in code");
         risk_score += 25;
     }
-    
-    if diff_content.contains("sudo") || diff_content.contains("chmod 777") || diff_content.contains("chown") {
+
+    if diff_content.contains("sudo")
+        || diff_content.contains("chmod 777")
+        || diff_content.contains("chown")
+    {
         risk_factors.push("Permission changes detected");
         risk_score += 20;
     }
-    
+
     if diff_content.len() > 10000 {
         risk_factors.push("Large diff size");
         risk_score += 15;
     }
-    
+
     let risk_category = match risk_score {
         0..=20 => "low",
         21..=50 => "medium",
         51..=80 => "high",
         _ => "critical",
     };
-    
+
     serde_json::json!({
         "risk_score": risk_score,
         "risk_category": risk_category,
@@ -2666,14 +2968,17 @@ pub fn review_diff_risk_work(_args: Value) -> Value {
 
 pub fn review_focused_review_work(_args: Value) -> Value {
     let code_content = _args.get("code").and_then(|v| v.as_str()).unwrap_or("");
-    let focus_area = _args.get("focus").and_then(|v| v.as_str()).unwrap_or("general");
-    
+    let focus_area = _args
+        .get("focus")
+        .and_then(|v| v.as_str())
+        .unwrap_or("general");
+
     if code_content.is_empty() {
         return serde_json::json!({"error": "Code content is required"});
     }
-    
+
     let mut findings = Vec::new();
-    
+
     match focus_area {
         "readability" => {
             if code_content.lines().count() > 50 {
@@ -2703,7 +3008,7 @@ pub fn review_focused_review_work(_args: Value) -> Value {
             findings.push("General review: consider code structure and clarity");
         }
     }
-    
+
     serde_json::json!({
         "focus_area": focus_area,
         "findings": findings,
@@ -2714,15 +3019,18 @@ pub fn review_focused_review_work(_args: Value) -> Value {
 
 pub fn review_missing_tests_work(_args: Value) -> Value {
     let code_content = _args.get("code").and_then(|v| v.as_str()).unwrap_or("");
-    let language = _args.get("language").and_then(|v| v.as_str()).unwrap_or("unknown");
-    
+    let language = _args
+        .get("language")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown");
+
     if code_content.is_empty() {
         return serde_json::json!({"error": "Code content is required"});
     }
-    
+
     let mut missing_tests = Vec::new();
     let mut test_suggestions = Vec::new();
-    
+
     // Look for function definitions
     if language == "rust" || language == "javascript" || language == "typescript" {
         let func_pattern = if language == "rust" {
@@ -2730,28 +3038,37 @@ pub fn review_missing_tests_work(_args: Value) -> Value {
         } else {
             "function "
         };
-        
+
         let function_count = code_content.matches(func_pattern).count();
         let test_count = code_content.matches("test").count();
-        
+
         if function_count > test_count {
-            missing_tests.push(format!("{} functions found, {} test functions detected", function_count, test_count));
+            missing_tests.push(format!(
+                "{} functions found, {} test functions detected",
+                function_count, test_count
+            ));
             test_suggestions.push("Add unit tests for each function".to_string());
         }
     }
-    
+
     // Check for error handling
-    if !code_content.contains("error") && !code_content.contains("catch") && !code_content.contains("Result") {
+    if !code_content.contains("error")
+        && !code_content.contains("catch")
+        && !code_content.contains("Result")
+    {
         missing_tests.push("No error handling detected".to_string());
         test_suggestions.push("Add error handling tests".to_string());
     }
-    
+
     // Check for edge cases
-    if !code_content.contains("null") && !code_content.contains("None") && !code_content.contains("undefined") {
+    if !code_content.contains("null")
+        && !code_content.contains("None")
+        && !code_content.contains("undefined")
+    {
         missing_tests.push("No edge case handling detected".to_string());
         test_suggestions.push("Add tests for edge cases".to_string());
     }
-    
+
     serde_json::json!({
         "language": language,
         "missing_tests": missing_tests,
@@ -2763,16 +3080,22 @@ pub fn review_missing_tests_work(_args: Value) -> Value {
 
 pub fn review_pr_packet_work(_args: Value) -> Value {
     let pr_title = _args.get("title").and_then(|v| v.as_str()).unwrap_or("");
-    let pr_description = _args.get("description").and_then(|v| v.as_str()).unwrap_or("");
-    let files_changed = _args.get("files_changed").and_then(|v| v.as_u64()).unwrap_or(0);
-    
+    let pr_description = _args
+        .get("description")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let files_changed = _args
+        .get("files_changed")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+
     if pr_title.is_empty() {
         return serde_json::json!({"error": "PR title is required"});
     }
-    
+
     let mut review_points = Vec::new();
     let mut score = 0;
-    
+
     // Title quality
     if pr_title.len() < 10 {
         review_points.push("PR title is too short");
@@ -2783,7 +3106,7 @@ pub fn review_pr_packet_work(_args: Value) -> Value {
     } else {
         score += 10;
     }
-    
+
     // Description quality
     if pr_description.len() < 20 {
         review_points.push("PR description is too brief");
@@ -2791,7 +3114,7 @@ pub fn review_pr_packet_work(_args: Value) -> Value {
     } else if pr_description.contains("fixes") || pr_description.contains("resolves") {
         score += 15;
     }
-    
+
     // Size assessment
     if files_changed > 20 {
         review_points.push("Large PR - consider splitting");
@@ -2799,14 +3122,14 @@ pub fn review_pr_packet_work(_args: Value) -> Value {
     } else if files_changed <= 5 {
         score += 5;
     }
-    
+
     let quality_level = match score {
         i32::MIN..=0 => "needs_improvement",
         1..=15 => "fair",
         16..=25 => "good",
         _ => "excellent",
     };
-    
+
     serde_json::json!({
         "pr_score": score,
         "quality_level": quality_level,
@@ -2819,42 +3142,58 @@ pub fn review_pr_packet_work(_args: Value) -> Value {
 
 pub fn review_rulebook_check_work(_args: Value) -> Value {
     let code_content = _args.get("code").and_then(|v| v.as_str()).unwrap_or("");
-    let rulebook = _args.get("rulebook").and_then(|v| v.as_array()).cloned().unwrap_or(Vec::new());
-    
+    let rulebook = _args
+        .get("rulebook")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or(Vec::new());
+
     if code_content.is_empty() {
         return serde_json::json!({"error": "Code content is required"});
     }
-    
+
     let mut violations = Vec::new();
     let mut compliance_score = 100;
-    
+
     // Default rulebook checks if none provided
     let rules = if rulebook.is_empty() {
         vec![
-            ("no_hardcoded_secrets", "Check for hardcoded passwords/secrets"),
+            (
+                "no_hardcoded_secrets",
+                "Check for hardcoded passwords/secrets",
+            ),
             ("proper_error_handling", "Ensure proper error handling"),
             ("function_length", "Functions should be under 50 lines"),
             ("naming_convention", "Follow consistent naming conventions"),
         ]
     } else {
-        rulebook.iter().map(|v| {
-            let name = v.get("name").and_then(|v| v.as_str()).unwrap_or("");
-            let description = v.get("description").and_then(|v| v.as_str()).unwrap_or("");
-            (name, description)
-        }).collect()
+        rulebook
+            .iter()
+            .map(|v| {
+                let name = v.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                let description = v.get("description").and_then(|v| v.as_str()).unwrap_or("");
+                (name, description)
+            })
+            .collect()
     };
-    
+
     for (rule_name, rule_desc) in &rules {
         let mut violated = false;
-        
+
         match *rule_name {
             "no_hardcoded_secrets" => {
-                if code_content.contains("password") || code_content.contains("secret") || code_content.contains("token") {
+                if code_content.contains("password")
+                    || code_content.contains("secret")
+                    || code_content.contains("token")
+                {
                     violated = true;
                 }
             }
             "proper_error_handling" => {
-                if !code_content.contains("error") && !code_content.contains("Result") && !code_content.contains("catch") {
+                if !code_content.contains("error")
+                    && !code_content.contains("Result")
+                    && !code_content.contains("catch")
+                {
                     violated = true;
                 }
             }
@@ -2867,7 +3206,7 @@ pub fn review_rulebook_check_work(_args: Value) -> Value {
                 // Generic check - just note the rule
             }
         }
-        
+
         if violated {
             violations.push(serde_json::json!({
                 "rule": rule_name,
@@ -2877,7 +3216,7 @@ pub fn review_rulebook_check_work(_args: Value) -> Value {
             compliance_score -= 10;
         }
     }
-    
+
     serde_json::json!({
         "compliance_score": compliance_score.max(0),
         "violations": violations,
@@ -2890,21 +3229,22 @@ pub fn review_rulebook_check_work(_args: Value) -> Value {
 // Screenshot tools
 // ============================================================================
 
-pub fn screenshot_capture_work(_output_path: Option<PathBuf>, _display_env: Option<String>) -> String {
+pub fn screenshot_capture_work(
+    _output_path: Option<PathBuf>,
+    _display_env: Option<String>,
+) -> String {
     use std::process::Command;
-    
+
     // Try to use system screenshot tools
     let screenshot_commands = vec![
         ("gnome-screenshot", vec!["-f", "png"]),
         ("scrot", vec!["-s", "screenshot.png"]),
         ("import", vec!["-window", "root", "screenshot.png"]),
     ];
-    
+
     for (cmd, args) in screenshot_commands {
-        let output = Command::new(cmd)
-            .args(&args)
-            .output();
-        
+        let output = Command::new(cmd).args(&args).output();
+
         match output {
             Ok(result) => {
                 if result.status.success() {
@@ -2913,14 +3253,14 @@ pub fn screenshot_capture_work(_output_path: Option<PathBuf>, _display_env: Opti
                     } else {
                         "screenshot.png".to_string()
                     };
-                    
+
                     return format!("Screenshot captured using {} to {}", cmd, output_file);
                 }
             }
             Err(_) => continue, // Try next command
         }
     }
-    
+
     "No screenshot tool available. Install gnome-screenshot, scrot, or ImageMagick".to_string()
 }
 
@@ -2936,28 +3276,31 @@ pub fn summarize_file_work(
     _max_s: usize,
 ) -> String {
     use std::fs;
-    
+
     match fs::read_to_string(&_path) {
         Ok(content) => {
             let lines: Vec<&str> = content.lines().collect();
             let total_lines = lines.len();
-            
+
             let start_line = _start.unwrap_or(0);
             let end_line = _end.unwrap_or(total_lines);
-            
+
             let effective_start = start_line.min(total_lines);
             let effective_end = end_line.min(total_lines);
-            
+
             if effective_start >= effective_end {
-                return format!("Invalid line range: {}-{} for file with {} lines", start_line, end_line, total_lines);
+                return format!(
+                    "Invalid line range: {}-{} for file with {} lines",
+                    start_line, end_line, total_lines
+                );
             }
-            
+
             let selected_lines = &lines[effective_start..effective_end];
-            let line_count = selected_lines.len();
-            
+            let _line_count = selected_lines.len();
+
             let char_count = selected_lines.join("\n").len();
             let word_count = selected_lines.join(" ").split_whitespace().count();
-            
+
             let summary = format!(
                 "File: {}\nLines: {}-{} of {}\nCharacters: {}\nWords: {}\nPreview:\n{}",
                 _path.display(),
@@ -2966,16 +3309,21 @@ pub fn summarize_file_work(
                 total_lines,
                 char_count,
                 word_count,
-                selected_lines.iter().take(5).map(|&s| s).collect::<Vec<_>>().join("\n")
+                selected_lines
+                    .iter()
+                    .take(5)
+                    .map(|&s| s)
+                    .collect::<Vec<_>>()
+                    .join("\n")
             );
-            
+
             if summary.len() > _max_c {
                 format!("{}...[truncated]", &summary[.._max_c.min(summary.len())])
             } else {
                 summary
             }
         }
-        Err(e) => format!("Error reading file {}: {}", _path.display(), e)
+        Err(e) => format!("Error reading file {}: {}", _path.display(), e),
     }
 }
 
@@ -2986,40 +3334,40 @@ pub fn summarize_identifier_frequency_work(
     _max_c: usize,
     _fold_case: bool,
 ) -> String {
-    use std::collections::HashMap;
     use regex::Regex;
-    
+    use std::collections::HashMap;
+
     // Extract identifiers (alphanumeric sequences starting with letter or underscore)
     let identifier_regex = Regex::new(r"\b[a-zA-Z_][a-zA-Z0-9_]*\b").unwrap();
-    
+
     let mut frequency_map = HashMap::new();
-    
+
     for caps in identifier_regex.captures_iter(&_text) {
         if let Some(matched) = caps.get(0) {
             let identifier = matched.as_str();
-            
+
             if identifier.len() >= _min_len {
                 let key = if _fold_case {
                     identifier.to_lowercase()
                 } else {
                     identifier.to_string()
                 };
-                
+
                 *frequency_map.entry(key).or_insert(0) += 1;
             }
         }
     }
-    
+
     let mut identifiers: Vec<(String, usize)> = frequency_map.into_iter().collect();
     identifiers.sort_by(|a, b| b.1.cmp(&a.1));
-    
+
     let mut result = Vec::new();
     result.push(format!("Found {} unique identifiers", identifiers.len()));
-    
+
     for (identifier, count) in identifiers.into_iter().take(_max_identifiers) {
         result.push(format!("{}: {} occurrences", identifier, count));
     }
-    
+
     let output = result.join("\n");
     if output.len() > _max_c {
         format!("{}...[truncated]", &output[.._max_c.min(output.len())])
@@ -3036,26 +3384,26 @@ pub fn summarize_line_prefix_groups_work(
 ) -> String {
     let lines: Vec<&str> = _text.lines().collect();
     let mut prefix_groups = std::collections::HashMap::new();
-    
+
     for line in lines {
         if line.len() >= _prefix_length {
             let prefix = &line[.._prefix_length];
             *prefix_groups.entry(prefix.to_string()).or_insert(0) += 1;
         }
     }
-    
+
     let mut groups: Vec<(String, usize)> = prefix_groups.into_iter().collect();
     groups.sort_by(|a, b| b.1.cmp(&a.1));
-    
+
     let mut result = Vec::new();
     result.push(format!("Found {} prefix groups", groups.len()));
-    
+
     for (prefix, count) in groups.into_iter().take(20) {
         if count >= _min_group_size {
             result.push(format!("'{}': {} lines", prefix, count));
         }
     }
-    
+
     let output = result.join("\n");
     if output.len() > _max_c {
         format!("{}...[truncated]", &output[.._max_c.min(output.len())])
@@ -3070,9 +3418,9 @@ pub fn summarize_text_work(_text: String, _max_chars: usize, _max_sentences: usi
         .filter(|s| !s.trim().is_empty())
         .take(_max_sentences)
         .collect();
-    
+
     let result = sentences.join(" ");
-    
+
     if result.len() > _max_chars {
         format!("{}...[truncated]", &result[.._max_chars.min(result.len())])
     } else {
@@ -3083,7 +3431,8 @@ pub fn summarize_text_work(_text: String, _max_chars: usize, _max_sentences: usi
 pub fn summarize_bullets_work(_text: String, _max_items: usize, _max_chars: usize) -> String {
     // Extract bullet points (lines starting with -, *, or •)
     let lines: Vec<&str> = _text.lines().collect();
-    let bullets: Vec<String> = lines.iter()
+    let bullets: Vec<String> = lines
+        .iter()
         .filter(|line| {
             let trimmed = line.trim();
             trimmed.starts_with('-') || trimmed.starts_with('*') || trimmed.starts_with('•')
@@ -3091,9 +3440,9 @@ pub fn summarize_bullets_work(_text: String, _max_items: usize, _max_chars: usiz
         .take(_max_items)
         .map(|line| line.trim().to_string())
         .collect();
-    
+
     let result = bullets.join("\n");
-    
+
     if result.len() > _max_chars {
         format!("{}...[truncated]", &result[.._max_chars.min(result.len())])
     } else {
@@ -3101,11 +3450,16 @@ pub fn summarize_bullets_work(_text: String, _max_items: usize, _max_chars: usiz
     }
 }
 
-pub fn summarize_delimited_header_work(_text: String, _delim: &str, _max_columns: usize, _max_chars: usize) -> String {
+pub fn summarize_delimited_header_work(
+    _text: String,
+    _delim: &str,
+    _max_columns: usize,
+    _max_chars: usize,
+) -> String {
     let lines: Vec<&str> = _text.lines().collect();
     let mut result = Vec::new();
     let mut header_found = false;
-    
+
     for line in lines {
         if line.contains(_delim) {
             if !header_found {
@@ -3121,7 +3475,7 @@ pub fn summarize_delimited_header_work(_text: String, _delim: &str, _max_columns
             }
         }
     }
-    
+
     if !header_found {
         "No delimiter found in text".to_string()
     } else {
@@ -3134,14 +3488,19 @@ pub fn summarize_delimited_header_work(_text: String, _delim: &str, _max_columns
     }
 }
 
-pub fn summarize_diff_file_list_work(_diff: String, _max_paths: usize, _max_chars: usize) -> String {
+pub fn summarize_diff_file_list_work(
+    _diff: String,
+    _max_paths: usize,
+    _max_chars: usize,
+) -> String {
     use regex::Regex;
-    
+
     // Extract file paths from git diff (lines starting with diff --git)
-    let diff_regex = Regex::new(r"diff --git a/(.*?) b/").unwrap_or_else(|_| Regex::new(r".").unwrap());
+    let diff_regex =
+        Regex::new(r"diff --git a/(.*?) b/").unwrap_or_else(|_| Regex::new(r".").unwrap());
     let lines: Vec<&str> = _diff.lines().collect();
     let mut files = Vec::new();
-    
+
     for line in lines {
         if let Some(caps) = diff_regex.captures(line) {
             if let Some(file_path) = caps.get(1) {
@@ -3152,7 +3511,7 @@ pub fn summarize_diff_file_list_work(_diff: String, _max_paths: usize, _max_char
             }
         }
     }
-    
+
     if files.is_empty() {
         "No file paths found in diff".to_string()
     } else {
@@ -3165,29 +3524,34 @@ pub fn summarize_diff_file_list_work(_diff: String, _max_paths: usize, _max_char
     }
 }
 
-pub fn summarize_duplicate_lines_work(_text: String, _max_outputs: usize, _max_exact: usize, _max_chars: usize) -> String {
+pub fn summarize_duplicate_lines_work(
+    _text: String,
+    _max_outputs: usize,
+    _max_exact: usize,
+    _max_chars: usize,
+) -> String {
     use std::collections::HashMap;
-    
+
     let lines: Vec<&str> = _text.lines().collect();
     let mut line_counts = HashMap::new();
-    
+
     for line in lines {
         let trimmed = line.trim();
         if !trimmed.is_empty() {
             *line_counts.entry(trimmed.to_string()).or_insert(0) += 1;
         }
     }
-    
+
     let mut duplicates: Vec<(String, usize)> = line_counts
         .into_iter()
         .filter(|(_, count)| *count > 1)
         .collect();
-    
+
     duplicates.sort_by(|a, b| b.1.cmp(&a.1));
-    
+
     let mut result = Vec::new();
     result.push(format!("Found {} duplicate lines", duplicates.len()));
-    
+
     for (line, count) in duplicates.into_iter().take(_max_outputs) {
         let display_line = if line.len() > _max_exact {
             format!("{}...[truncated]", &line[.._max_exact.min(line.len())])
@@ -3196,7 +3560,7 @@ pub fn summarize_duplicate_lines_work(_text: String, _max_outputs: usize, _max_e
         };
         result.push(format!("'{}': {} occurrences", display_line, count));
     }
-    
+
     let output = result.join("\n");
     if output.len() > _max_chars {
         format!("{}...[truncated]", &output[.._max_chars.min(output.len())])
@@ -3208,8 +3572,12 @@ pub fn summarize_duplicate_lines_work(_text: String, _max_outputs: usize, _max_e
 pub fn summarize_first_lines_work(_text: String, _line_count: usize, _max_chars: usize) -> String {
     let lines: Vec<&str> = _text.lines().collect();
     let lines_to_take = lines.len().min(_line_count);
-    let result: Vec<String> = lines.iter().take(lines_to_take).map(|line| line.to_string()).collect();
-    
+    let result: Vec<String> = lines
+        .iter()
+        .take(lines_to_take)
+        .map(|line| line.to_string())
+        .collect();
+
     let output = result.join("\n");
     if output.len() > _max_chars {
         format!("{}...[truncated]", &output[.._max_chars.min(output.len())])
@@ -3220,11 +3588,12 @@ pub fn summarize_first_lines_work(_text: String, _line_count: usize, _max_chars:
 
 pub fn summarize_headings_work(_text: String, _max_headings: usize, _max_chars: usize) -> String {
     use regex::Regex;
-    
+
     // Extract markdown headings (lines starting with #)
     let heading_regex = Regex::new(r"^#+\s+(.+)$").unwrap_or_else(|_| Regex::new(r".").unwrap());
     let lines: Vec<&str> = _text.lines().collect();
-    let headings: Vec<String> = lines.iter()
+    let headings: Vec<String> = lines
+        .iter()
         .filter_map(|line| {
             if let Some(caps) = heading_regex.captures(line) {
                 caps.get(1).map(|m| m.as_str().to_string())
@@ -3234,9 +3603,9 @@ pub fn summarize_headings_work(_text: String, _max_headings: usize, _max_chars: 
         })
         .take(_max_headings)
         .collect();
-    
+
     let result = headings.join("\n");
-    
+
     if result.len() > _max_chars {
         format!("{}...[truncated]", &result[.._max_chars.min(result.len())])
     } else {
@@ -3244,21 +3613,33 @@ pub fn summarize_headings_work(_text: String, _max_headings: usize, _max_chars: 
     }
 }
 
-pub fn summarize_json_structure_work(_text: String, _max_depth: usize, _max_keys_per_level: usize, _max_lines: usize, _max_chars: usize) -> String {
+pub fn summarize_json_structure_work(
+    _text: String,
+    _max_depth: usize,
+    _max_keys_per_level: usize,
+    _max_lines: usize,
+    _max_chars: usize,
+) -> String {
     use serde_json::Value;
-    
+
     match serde_json::from_str::<Value>(&_text) {
         Ok(json) => {
             let mut result = Vec::new();
             result.push("JSON Structure Analysis:".to_string());
-            
-            fn analyze_value(value: &Value, depth: usize, max_depth: usize, max_keys: usize, result: &mut Vec<String>) {
+
+            fn analyze_value(
+                value: &Value,
+                depth: usize,
+                max_depth: usize,
+                max_keys: usize,
+                result: &mut Vec<String>,
+            ) {
                 if depth >= max_depth {
                     return;
                 }
-                
+
                 let indent = "  ".repeat(depth);
-                
+
                 match value {
                     Value::Object(map) => {
                         result.push(format!("{}Object with {} keys:", indent, map.len()));
@@ -3267,7 +3648,11 @@ pub fn summarize_json_structure_work(_text: String, _max_depth: usize, _max_keys
                             analyze_value(val, depth + 1, max_depth, max_keys, result);
                         }
                         if map.len() > max_keys {
-                            result.push(format!("{}  ... and {} more keys", indent, map.len() - max_keys));
+                            result.push(format!(
+                                "{}  ... and {} more keys",
+                                indent,
+                                map.len() - max_keys
+                            ));
                         }
                     }
                     Value::Array(arr) => {
@@ -3281,7 +3666,7 @@ pub fn summarize_json_structure_work(_text: String, _max_depth: usize, _max_keys
                     }
                 }
             }
-            
+
             fn get_type_name(value: &Value) -> &'static str {
                 match value {
                     Value::Null => "null",
@@ -3289,30 +3674,35 @@ pub fn summarize_json_structure_work(_text: String, _max_depth: usize, _max_keys
                     Value::Number(_) => "number",
                     Value::String(_) => "string",
                     Value::Array(_) => "array",
-                    Value::Object(_) => "object"
+                    Value::Object(_) => "object",
                 }
             }
-            
+
             analyze_value(&json, 0, _max_depth, _max_keys_per_level, &mut result);
-            
-            let output: String = result.iter().take(_max_lines).cloned().collect::<Vec<_>>().join("\n");
-            
+
+            let output: String = result
+                .iter()
+                .take(_max_lines)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join("\n");
+
             if output.len() > _max_chars {
                 format!("{}...[truncated]", &output[.._max_chars.min(output.len())])
             } else {
                 output
             }
         }
-        Err(_) => "Invalid JSON format".to_string()
+        Err(_) => "Invalid JSON format".to_string(),
     }
 }
 
 pub fn summarize_line_histogram_work(_text: String, _max_chars: usize) -> String {
     use std::collections::HashMap;
-    
+
     let lines: Vec<&str> = _text.lines().collect();
     let mut length_counts = HashMap::new();
-    
+
     for line in &lines {
         let length = line.len();
         let bucket = match length {
@@ -3321,21 +3711,21 @@ pub fn summarize_line_histogram_work(_text: String, _max_chars: usize) -> String
             11..=20 => "11-20",
             21..=50 => "21-50",
             51..=100 => "51-100",
-            _ => "100+"
+            _ => "100+",
         };
         *length_counts.entry(bucket.to_string()).or_insert(0) += 1;
     }
-    
+
     let mut result = Vec::new();
     result.push(format!("Line length histogram for {} lines", lines.len()));
-    
+
     for bucket in ["0", "1-10", "11-20", "21-50", "51-100", "100+"] {
         if let Some(count) = length_counts.get(bucket) {
             let bar = "█".repeat(*count.min(&20));
             result.push(format!("{} chars: {} {}", bucket, count, bar));
         }
     }
-    
+
     let output = result.join("\n");
     if output.len() > _max_chars {
         format!("{}...[truncated]", &output[.._max_chars.min(output.len())])
@@ -3344,27 +3734,32 @@ pub fn summarize_line_histogram_work(_text: String, _max_chars: usize) -> String
     }
 }
 
-pub fn summarize_markdown_toc_work(_text: String, _max_entries: usize, _max_chars: usize) -> String {
+pub fn summarize_markdown_toc_work(
+    _text: String,
+    _max_entries: usize,
+    _max_chars: usize,
+) -> String {
     use regex::Regex;
-    
+
     // Extract markdown headings (lines starting with #)
-    let heading_regex = Regex::new(r"^(#{1,6})\s+(.+)$").unwrap_or_else(|_| Regex::new(r".").unwrap());
+    let heading_regex =
+        Regex::new(r"^(#{1,6})\s+(.+)$").unwrap_or_else(|_| Regex::new(r".").unwrap());
     let lines: Vec<&str> = _text.lines().collect();
     let mut headings = Vec::new();
-    
+
     for line in lines {
         if let Some(caps) = heading_regex.captures(line) {
             let level = caps.get(1).map_or("", |m| m.as_str()).len();
             let title = caps.get(2).map_or("", |m| m.as_str());
             let indent = "  ".repeat(level - 1);
             headings.push(format!("{}- {}", indent, title));
-            
+
             if headings.len() >= _max_entries {
                 break;
             }
         }
     }
-    
+
     if headings.is_empty() {
         "No markdown headings found".to_string()
     } else {
@@ -3377,73 +3772,95 @@ pub fn summarize_markdown_toc_work(_text: String, _max_entries: usize, _max_char
     }
 }
 
-pub fn summarize_multi_file_work(_paths: Vec<PathBuf>, _lines_per_file: usize, _max_chars: usize, _max_files: usize) -> String {
+pub fn summarize_multi_file_work(
+    _paths: Vec<PathBuf>,
+    _lines_per_file: usize,
+    _max_chars: usize,
+    _max_files: usize,
+) -> String {
     use std::fs;
-    
+
     let mut result = Vec::new();
     result.push(format!("Processing {} files", _paths.len()));
-    
+
     for (index, path) in _paths.iter().take(_max_files).enumerate() {
         if let Ok(content) = fs::read_to_string(path) {
             let lines: Vec<&str> = content.lines().take(_lines_per_file).collect();
             let preview = lines.join("\n");
-            
+
             result.push(format!("File {}: {}", index + 1, path.display()));
             result.push(format!("Preview (first {} lines):", _lines_per_file));
-            
+
             let preview_with_truncation = if preview.len() > 200 {
                 format!("{}...[truncated]", &preview[..200.min(preview.len())])
             } else {
                 preview
             };
-            
+
             result.push(preview_with_truncation);
             result.push("---".to_string());
-            
+
             if result.join("\n").len() > _max_chars {
                 result.push("[Output truncated due to size limit]".to_string());
                 break;
             }
         } else {
-            result.push(format!("File {}: {} - [Could not read]", index + 1, path.display()));
+            result.push(format!(
+                "File {}: {} - [Could not read]",
+                index + 1,
+                path.display()
+            ));
         }
     }
-    
+
     result.join("\n")
 }
 
-pub fn summarize_rank_lines_by_keywords_work(_text: String, _keywords: Vec<String>, _top_n: usize, _max_chars: usize) -> String {
+pub fn summarize_rank_lines_by_keywords_work(
+    _text: String,
+    _keywords: Vec<String>,
+    _top_n: usize,
+    _max_chars: usize,
+) -> String {
     let lines: Vec<&str> = _text.lines().collect();
     let mut scored_lines = Vec::new();
-    
+
     for (line_index, line) in lines.iter().enumerate() {
         let mut score = 0;
         let line_lower = line.to_lowercase();
-        
+
         for keyword in &_keywords {
             let keyword_lower = keyword.to_lowercase();
             score += line_lower.matches(&keyword_lower).count() * keyword.len();
         }
-        
+
         if score > 0 {
             scored_lines.push((score, line_index, line.trim()));
         }
     }
-    
+
     scored_lines.sort_by(|a, b| b.0.cmp(&a.0));
-    
+
     let mut result = Vec::new();
-    result.push(format!("Found {} lines matching keywords", scored_lines.len()));
-    
+    result.push(format!(
+        "Found {} lines matching keywords",
+        scored_lines.len()
+    ));
+
     for (score, line_index, line) in scored_lines.into_iter().take(_top_n) {
         let display_line = if line.len() > 100 {
             format!("{}...[truncated]", &line[..100.min(line.len())])
         } else {
             line.to_string()
         };
-        result.push(format!("Score {}: Line {} - '{}'", score, line_index + 1, display_line));
+        result.push(format!(
+            "Score {}: Line {} - '{}'",
+            score,
+            line_index + 1,
+            display_line
+        ));
     }
-    
+
     let output = result.join("\n");
     if output.len() > _max_chars {
         format!("{}...[truncated]", &output[.._max_chars.min(output.len())])
@@ -3452,27 +3869,31 @@ pub fn summarize_rank_lines_by_keywords_work(_text: String, _keywords: Vec<Strin
     }
 }
 
-pub fn summarize_segments_work(_segments: Vec<String>, _max_chars: usize, _max_seg: usize) -> String {
+pub fn summarize_segments_work(
+    _segments: Vec<String>,
+    _max_chars: usize,
+    _max_seg: usize,
+) -> String {
     let mut result = Vec::new();
     result.push(format!("Processing {} segments", _segments.len()));
-    
+
     for (index, segment) in _segments.iter().take(_max_seg).enumerate() {
         let preview = if segment.len() > 200 {
             format!("{}...[truncated]", &segment[..200.min(segment.len())])
         } else {
             segment.clone()
         };
-        
+
         result.push(format!("Segment {} ({} chars):", index + 1, segment.len()));
         result.push(preview);
         result.push("---".to_string());
-        
+
         if result.join("\n").len() > _max_chars {
             result.push("[Output truncated due to size limit]".to_string());
             break;
         }
     }
-    
+
     result.join("\n")
 }
 
@@ -3481,28 +3902,35 @@ pub fn summarize_token_estimate_work(_text: String, _max_chars: usize) -> String
     let words = _text.split_whitespace().count();
     let chars = _text.chars().count();
     let lines = _text.lines().count();
-    
+
     // Rough token estimate: average 4 characters per token + some overhead
     let estimated_tokens = (chars / 4).max(words);
-    
+
     serde_json::json!({
         "estimated_tokens": estimated_tokens,
         "word_count": words,
         "character_count": chars,
         "line_count": lines,
         "note": "This is a rough estimate suitable for most LLM tokenizers"
-    }).to_string()
+    })
+    .to_string()
 }
 
-pub fn summarize_top_terms_work(_text: String, _min_len: usize, _max_terms: usize, _max_chars: usize) -> String {
-    use std::collections::HashMap;
+pub fn summarize_top_terms_work(
+    _text: String,
+    _min_len: usize,
+    _max_terms: usize,
+    _max_chars: usize,
+) -> String {
     use regex::Regex;
-    
+    use std::collections::HashMap;
+
     // Extract words (alphanumeric sequences)
-    let word_regex = Regex::new(r"\b[a-zA-Z]{}\b").unwrap_or_else(|_| Regex::new(r"\b\w+\b").unwrap());
-    
+    let word_regex =
+        Regex::new(r"\b[a-zA-Z]{}\b").unwrap_or_else(|_| Regex::new(r"\b\w+\b").unwrap());
+
     let mut term_counts = HashMap::new();
-    
+
     for caps in word_regex.captures_iter(&_text) {
         if let Some(word_match) = caps.get(0) {
             let word = word_match.as_str().to_lowercase();
@@ -3511,17 +3939,21 @@ pub fn summarize_top_terms_work(_text: String, _min_len: usize, _max_terms: usiz
             }
         }
     }
-    
+
     let mut terms: Vec<(String, usize)> = term_counts.into_iter().collect();
     terms.sort_by(|a, b| b.1.cmp(&a.1));
-    
+
     let mut result = Vec::new();
-    result.push(format!("Found {} unique terms (min length: {})", terms.len(), _min_len));
-    
+    result.push(format!(
+        "Found {} unique terms (min length: {})",
+        terms.len(),
+        _min_len
+    ));
+
     for (term, count) in terms.into_iter().take(_max_terms) {
         result.push(format!("'{}': {} occurrences", term, count));
     }
-    
+
     let output = result.join("\n");
     if output.len() > _max_chars {
         format!("{}...[truncated]", &output[.._max_chars.min(output.len())])
@@ -3539,36 +3971,50 @@ pub fn text_stats_work(_text: String) -> String {
     let words: Vec<&str> = _text.split_whitespace().collect();
     let chars = _text.chars().count();
     let chars_no_spaces = _text.chars().filter(|c| !c.is_whitespace()).count();
-    
+
     serde_json::json!({
         "lines": lines.len(),
         "words": words.len(),
         "characters": chars,
         "characters_no_spaces": chars_no_spaces,
         "paragraphs": _text.split("\n\n").filter(|p| !p.trim().is_empty()).count()
-    }).to_string()
+    })
+    .to_string()
 }
 
 pub fn text_longest_common_substring_work(_a: String, _b: String, _max_len_each: usize) -> String {
     // Simple implementation of longest common substring
-    let a = if _a.len() > _max_len_each { &_a[.._max_len_each] } else { &_a };
-    let b = if _b.len() > _max_len_each { &_b[.._max_len_each] } else { &_b };
-    
+    let a = if _a.len() > _max_len_each {
+        &_a[.._max_len_each]
+    } else {
+        &_a
+    };
+    let b = if _b.len() > _max_len_each {
+        &_b[.._max_len_each]
+    } else {
+        &_b
+    };
+
     let mut longest = String::new();
-    
+
     for i in 0..a.len() {
-        for j in (i + 1)..=a.len().min(i + 100) { // Limit substring length to avoid O(n³)
+        for j in (i + 1)..=a.len().min(i + 100) {
+            // Limit substring length to avoid O(n³)
             let substring = &a[i..j];
             if b.contains(substring) && substring.len() > longest.len() {
                 longest = substring.to_string();
             }
         }
     }
-    
+
     if longest.is_empty() {
         "No common substring found".to_string()
     } else {
-        format!("Longest common substring: '{}' (length: {})", longest, longest.len())
+        format!(
+            "Longest common substring: '{}' (length: {})",
+            longest,
+            longest.len()
+        )
     }
 }
 
@@ -3582,28 +4028,40 @@ pub fn text_djb2_hash_work(_text: String) -> String {
 
 pub fn text_levenshtein_distance_work(_a: String, _b: String, _max_len: usize) -> String {
     // Simple Levenshtein distance implementation
-    let a = if _a.len() > _max_len { &_a[.._max_len] } else { &_a };
-    let b = if _b.len() > _max_len { &_b[.._max_len] } else { &_b };
-    
+    let a = if _a.len() > _max_len {
+        &_a[.._max_len]
+    } else {
+        &_a
+    };
+    let b = if _b.len() > _max_len {
+        &_b[.._max_len]
+    } else {
+        &_b
+    };
+
     let mut dp = vec![vec![0; b.len() + 1]; a.len() + 1];
-    
+
     for i in 0..=a.len() {
         dp[i][0] = i;
     }
     for j in 0..=b.len() {
         dp[0][j] = j;
     }
-    
+
     for i in 1..=a.len() {
         for j in 1..=b.len() {
-            let cost = if a.chars().nth(i - 1) == b.chars().nth(j - 1) { 0 } else { 1 };
+            let cost = if a.chars().nth(i - 1) == b.chars().nth(j - 1) {
+                0
+            } else {
+                1
+            };
             dp[i][j] = std::cmp::min(
                 std::cmp::min(dp[i - 1][j] + 1, dp[i][j - 1] + 1),
-                dp[i - 1][j - 1] + cost
+                dp[i - 1][j - 1] + cost,
             );
         }
     }
-    
+
     let distance = dp[a.len()][b.len()];
     format!("Levenshtein distance: {}", distance)
 }
@@ -3615,26 +4073,41 @@ pub fn text_token_jaccard_work(
     _max_chars: usize,
     _max_tokens_scanned: usize,
 ) -> String {
-    let text_a = if _fold_case { _text_a.to_lowercase() } else { _text_a };
-    let text_b = if _fold_case { _text_b.to_lowercase() } else { _text_b };
-    
+    let text_a = if _fold_case {
+        _text_a.to_lowercase()
+    } else {
+        _text_a
+    };
+    let text_b = if _fold_case {
+        _text_b.to_lowercase()
+    } else {
+        _text_b
+    };
+
     let tokens_a: std::collections::HashSet<&str> = text_a
         .split_whitespace()
         .take(_max_tokens_scanned)
         .collect();
-    
+
     let tokens_b: std::collections::HashSet<&str> = text_b
         .split_whitespace()
         .take(_max_tokens_scanned)
         .collect();
-    
+
     let intersection = tokens_a.intersection(&tokens_b).count();
     let union = tokens_a.union(&tokens_b).count();
-    
-    let similarity = if union == 0 { 1.0 } else { intersection as f64 / union as f64 };
-    
-    let result = format!("Jaccard similarity: {:.4} (intersection: {}, union: {})", similarity, intersection, union);
-    
+
+    let similarity = if union == 0 {
+        1.0
+    } else {
+        intersection as f64 / union as f64
+    };
+
+    let result = format!(
+        "Jaccard similarity: {:.4} (intersection: {}, union: {})",
+        similarity, intersection, union
+    );
+
     if result.len() > _max_chars {
         format!("{}...[truncated]", &result[.._max_chars.min(result.len())])
     } else {
@@ -3648,12 +4121,15 @@ pub fn text_token_jaccard_work(
 
 pub fn web_search_work(_args: Value) -> Value {
     let query = _args.get("query").and_then(|v| v.as_str()).unwrap_or("");
-    let engine = _args.get("engine").and_then(|v| v.as_str()).unwrap_or("google");
-    
+    let engine = _args
+        .get("engine")
+        .and_then(|v| v.as_str())
+        .unwrap_or("google");
+
     if query.is_empty() {
         return serde_json::json!({"error": "Query is required"});
     }
-    
+
     // Basic implementation - in a real scenario you'd integrate with search APIs
     serde_json::json!({
         "status": "not_implemented",
@@ -3666,10 +4142,17 @@ pub fn web_search_work(_args: Value) -> Value {
 pub fn web_api_call_work(_args: Value) -> Value {
     // Extract parameters from args
     let url = _args.get("url").and_then(|v| v.as_str()).unwrap_or("");
-    let method = _args.get("method").and_then(|v| v.as_str()).unwrap_or("POST");
-    let headers = _args.get("headers").and_then(|v| v.as_object()).cloned().unwrap_or_default();
+    let method = _args
+        .get("method")
+        .and_then(|v| v.as_str())
+        .unwrap_or("POST");
+    let headers = _args
+        .get("headers")
+        .and_then(|v| v.as_object())
+        .cloned()
+        .unwrap_or_default();
     let body = _args.get("body").and_then(|v| v.as_str());
-    
+
     // Basic implementation - in a real scenario you'd use reqwest or similar
     serde_json::json!({
         "status": "not_implemented",
@@ -3683,19 +4166,16 @@ pub fn web_api_call_work(_args: Value) -> Value {
 
 pub fn web_dns_lookup_work(_args: Value) -> Value {
     use std::process::Command;
-    
+
     let hostname = _args.get("hostname").and_then(|v| v.as_str()).unwrap_or("");
-    
+
     if hostname.is_empty() {
         return serde_json::json!({"error": "Hostname is required"});
     }
-    
+
     // Basic DNS lookup using system command
-    let output = Command::new("dig")
-        .arg(&hostname)
-        .arg("+short")
-        .output();
-    
+    let output = Command::new("dig").arg(&hostname).arg("+short").output();
+
     match output {
         Ok(result) => {
             if result.status.success() {
@@ -3704,7 +4184,7 @@ pub fn web_dns_lookup_work(_args: Value) -> Value {
                     .lines()
                     .filter(|line| !line.trim().is_empty())
                     .collect();
-                
+
                 serde_json::json!({
                     "hostname": hostname,
                     "ip_addresses": ip_addresses,
@@ -3720,18 +4200,18 @@ pub fn web_dns_lookup_work(_args: Value) -> Value {
         Err(e) => serde_json::json!({
             "error": "Failed to execute DNS lookup",
             "details": e.to_string()
-        })
+        }),
     }
 }
 
 pub fn web_download_file_work(_args: Value) -> Value {
     let url = _args.get("url").and_then(|v| v.as_str()).unwrap_or("");
     let output_path = _args.get("output_path").and_then(|v| v.as_str());
-    
+
     if url.is_empty() {
         return serde_json::json!({"error": "URL is required"});
     }
-    
+
     // Basic implementation - in a real scenario you'd use HTTP client
     serde_json::json!({
         "status": "not_implemented",
@@ -3743,12 +4223,15 @@ pub fn web_download_file_work(_args: Value) -> Value {
 
 pub fn web_rss_fetch_work(_args: Value) -> Value {
     let url = _args.get("url").and_then(|v| v.as_str()).unwrap_or("");
-    let max_items = _args.get("max_items").and_then(|v| v.as_u64()).unwrap_or(10);
-    
+    let max_items = _args
+        .get("max_items")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(10);
+
     if url.is_empty() {
         return serde_json::json!({"error": "URL is required"});
     }
-    
+
     // Basic implementation - in a real scenario you'd use RSS parser
     serde_json::json!({
         "status": "not_implemented",
@@ -3763,11 +4246,11 @@ pub fn web_screenshot_work(_args: Value) -> Value {
     let output_path = _args.get("output_path").and_then(|v| v.as_str());
     let width = _args.get("width").and_then(|v| v.as_u64()).unwrap_or(1920);
     let height = _args.get("height").and_then(|v| v.as_u64()).unwrap_or(1080);
-    
+
     if url.is_empty() {
         return serde_json::json!({"error": "URL is required"});
     }
-    
+
     // Basic implementation - in a real scenario you'd use headless browser
     serde_json::json!({
         "status": "not_implemented",
@@ -3780,14 +4263,14 @@ pub fn web_screenshot_work(_args: Value) -> Value {
 
 pub fn web_tls_inspect_work(_args: Value) -> Value {
     use std::process::Command;
-    
+
     let hostname = _args.get("hostname").and_then(|v| v.as_str()).unwrap_or("");
     let port = _args.get("port").and_then(|v| v.as_u64()).unwrap_or(443);
-    
+
     if hostname.is_empty() {
         return serde_json::json!({"error": "Hostname is required"});
     }
-    
+
     // Basic TLS inspection using openssl if available
     let output = Command::new("openssl")
         .arg("s_client")
@@ -3797,16 +4280,16 @@ pub fn web_tls_inspect_work(_args: Value) -> Value {
         .arg("<")
         .arg("/dev/null")
         .output();
-    
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 let cert_info = String::from_utf8_lossy(&result.stdout);
                 let lines: Vec<&str> = cert_info.lines().collect();
-                
+
                 let mut cert_data = std::collections::HashMap::new();
                 let mut in_cert = false;
-                
+
                 for line in lines {
                     if line.contains("-----BEGIN CERTIFICATE-----") {
                         in_cert = true;
@@ -3818,7 +4301,7 @@ pub fn web_tls_inspect_work(_args: Value) -> Value {
                         }
                     }
                 }
-                
+
                 serde_json::json!({
                     "hostname": hostname,
                     "port": port,
@@ -3835,7 +4318,7 @@ pub fn web_tls_inspect_work(_args: Value) -> Value {
         Err(e) => serde_json::json!({
             "error": "Failed to run openssl",
             "details": e.to_string()
-        })
+        }),
     }
 }
 
@@ -3845,56 +4328,65 @@ pub fn web_tls_inspect_work(_args: Value) -> Value {
 
 pub fn workspace_context_work(_root: PathBuf, _net: String, _cap: u64, _is_pub: bool) -> String {
     use std::fs;
-    
+
     let mut context = Vec::new();
     context.push(format!("Workspace root: {}", _root.display()));
     context.push(format!("Network: {}", _net));
     context.push(format!("Capacity: {} bytes", _cap));
     context.push(format!("Public: {}", _is_pub));
-    
+
     // Add basic directory structure
     if let Ok(entries) = fs::read_dir(&_root) {
         let mut dirs = Vec::new();
         let mut files = Vec::new();
-        
+
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() {
-                dirs.push(path.file_name().unwrap_or_default().to_string_lossy().to_string());
+                dirs.push(
+                    path.file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string(),
+                );
             } else if path.is_file() {
-                files.push(path.file_name().unwrap_or_default().to_string_lossy().to_string());
+                files.push(
+                    path.file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string(),
+                );
             }
         }
-        
+
         dirs.sort();
         files.sort();
-        
+
         context.push("".to_string());
         context.push("Directories:".to_string());
         for dir in dirs {
             context.push(format!("  {}", dir));
         }
-        
+
         context.push("".to_string());
         context.push("Files:".to_string());
         for file in files {
             context.push(format!("  {}", file));
         }
     }
-    
+
     context.join("\n")
 }
 
 pub fn workspace_temp_delete_work(_root: PathBuf, _name: String) -> String {
     use std::fs;
-    use std::path::Path;
-    
+
     let temp_file = _root.join("temp").join(&_name);
-    
+
     if temp_file.exists() {
         match fs::remove_file(&temp_file) {
             Ok(_) => format!("Successfully deleted temporary file: {}", _name),
-            Err(e) => format!("Failed to delete temporary file {}: {}", _name, e)
+            Err(e) => format!("Failed to delete temporary file {}: {}", _name, e),
         }
     } else {
         format!("Temporary file not found: {}", _name)
@@ -3903,27 +4395,30 @@ pub fn workspace_temp_delete_work(_root: PathBuf, _name: String) -> String {
 
 pub fn workspace_temp_list_work(_root: PathBuf, _limit: usize) -> String {
     use std::fs;
-    use std::path::Path;
-    
+
     let temp_dir = _root.join("temp");
     if let Ok(entries) = fs::read_dir(&temp_dir) {
         let mut files = Vec::new();
         for entry in entries.flatten().take(_limit) {
             let path = entry.path();
             let name = path.file_name().unwrap_or_default().to_string_lossy();
-            
+
             if let Ok(metadata) = fs::metadata(&path) {
-                let modified = metadata.modified()
+                let modified = metadata
+                    .modified()
                     .map(|t| format!("{:?}", t))
                     .unwrap_or_else(|_| "Unknown".to_string());
-                files.push(format!("{} - {} ({})", name, 
+                files.push(format!(
+                    "{} - {} ({})",
+                    name,
                     if metadata.is_file() { "file" } else { "dir" },
-                    modified));
+                    modified
+                ));
             } else {
                 files.push(format!("{} - (metadata unavailable)", name));
             }
         }
-        
+
         if files.is_empty() {
             "Temp directory is empty".to_string()
         } else {
@@ -3936,20 +4431,23 @@ pub fn workspace_temp_list_work(_root: PathBuf, _limit: usize) -> String {
 
 pub fn workspace_temp_read_work(_root: PathBuf, _name: String, _max_read_bytes: usize) -> String {
     use std::fs;
-    
+
     let temp_file = _root.join("temp").join(&_name);
-    
+
     if temp_file.exists() {
         match fs::read(&temp_file) {
             Ok(content) => {
                 let content_str = String::from_utf8_lossy(&content);
                 if content_str.len() > _max_read_bytes {
-                    format!("{}...[truncated]", &content_str[.._max_read_bytes.min(content_str.len())])
+                    format!(
+                        "{}...[truncated]",
+                        &content_str[.._max_read_bytes.min(content_str.len())]
+                    )
                 } else {
                     content_str.to_string()
                 }
             }
-            Err(e) => format!("Failed to read temporary file {}: {}", _name, e)
+            Err(e) => format!("Failed to read temporary file {}: {}", _name, e),
         }
     } else {
         format!("Temporary file not found: {}", _name)
@@ -3963,27 +4461,26 @@ pub fn workspace_temp_write_work(
     _maxb: usize,
 ) -> String {
     use std::fs;
-    use std::path::Path;
-    
+
     let temp_dir = _root.join("temp");
-    
+
     // Create temp directory if it doesn't exist
     if let Err(e) = fs::create_dir_all(&temp_dir) {
         return format!("Failed to create temp directory: {}", e);
     }
-    
+
     let temp_file = temp_dir.join(&_name);
-    
+
     // Truncate content if it exceeds max bytes
     let content_to_write = if _content.len() > _maxb {
         format!("{}...[truncated]", &_content[.._maxb.min(_content.len())])
     } else {
         _content
     };
-    
+
     match fs::write(&temp_file, content_to_write) {
         Ok(_) => format!("Successfully wrote temporary file: {}", _name),
-        Err(e) => format!("Failed to write temporary file {}: {}", _name, e)
+        Err(e) => format!("Failed to write temporary file {}: {}", _name, e),
     }
 }
 
@@ -3992,8 +4489,11 @@ pub fn workspace_temp_write_work(
 // ============================================================================
 
 pub fn plan_definition_of_done_work(_args: Value) -> Value {
-    let project_type = _args.get("project_type").and_then(|v| v.as_str()).unwrap_or("general");
-    
+    let project_type = _args
+        .get("project_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("general");
+
     serde_json::json!({
         "project_type": project_type,
         "definition_of_done": {
@@ -4033,8 +4533,11 @@ pub fn plan_definition_of_done_work(_args: Value) -> Value {
 }
 
 pub fn plan_execution_checklist_work(_args: Value) -> Value {
-    let phase = _args.get("phase").and_then(|v| v.as_str()).unwrap_or("development");
-    
+    let phase = _args
+        .get("phase")
+        .and_then(|v| v.as_str())
+        .unwrap_or("development");
+
     serde_json::json!({
         "phase": phase,
         "checklist_items": match phase {
@@ -4070,9 +4573,15 @@ pub fn plan_execution_checklist_work(_args: Value) -> Value {
 }
 
 pub fn plan_handoff_brief_work(_args: Value) -> Value {
-    let team = _args.get("team").and_then(|v| v.as_str()).unwrap_or("development");
-    let project = _args.get("project").and_then(|v| v.as_str()).unwrap_or("current");
-    
+    let team = _args
+        .get("team")
+        .and_then(|v| v.as_str())
+        .unwrap_or("development");
+    let project = _args
+        .get("project")
+        .and_then(|v| v.as_str())
+        .unwrap_or("current");
+
     serde_json::json!({
         "project": project,
         "handoff_to": team,
@@ -4109,8 +4618,11 @@ pub fn plan_handoff_brief_work(_args: Value) -> Value {
 }
 
 pub fn plan_retrospective_work(_args: Value) -> Value {
-    let project_phase = _args.get("project_phase").and_then(|v| v.as_str()).unwrap_or("completed");
-    
+    let project_phase = _args
+        .get("project_phase")
+        .and_then(|v| v.as_str())
+        .unwrap_or("completed");
+
     serde_json::json!({
         "project_phase": project_phase,
         "retrospective_sections": {
@@ -4149,8 +4661,11 @@ pub fn plan_retrospective_work(_args: Value) -> Value {
 }
 
 pub fn plan_risk_register_work(_args: Value) -> Value {
-    let project_type = _args.get("project_type").and_then(|v| v.as_str()).unwrap_or("software");
-    
+    let project_type = _args
+        .get("project_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("software");
+
     serde_json::json!({
         "project_type": project_type,
         "risk_categories": [
@@ -4215,8 +4730,11 @@ pub fn plan_risk_register_work(_args: Value) -> Value {
 }
 
 pub fn plan_test_strategy_work(_args: Value) -> Value {
-    let project_type = _args.get("project_type").and_then(|v| v.as_str()).unwrap_or("web_application");
-    
+    let project_type = _args
+        .get("project_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("web_application");
+
     serde_json::json!({
         "project_type": project_type,
         "test_strategy": {
@@ -4288,8 +4806,11 @@ pub fn plan_test_strategy_work(_args: Value) -> Value {
 
 pub fn plan_work_buckets_work(_args: Value) -> Value {
     let team_size = _args.get("team_size").and_then(|v| v.as_u64()).unwrap_or(5);
-    let sprint_duration = _args.get("sprint_duration").and_then(|v| v.as_u64()).unwrap_or(2);
-    
+    let sprint_duration = _args
+        .get("sprint_duration")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(2);
+
     serde_json::json!({
         "team_size": team_size,
         "sprint_duration_weeks": sprint_duration,
@@ -4345,9 +4866,12 @@ pub fn plan_work_buckets_work(_args: Value) -> Value {
 }
 
 pub fn reasoning_chain_work(_args: Value) -> Value {
-    let topic = _args.get("topic").and_then(|v| v.as_str()).unwrap_or("general");
+    let topic = _args
+        .get("topic")
+        .and_then(|v| v.as_str())
+        .unwrap_or("general");
     let depth = _args.get("depth").and_then(|v| v.as_u64()).unwrap_or(3);
-    
+
     serde_json::json!({
         "topic": topic,
         "reasoning_depth": depth,
@@ -4395,8 +4919,11 @@ pub fn reasoning_chain_work(_args: Value) -> Value {
 }
 
 pub fn reasoning_devils_advocate_work(_args: Value) -> Value {
-    let proposal = _args.get("proposal").and_then(|v| v.as_str()).unwrap_or("current approach");
-    
+    let proposal = _args
+        .get("proposal")
+        .and_then(|v| v.as_str())
+        .unwrap_or("current approach");
+
     serde_json::json!({
         "proposal": proposal,
         "devils_advocate_analysis": {
@@ -4447,8 +4974,11 @@ pub fn reasoning_devils_advocate_work(_args: Value) -> Value {
 }
 
 pub fn reasoning_evidence_matrix_work(_args: Value) -> Value {
-    let hypothesis = _args.get("hypothesis").and_then(|v| v.as_str()).unwrap_or("current hypothesis");
-    
+    let hypothesis = _args
+        .get("hypothesis")
+        .and_then(|v| v.as_str())
+        .unwrap_or("current hypothesis");
+
     serde_json::json!({
         "hypothesis": hypothesis,
         "evidence_matrix": {
@@ -4512,8 +5042,11 @@ pub fn reasoning_evidence_matrix_work(_args: Value) -> Value {
 }
 
 pub fn reasoning_five_whys_work(_args: Value) -> Value {
-    let problem = _args.get("problem").and_then(|v| v.as_str()).unwrap_or("general problem");
-    
+    let problem = _args
+        .get("problem")
+        .and_then(|v| v.as_str())
+        .unwrap_or("general problem");
+
     serde_json::json!({
         "problem": problem,
         "five_whys_analysis": [
@@ -4580,8 +5113,11 @@ pub fn reasoning_five_whys_work(_args: Value) -> Value {
 }
 
 pub fn reasoning_premortem_work(_args: Value) -> Value {
-    let project = _args.get("project").and_then(|v| v.as_str()).unwrap_or("current project");
-    
+    let project = _args
+        .get("project")
+        .and_then(|v| v.as_str())
+        .unwrap_or("current project");
+
     serde_json::json!({
         "project": project,
         "premortem_analysis": {
@@ -4650,8 +5186,11 @@ pub fn reasoning_premortem_work(_args: Value) -> Value {
 }
 
 pub fn thinking_assumption_audit_work(_args: Value) -> Value {
-    let context = _args.get("context").and_then(|v| v.as_str()).unwrap_or("general analysis");
-    
+    let context = _args
+        .get("context")
+        .and_then(|v| v.as_str())
+        .unwrap_or("general analysis");
+
     serde_json::json!({
         "context": context,
         "assumption_audit": {
@@ -4726,8 +5265,11 @@ pub fn thinking_assumption_audit_work(_args: Value) -> Value {
 }
 
 pub fn thinking_plan_skeleton_work(_args: Value) -> Value {
-    let plan_type = _args.get("plan_type").and_then(|v| v.as_str()).unwrap_or("project");
-    
+    let plan_type = _args
+        .get("plan_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("project");
+
     serde_json::json!({
         "plan_type": plan_type,
         "plan_skeleton": {
@@ -4800,9 +5342,12 @@ pub fn thinking_plan_skeleton_work(_args: Value) -> Value {
 }
 
 pub fn thinking_session_append_work(_args: Value) -> Value {
-    let session_id = _args.get("session_id").and_then(|v| v.as_str()).unwrap_or("default");
+    let session_id = _args
+        .get("session_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("default");
     let content = _args.get("content").and_then(|v| v.as_str()).unwrap_or("");
-    
+
     serde_json::json!({
         "session_id": session_id,
         "action": "append",
@@ -4824,8 +5369,11 @@ pub fn thinking_session_append_work(_args: Value) -> Value {
 }
 
 pub fn thinking_session_read_work(_args: Value) -> Value {
-    let session_id = _args.get("session_id").and_then(|v| v.as_str()).unwrap_or("default");
-    
+    let session_id = _args
+        .get("session_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("default");
+
     serde_json::json!({
         "session_id": session_id,
         "session_content": {
@@ -4875,8 +5423,11 @@ pub fn thinking_session_read_work(_args: Value) -> Value {
 }
 
 pub fn thinking_step_back_work(_args: Value) -> Value {
-    let current_focus = _args.get("current_focus").and_then(|v| v.as_str()).unwrap_or("current problem");
-    
+    let current_focus = _args
+        .get("current_focus")
+        .and_then(|v| v.as_str())
+        .unwrap_or("current problem");
+
     serde_json::json!({
         "current_focus": current_focus,
         "step_back_analysis": {
@@ -4961,29 +5512,25 @@ pub const MAX_TERMINAL_STDIN_BYTES: usize = 512 * 1024;
 /// Stub for project test tools enabled check
 pub fn project_test_tools_enabled() -> bool {
     use std::process::Command;
-    
+
     // Check if cargo is available
-    let cargo_check = Command::new("cargo")
-        .arg("--version")
-        .output();
-    
+    let cargo_check = Command::new("cargo").arg("--version").output();
+
     match cargo_check {
         Ok(result) => result.status.success(),
-        Err(_) => false
+        Err(_) => false,
     }
 }
 
 pub fn terminal_program_version_work(_program: &str) -> String {
     use std::process::Command;
-    
+
     // Try to get version information using common version flags
     let version_flags = vec!["--version", "-V", "-v", "version"];
-    
+
     for flag in version_flags {
-        let output = Command::new(_program)
-            .arg(flag)
-            .output();
-        
+        let output = Command::new(_program).arg(flag).output();
+
         match output {
             Ok(result) => {
                 if result.status.success() {
@@ -4997,18 +5544,16 @@ pub fn terminal_program_version_work(_program: &str) -> String {
             Err(_) => continue, // Try next flag
         }
     }
-    
+
     format!("Could not determine version for {}", _program)
 }
 
 pub fn terminal_which_work(_program: &str) -> String {
     use std::process::Command;
-    
+
     // Use 'which' command to find program location
-    let output = Command::new("which")
-        .arg(_program)
-        .output();
-    
+    let output = Command::new("which").arg(_program).output();
+
     match output {
         Ok(result) => {
             if result.status.success() {
@@ -5023,38 +5568,37 @@ pub fn terminal_which_work(_program: &str) -> String {
                 format!("{} not found in PATH", _program)
             }
         }
-        Err(e) => format!("Error running which: {}", e)
+        Err(e) => format!("Error running which: {}", e),
     }
 }
 
 pub fn system_memory_info_work() -> String {
     use std::process::Command;
-    
+
     // Get memory info using free command
-    let output = Command::new("free")
-        .arg("-h")
-        .output();
-    
+    let output = Command::new("free").arg("-h").output();
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 String::from_utf8_lossy(&result.stdout).trim().to_string()
             } else {
-                format!("Failed to get memory info: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to get memory info: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running free: {}", e)
+        Err(e) => format!("Error running free: {}", e),
     }
 }
 
 pub fn system_process_list_work(_limit: usize) -> String {
     use std::process::Command;
-    
+
     // List processes using ps command
-    let output = Command::new("ps")
-        .arg("aux")
-        .output();
-    
+    let output = Command::new("ps").arg("aux").output();
+
     match output {
         Ok(result) => {
             if result.status.success() {
@@ -5064,53 +5608,61 @@ pub fn system_process_list_work(_limit: usize) -> String {
                     .skip(1) // Skip header
                     .take(_limit)
                     .collect();
-                
-                format!("Process list (showing {} processes):\n{}", 
-                    lines.len(), 
-                    lines.join("\n"))
+
+                format!(
+                    "Process list (showing {} processes):\n{}",
+                    lines.len(),
+                    lines.join("\n")
+                )
             } else {
-                format!("Failed to list processes: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to list processes: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running ps: {}", e)
+        Err(e) => format!("Error running ps: {}", e),
     }
 }
 
 pub fn system_disk_usage_work() -> String {
     use std::process::Command;
-    
+
     // Get disk usage using df command
-    let output = Command::new("df")
-        .arg("-h")
-        .output();
-    
+    let output = Command::new("df").arg("-h").output();
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 String::from_utf8_lossy(&result.stdout).trim().to_string()
             } else {
-                format!("Failed to get disk usage: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to get disk usage: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running df: {}", e)
+        Err(e) => format!("Error running df: {}", e),
     }
 }
 
 pub fn system_cpu_info_work() -> String {
     use std::process::Command;
-    
+
     // Get CPU info using lscpu command
-    let output = Command::new("lscpu")
-        .output();
-    
+    let output = Command::new("lscpu").output();
+
     match output {
         Ok(result) => {
             if result.status.success() {
                 String::from_utf8_lossy(&result.stdout).trim().to_string()
             } else {
-                format!("Failed to get CPU info: {}", String::from_utf8_lossy(&result.stderr))
+                format!(
+                    "Failed to get CPU info: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                )
             }
         }
-        Err(e) => format!("Error running lscpu: {}", e)
+        Err(e) => format!("Error running lscpu: {}", e),
     }
 }

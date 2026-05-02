@@ -1083,7 +1083,7 @@ mod tests {
             ollama_base_url: "http://localhost:11434".into(),
             ..Default::default()
         });
-        let worker_id = worker.id.clone();
+        let _worker_id = worker.id.clone();
         let status = Arc::clone(&worker.status);
 
         drop(tx); // Close the channel immediately

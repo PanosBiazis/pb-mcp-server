@@ -590,7 +590,6 @@ fn test_security_context_serialization() {
 #[test]
 fn test_concurrent_security_operations() {
     use std::sync::Arc;
-    use std::thread;
 
     let (_temp, root) = create_test_project();
     let root = Arc::new(root);
@@ -713,8 +712,6 @@ fn test_case_sensitivity() {
 
 #[test]
 fn test_path_validation_performance() {
-    use std::time::Instant;
-
     let (_temp, root) = create_test_project();
 
     // Note: Test that path validation is fast
@@ -736,8 +733,6 @@ fn test_path_validation_performance() {
 
 #[test]
 fn test_command_validation_performance() {
-    use std::time::Instant;
-
     // Note: Test that command validation is fast
 
     // let policy = CommandPolicy::new();

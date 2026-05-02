@@ -1,3 +1,13 @@
+[workspace]
+members = [
+    ".",
+    "crates/pb-dashboard",
+    "crates/pb-gateway",
+    "crates/pb-lsp-bridge",
+    "crates/pb-network-node",
+]
+resolver = "2"
+
 [package]
 name = "pb-mcp-server"
 version = "0.2.0"
@@ -19,13 +29,13 @@ name = "pb-mcp-server"
 path = "src/main.rs"
 
 [[bin]]
-name = "pb-gateway"
-path = "src/bin/pb-gateway.rs"
-
-[[bin]]
 name = "pb-dashboard"
 path = "src/bin/pb-dashboard.rs"
 required-features = ["dashboard"]
+
+[[bin]]
+name = "pb-gateway"
+path = "src/bin/pb-gateway.rs"
 
 [[bin]]
 name = "pb-lsp-bridge"
@@ -47,7 +57,7 @@ tokio = { version = "1", features = ["full", "tracing"] }
 # Serialization
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-serde_yaml = "0.9"
+serde_yml = "0.0.12"
 toml = "0.8"
 schemars = "1"
 
@@ -143,7 +153,7 @@ optional = true
 # Web Tools
 [dependencies.reqwest]
 version = "0.12"
-features = ["json", "gzip", "brotli", "stream"]
+features = ["json", "gzip", "brotli", "stream", "rustls-tls"]
 optional = true
 
 [dependencies.scraper]
@@ -161,7 +171,7 @@ optional = true
 
 [dependencies.tokio-tungstenite]
 version = "0.24"
-features = ["native-tls"]
+features = ["rustls-tls-native-roots"]
 optional = true
 
 [dependencies.futures-util]
@@ -217,7 +227,8 @@ agent-workers = ["dep:rig-core"]
 
 # Feature Groups
 # dashboard is included here so `--features full` builds pb-dashboard too.
-full = ["default", "local-power", "experimental-lab", "agent-workers", "network-node", "dashboard"]
+full-headless = ["default", "local-power", "experimental-lab", "agent-workers", "network-node"]
+full = ["full-headless", "dashboard"]
 network-node = ["dep:libp2p"]
 tor-bridge = [] # Uses subprocess torsocks/tor CLI
 
@@ -238,7 +249,7 @@ tokenizers = ["dep:tokenizers"]
 
 [profile.release]
 opt-level = 3
-lto = "thin"
+lto = "fat"
 codegen-units = 1
 strip = true
 
@@ -249,15 +260,24 @@ debug = true
 [profile.test]
 opt-level = 2
 
-# Benchmarks (uncomment when benchmark files are created)
-# [[bench]]
-# name = "bus_performance"
-# harness = false
+[[bench]]
+name = "bus_performance"
+harness = false
 
-# [[bench]]
-# name = "code_index"
-# harness = false
+[[bench]]
+name = "code_index"
+harness = false
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+todo = "warn"
+dbg_macro = "warn"

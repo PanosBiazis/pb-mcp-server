@@ -23,7 +23,7 @@
 //! use pb_mcp_server::profiles::ToolProfile;
 //!
 //! // Create security context for a project
-//! let ctx = SecurityContext::new("/project/root", ToolProfile::CoreCode)?;
+//! let ctx = SecurityContext::with_profile("/project/root", ToolProfile::CoreCode)?;
 //!
 //! // Validate a path
 //! let safe_path = ctx.validate_path("src/main.rs")?;
@@ -174,7 +174,17 @@ impl SecurityContext {
 
         // Attempt to initialise the audit log; if the directory is not
         // writable we silently degrade (audit_log = None).
-        let audit_log = Arc::new(AuditLog::new(&root).ok());
+        let audit_log = match AuditLog::new(&root) {
+            Ok(log) => Arc::new(Some(log)),
+            Err(e) => {
+                tracing::warn!(
+                    "Audit log initialization failed for {}: {}. Security operations will not be logged.",
+                    root.display(),
+                    e
+                );
+                Arc::new(None)
+            }
+        };
 
         Ok(SecurityContext {
             path_guard: Arc::new(path_guard),
@@ -431,12 +441,17 @@ impl SecurityContext {
     /// Get the risk level of the current profile.
     pub fn risk_level(&self) -> &'static str {
         match self.profile.risk_level() {
-            1 => "low",
-            2 => "low",
+            1 | 2 => "low",
             3 => "medium",
-            4 => "high",
-            5 => "high",
-            _ => "unknown",
+            4 | 5 => "high",
+            other => {
+                tracing::warn!(
+                    "Unexpected risk level {} for profile {:?}",
+                    other,
+                    self.profile
+                );
+                "unknown"
+            }
         }
     }
 
@@ -472,6 +487,19 @@ impl SecurityContext {
             }
         }
 
+        // 3. Audit trail — record tool access (best-effort, do not fail the operation)
+        if let Some(ref log) = *self.audit_log {
+            let input_bytes = path.unwrap_or("").as_bytes();
+            let _ = log.record(
+                "system",
+                tool_name,
+                input_bytes,
+                b"access_check_passed",
+                crate::security::audit::AuditResultStatus::Success,
+                std::collections::HashMap::new(),
+            );
+        }
+
         Ok(())
     }
 }
@@ -485,6 +513,7 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
+    #[allow(dead_code)]
     fn setup_ctx(profile: ToolProfile) -> (TempDir, SecurityContext) {
         let temp = TempDir::new().unwrap();
         let ctx = SecurityContext::with_profile(temp.path(), profile).unwrap();

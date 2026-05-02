@@ -7,17 +7,19 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
 
 jobs:
+  # ── Per-feature checks on the root crate ───────────────────────────────────
   check:
-    name: Check
+    name: Check (${{ matrix.features || 'default' }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
         features:
           - ""
           - "--no-default-features"
-          - "--all-features"
+          - "--features full-headless" # replaces --all-features; skips eframe/egui
           - "--features network-node"
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +27,27 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --lib ${{ matrix.features }}
 
+  # ── All five workspace members ─────────────────────────────────────────────
+  # pb-dashboard pulls in eframe/egui which need display headers on Linux.
+  check-workspace:
+    name: Check (workspace)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install system dependencies for eframe/egui (pb-dashboard)
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-3-dev \
+            libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            libxkbcommon-dev \
+            libssl-dev
+      - name: cargo check --workspace
+        run: cargo check --workspace
+
+  # ── Root-crate tests (default features) ────────────────────────────────────
   test:
     name: Test
     runs-on: ubuntu-latest
@@ -34,24 +57,45 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --lib
 
+  # ── Root-crate tests (full feature set, headless-safe) ─────────────────────
   test-features:
-    name: Test (network-node)
+    name: Test (full-headless features)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --lib --features network-node
+      - run: cargo test --lib --features full-headless
 
+  # ── Cross-workspace tests (skip the GUI crate) ─────────────────────────────
+  test-workspace:
+    name: Test (workspace)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo test --workspace --exclude pb-dashboard
+        run: cargo test --workspace --exclude pb-dashboard
+
+  # ── Linting ─────────────────────────────────────────────────────────────────
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --lib -- -D warnings
+      - name: Clippy (root crate, default features)
+        run: cargo clippy --lib -- -D warnings
+      - name: Clippy (root crate, full-headless features)
+        run: cargo clippy --lib --features full-headless -- -D warnings
+      - name: Clippy (workspace, excluding pb-dashboard)
+        run: cargo clippy --workspace --exclude pb-dashboard -- -D warnings
 
+  # ── Formatting ──────────────────────────────────────────────────────────────
   fmt:
     name: Formatting
     runs-on: ubuntu-latest
@@ -60,15 +104,29 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      - run: cargo fmt --check
+      - run: cargo fmt --all --check
 
+  # ── Documentation ───────────────────────────────────────────────────────────
+  # Treats rustdoc warnings as errors. Excludes pb-dashboard because building
+  # its docs requires eframe/egui display headers (same reason as check-workspace).
+  doc:
+    name: Documentation
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: "-D warnings"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo doc --workspace (excluding pb-dashboard)
+        run: cargo doc --workspace --no-deps --document-private-items --exclude pb-dashboard
+
+  # ── Security audit ───────────────────────────────────────────────────────────
   audit:
     name: Security Audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
-      - run: cargo audit
+      - uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}

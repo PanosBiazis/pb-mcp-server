@@ -2,6 +2,7 @@
 
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/PanosBiazis/pb-mcp-server/workflows/CI/badge.svg)](https://github.com/PanosBiazis/pb-mcp-server/actions)
 [![MCP](https://img.shields.io/badge/Protocol-MCP-blue.svg)](https://modelcontextprotocol.io/)
 
 > **Profile-based IDE agent MCP server for Zed/Cursor** with multi-agent bus, code intelligence, and execution tools.
@@ -25,7 +26,7 @@
 
 ## Overview
 
-`pb-mcp-server` is a Rust-based MCP (Model Context Protocol) server designed for IDE agents in Zed, Cursor, and similar editors. It provides:
+`pb-mcp-server` is a Rust-based MCP (Model Context Protocol) server designed for IDE agents in Zed, Cursor, and similar editors. It exposes **253 tools** across six profiles and is built as a Cargo workspace with 5 members covering the MCP core, HTTP gateway, LSP bridge, P2P networking, and an admin dashboard. It provides:
 
 - **Profile-based tool exposure** - Different tool sets for different workflows
 - **Multi-agent coordination** - Durable append-only message bus for agent communication
@@ -118,6 +119,20 @@ MINT_PROJECT_ROOT=$(pwd) ./target/release/pb-mcp-server --version
 # Quick health check (if gateway is running)
 curl http://localhost:8080/health
 ```
+
+---
+
+## Workspace Architecture
+
+The repository is a Cargo workspace with five members:
+
+| Crate | Description |
+|-------|-------------|
+| `pb-mcp-server` | Core library + main MCP server binary |
+| `crates/pb-gateway` | HTTP REST gateway with auth and project inspection endpoints |
+| `crates/pb-lsp-bridge` | LSP↔MCP bridge for Android Studio and JetBrains IDEs |
+| `crates/pb-network-node` | P2P networking node (libp2p Kademlia + Gossipsub) |
+| `crates/pb-dashboard` | egui/eframe admin dashboard (`--features dashboard`) |
 
 ---
 
@@ -720,6 +735,15 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 git clone https://github.com/PanosBiazis/pb-mcp-server.git
 cd pb-mcp-server
 cargo build
+
+# Check all workspace members
+cargo check --workspace
+
+# Test all crates (excluding GUI dashboard)
+cargo test --workspace --exclude pb-dashboard
+
+# Lint entire workspace
+cargo clippy --workspace --exclude pb-dashboard -- -D warnings
 ```
 
 ### Testing
@@ -809,6 +833,23 @@ fn test_my_tool() {
     let result = ops::my_tool_work(args).unwrap();
     assert!(result.contains("expected"));
 }
+```
+
+---
+
+## Benchmarks
+
+Criterion benchmarks measure key subsystems:
+
+```sh
+# Run all benchmarks
+cargo bench
+
+# Bus I/O (JSONL append + read performance, 10–1000 messages)
+cargo bench --bench bus_performance
+
+# Code indexing (symbol extraction, grep search, 10–100 files)
+cargo bench --bench code_index
 ```
 
 ---

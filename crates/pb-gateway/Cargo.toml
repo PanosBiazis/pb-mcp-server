@@ -1,0 +1,29 @@
+[package]
+name = "pb-gateway"
+version = "0.2.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+pb-mcp-server = { path = "../.." }
+axum = "0.8"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace", "limit", "compression-gzip"] }
+hyper = "1"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+hmac = "0.12"
+sha2 = "0.10"
+subtle = "2"
+base64 = { version = "0.22", default-features = false, features = ["std"] }
+chrono = { version = "0.4", features = ["serde"] }
+dashmap = "6"
+fs4 = "0.13"
+ignore = "0.4"
+regex = "1"
+
+[dev-dependencies]
+tempfile = "3"
