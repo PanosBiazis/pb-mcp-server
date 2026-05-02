@@ -8,6 +8,7 @@
 //! - Route traffic through Tor (via the [`tor`](crate::network::tor) module)
 //!
 //! Only available when the `network-node` feature is enabled.
+#![allow(missing_docs)]
 
 use crate::network::config::NetworkConfig;
 use crate::network::discovery::NodeDiscovery;
@@ -34,9 +35,9 @@ use tokio::sync::{mpsc, RwLock};
 /// - **Gossipsub** – pub/sub message broadcast for bus event replication.
 /// - **Identify** – advertises the local node's public key and addresses.
 /// - **Ping** – liveness checks that also provide round-trip latency.
+#[allow(missing_docs)]
 #[derive(libp2p::swarm::NetworkBehaviour)]
 #[behaviour(prelude = "libp2p::swarm::derive_prelude")]
-#[allow(missing_docs)]
 pub struct Behaviour {
     /// Kademlia DHT for distributed peer discovery.
     pub kademlia: kad::Behaviour<kad::store::MemoryStore>,

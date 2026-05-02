@@ -18,12 +18,11 @@ use crate::tools::registry::ToolRegistry;
 // MintMcp
 // ---------------------------------------------------------------------------
 
-/// Core MCP server handle.
-///
-/// Holds the active [`ToolProfile`] and a fully-built [`ToolRegistry`].
-/// Construct via [`MintMcp::new`] or [`run_server`].
+/// Server configuration for the MCP server.
 pub struct MintMcp {
+    /// Tool profile configuration
     pub profile: ToolProfile,
+    /// Tool registry for managing available tools
     pub registry: ToolRegistry,
 }
 
