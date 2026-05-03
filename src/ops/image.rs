@@ -136,7 +136,7 @@ pub fn image_info_work(path: PathBuf) -> String {
 
     #[cfg(feature = "ocr-tools")]
     {
-        match image::io::Reader::open(p) {
+        match image::ImageReader::open(p) {
             Ok(reader) => match reader.into_dimensions() {
                 Ok((w, h)) => {
                     out.push_str(&format!("width={w}\nheight={h}\n"));
@@ -148,7 +148,7 @@ pub fn image_info_work(path: PathBuf) -> String {
             Err(e) => return format!("Error: cannot open image with `image` crate: {e}"),
         }
         // Try to detect format via extension/content
-        match image::io::Reader::open(p) {
+        match image::ImageReader::open(p) {
             Ok(reader) => {
                 let fmt = reader.format();
                 out.push_str(&format!(
@@ -513,17 +513,26 @@ pub fn image_rotate_work(path: PathBuf, degrees: f64, output: Option<PathBuf>) -
                     270 | -90 => img.rotate270(),
                     0 => img,
                     other => {
-                        // Arbitrary angle: use filter and note limitation
-                        let rad = (other as f64).to_radians();
-                        // Use the image crate's rotate about center
-                        let (w, h) = (img.width(), img.height());
-                        let bg = image::Rgba([0, 0, 0, 0]);
-                        image::imageops::rotate_about_center(
-                            &img,
-                            rad,
-                            image::imageops::FilterType::Lanczos3,
-                            bg,
-                        )
+                        // Arbitrary angles are not supported by image 0.25+
+                        // (rotate_about_center was removed). Snap to the
+                        // nearest 90° increment and warn the caller.
+                        let snapped = ((other as f64 / 90.0).round() as i32 * 90) % 360;
+                        let fallback = match snapped {
+                            90 | -270 => img.rotate90(),
+                            180 | -180 => img.rotate180(),
+                            270 | -90 => img.rotate270(),
+                            _ => img,
+                        };
+                        return match fallback.save(&out_path) {
+                            Ok(()) => format!(
+                                "IMAGE_ROTATE ok (snapped {}° → {}°)\ninput={}\noutput={}\n",
+                                other,
+                                snapped,
+                                p.display(),
+                                out_path.display()
+                            ),
+                            Err(e) => format!("Error: cannot save rotated image: {e}"),
+                        };
                     }
                 };
                 match rotated.save(&out_path) {
@@ -1161,8 +1170,6 @@ pub fn image_watermark_work(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-
     /// Helper: create a small temporary PNG file using the image crate (if available)
     /// or build a valid PNG from scratch using flate2 for zlib compression.
     fn create_test_png(dir: &Path, name: &str) -> PathBuf {

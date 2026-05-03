@@ -8,3 +8,5 @@ node_modules/
 *.log
 setup.json
 .finetune_data.jsonl
+screenshot*
+asus-server.md

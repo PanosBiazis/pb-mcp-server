@@ -257,9 +257,8 @@ impl FileCache {
 
     /// Load file using memory mapping (feature-gated)
     #[cfg(feature = "perf-mmap")]
+    #[allow(unsafe_code)]
     pub fn load_file_mmap(&self, path: &Path) -> Result<String> {
-        use std::io::Read;
-
         let file = fs::File::open(path).map_err(|e| Error::file_system(path, e))?;
 
         // Safety: We trust the file system and don't modify the file

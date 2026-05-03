@@ -145,34 +145,20 @@ pub fn neural_model_info_work(model_path: &Path) -> String {
     {
         use std::time::Instant;
         let t = Instant::now();
-        match ort::session::Session::builder().and_then(|b| b.commit_from_file(model_path)) {
+        match ort::session::Session::builder().and_then(|mut b| b.commit_from_file(model_path)) {
             Ok(session) => {
                 let load_ms = t.elapsed().as_millis() as u64;
                 let mut input_shapes = Vec::new();
                 for info in session.inputs() {
-                    let name_label = info.name.clone();
-                    let dims: Vec<String> = info
-                        .shape
-                        .iter()
-                        .map(|d| {
-                            d.map(|v| v.to_string())
-                                .unwrap_or_else(|| "?".to_string())
-                        })
-                        .collect();
-                    input_shapes.push(format!("{}[{}]", name_label, dims.join(",")));
+                    let name_label = info.name().to_string();
+                    let type_desc = format!("{}", info.dtype());
+                    input_shapes.push(format!("{}: {}", name_label, type_desc));
                 }
                 let mut output_shapes = Vec::new();
                 for info in session.outputs() {
-                    let name_label = info.name.clone();
-                    let dims: Vec<String> = info
-                        .shape
-                        .iter()
-                        .map(|d| {
-                            d.map(|v| v.to_string())
-                                .unwrap_or_else(|| "?".to_string())
-                        })
-                        .collect();
-                    output_shapes.push(format!("{}[{}]", name_label, dims.join(",")));
+                    let name_label = info.name().to_string();
+                    let type_desc = format!("{}", info.dtype());
+                    output_shapes.push(format!("{}: {}", name_label, type_desc));
                 }
                 let info = NeuralModelInfo {
                     name,
@@ -240,11 +226,12 @@ pub fn neural_inference_work(model_path: &Path, input_json: &str) -> String {
                 Err(e) => return format!("Error: invalid input JSON: {e}"),
             };
 
-        let session =
-            match ort::session::Session::builder().and_then(|b| b.commit_from_file(model_path)) {
-                Ok(s) => s,
-                Err(e) => return format!("Error: loading ONNX model: {e}"),
-            };
+        let mut session = match ort::session::Session::builder()
+            .and_then(|mut b| b.commit_from_file(model_path))
+        {
+            Ok(s) => s,
+            Err(e) => return format!("Error: loading ONNX model: {e}"),
+        };
 
         let input_infos = session.inputs();
         if inputs_map.len() != input_infos.len() {
@@ -256,72 +243,51 @@ pub fn neural_inference_work(model_path: &Path, input_json: &str) -> String {
         }
 
         // Build ort input values
-        let mut ort_inputs: Vec<ort::session::Input> = Vec::new();
-        for info in &input_infos {
-            let data = match inputs_map.get(&info.name) {
+        let mut ort_inputs: Vec<(String, ort::value::DynValue)> = Vec::new();
+        for info in input_infos {
+            let input_name = info.name().to_string();
+            let data = match inputs_map.get(&input_name) {
                 Some(d) => d,
-                None => return format!("Error: missing input '{}'", info.name),
+                None => return format!("Error: missing input '{}'", input_name),
             };
 
-            let dims: Vec<usize> = info
-                .shape
-                .iter()
-                .map(|d| d.map(|v| v as usize).unwrap_or(1))
-                .collect();
-
-            // Total elements expected from shape
-            let expected: usize = if dims.is_empty() {
-                1
-            } else {
-                dims.iter().product()
+            let shape_vec: Vec<i64> = vec![data.len() as i64];
+            let value = match ort::value::Tensor::<f32>::from_array((
+                shape_vec,
+                data.clone().into_boxed_slice(),
+            )) {
+                Ok(v) => v.into_dyn(),
+                Err(e) => return format!("Error: creating input tensor: {e}"),
             };
-            if data.len() != expected {
-                return format!(
-                    "Error: input '{}' shape {:?} expects {} elements, got {}",
-                    info.name,
-                    dims,
-                    expected,
-                    data.len()
-                );
-            }
-
-            let ndarray_input = ndarray::Array::from_shape_vec(ndarray::IxDyn(&dims), data.clone())
-                .map_err(|e| format!("ndarray shape error: {e}"))
-                .unwrap();
-
-            ort_inputs.push(ort::session::Input::new(ndarray_input));
+            ort_inputs.push((input_name, value));
         }
 
         let t = Instant::now();
-        let outputs = match session.run(ort_inputs.as_slice()) {
+        let outputs = match session.run(ort_inputs) {
             Ok(o) => o,
             Err(e) => return format!("Error: ONNX inference failed: {e}"),
         };
         let inference_time_ms = t.elapsed().as_millis() as u64;
 
         let mut results = Vec::new();
-        for (idx, output) in outputs.iter().enumerate() {
-            let output_name = session
-                .outputs()
-                .get(idx)
-                .map(|o| o.name.clone())
-                .unwrap_or_else(|| format!("output_{idx}"));
+        for (_idx, output) in outputs.iter().enumerate() {
+            let output_name = output.0.to_string();
 
-            let ndarray_out: ndarray::ArrayD<f32> = match output.try_extract_tensor::<f32>() {
-                Ok(arr) => arr,
+            let (tensor_shape, tensor_data) = match output.1.try_extract_tensor::<f32>() {
+                Ok(pair) => pair,
                 Err(_) => {
                     results.push(InferenceResult {
                         output_name,
                         shape: vec![],
-                        values_summary: "(non-f32 output; enable ndarray for details)".to_string(),
+                        values_summary: "(non-f32 output)".to_string(),
                         inference_time_ms,
                     });
                     continue;
                 }
             };
 
-            let shape = ndarray_out.shape().to_vec();
-            let values: Vec<f32> = ndarray_out.iter().cloned().collect();
+            let shape: Vec<usize> = tensor_shape.iter().map(|&d| d as usize).collect();
+            let values: Vec<f32> = tensor_data.to_vec();
             let values_summary = summarize_values(&values);
 
             results.push(InferenceResult {
