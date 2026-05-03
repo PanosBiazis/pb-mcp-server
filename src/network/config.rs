@@ -92,7 +92,35 @@ impl NetworkConfig {
                 cfg.max_peers = n;
             }
         }
+        cfg.warn_if_weak_secret();
         cfg
+    }
+
+    /// Returns `true` if the signing secret is non-empty and at least 32 characters long.
+    ///
+    /// A short or absent secret provides no real security — HMAC-SHA256 accepts
+    /// any key length, but a key shorter than 32 bytes is weaker than the output.
+    pub fn has_strong_signing_secret(&self) -> bool {
+        self.signing_secret.len() >= 32
+    }
+
+    /// Emits a [`tracing::warn!`] when the signing secret is missing or weak.
+    ///
+    /// Call this once after constructing the config via [`NetworkConfig::from_env`].
+    pub fn warn_if_weak_secret(&self) {
+        if self.signing_secret.is_empty() {
+            tracing::warn!(
+                "PB_NODE_SECRET is not set — inter-node messages will be signed with an \
+                 empty key, which provides no integrity guarantee. \
+                 Set PB_NODE_SECRET to a strong secret (≥32 chars) for production use."
+            );
+        } else if !self.has_strong_signing_secret() {
+            tracing::warn!(
+                secret_len = self.signing_secret.len(),
+                "PB_NODE_SECRET is set but short — use a secret of at least 32 characters \
+                 for production security."
+            );
+        }
     }
 }
 
@@ -321,5 +349,33 @@ mod tests {
             id, "node-0000000000000000",
             "default node_id should be the hex encoding of eight zero bytes"
         );
+    }
+
+    #[test]
+    fn has_strong_signing_secret_empty() {
+        let cfg = NetworkConfig::default(); // signing_secret is ""
+        assert!(!cfg.has_strong_signing_secret());
+    }
+
+    #[test]
+    fn has_strong_signing_secret_short() {
+        let mut cfg = NetworkConfig::default();
+        cfg.signing_secret = "tooshort".to_string();
+        assert!(!cfg.has_strong_signing_secret());
+    }
+
+    #[test]
+    fn has_strong_signing_secret_exactly_32() {
+        let mut cfg = NetworkConfig::default();
+        cfg.signing_secret = "a".repeat(32);
+        assert!(cfg.has_strong_signing_secret());
+    }
+
+    #[test]
+    fn has_strong_signing_secret_long() {
+        let mut cfg = NetworkConfig::default();
+        cfg.signing_secret =
+            "a-very-long-secret-that-is-definitely-more-than-32-characters".to_string();
+        assert!(cfg.has_strong_signing_secret());
     }
 }

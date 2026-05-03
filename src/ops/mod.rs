@@ -49,9 +49,13 @@ pub mod ai_ml_extended;
 #[allow(dead_code)]
 pub mod algorithms;
 #[allow(dead_code)]
+pub mod data_analytics;
+#[allow(dead_code)]
 pub mod file_crypto;
 #[allow(dead_code)]
 pub mod ide_tools;
+#[allow(dead_code)]
+pub mod iot;
 #[allow(dead_code)]
 pub mod logs_charts;
 #[allow(dead_code)]
@@ -60,6 +64,8 @@ pub mod network_tools;
 pub mod neural;
 #[allow(dead_code)]
 pub mod protection;
+#[allow(dead_code)]
+pub mod research;
 
 #[allow(unused_imports)]
 pub use reverse_eng::{
@@ -168,12 +174,14 @@ pub use screenshot_tools::{
 
 #[allow(unused_imports)]
 pub use ai_ml_extended::{
-    ai_cluster_texts_work, ai_context_pack_smart_work as ai_ml_context_pack_smart_work,
+    ai_chain_of_thought_work, ai_cluster_texts_work,
+    ai_context_pack_smart_work as ai_ml_context_pack_smart_work, ai_debate_work,
     ai_embed_text_work, ai_few_shot_classify_work, ai_multi_model_compare_work,
-    ai_rewrite_style_work, ai_semantic_search_work, ai_structured_extract_work,
-    ai_verify_factual_work, ai_zero_shot_classify_work, ml_benchmark_model_work,
-    ml_dataset_validate_work, ml_fine_tune_prep_work, ml_model_info_work, ml_perplexity_score_work,
-    ml_token_count_work, ml_tokenize_work,
+    ai_rewrite_style_work, ai_self_critique_work, ai_semantic_search_work,
+    ai_structured_extract_work, ai_verify_factual_work, ai_zero_shot_classify_work,
+    ml_benchmark_model_work, ml_convert_to_gguf_work, ml_dataset_validate_work,
+    ml_fine_tune_prep_work, ml_model_compare_benchmark_work, ml_model_info_work,
+    ml_perplexity_score_work, ml_token_count_work, ml_tokenize_work,
 };
 
 #[allow(unused_imports)]
@@ -214,6 +222,34 @@ pub use network_tools::*;
 
 #[allow(unused_imports)]
 pub use protection::*;
+
+// ── re-exports for new system functions ─────────────────────────────────────
+#[allow(unused_imports)]
+pub use system::{
+    sys_cron_add_work, sys_cron_list_work, sys_docker_build_work, sys_docker_exec_work,
+    sys_docker_logs_work, sys_docker_ps_work, sys_hardware_info_work, sys_journal_tail_work,
+    sys_k8s_apply_work, sys_k8s_logs_work, sys_k8s_pods_work, sys_process_kill_work,
+    sys_service_control_work,
+};
+
+// ── re-exports for new modules ───────────────────────────────────────────────
+#[allow(unused_imports)]
+pub use iot::{
+    iot_can_bus_read_work, iot_device_inventory_work, iot_gpio_read_work, iot_gpio_write_work,
+    iot_i2c_scan_work, iot_serial_read_work, iot_serial_write_work, iot_sms_send_work,
+};
+
+#[allow(unused_imports)]
+pub use data_analytics::{
+    data_csv_analyze_work, data_diff_jsonl_work, data_json_flatten_work, data_parquet_read_work,
+    data_regex_extract_work, data_timeseries_detect_work,
+};
+
+#[allow(unused_imports)]
+pub use research::{
+    quantum_circuit_simulate_work, quantum_grover_search_work, quantum_shor_factor_work,
+    research_arxiv_download_work, research_arxiv_search_work,
+};
 
 use globset::{Glob, GlobSetBuilder};
 use ignore::WalkBuilder;

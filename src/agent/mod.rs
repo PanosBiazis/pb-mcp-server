@@ -90,6 +90,7 @@ pub mod worker;
 pub use consensus::ConsensusEngine;
 
 #[cfg(feature = "web-websocket")]
+#[allow(unused_imports)]
 pub use live::{
     live_broadcast, live_get_status, live_subscribe, AgentHealth, AgentHealthReport,
     ConnectionStatus, HeartbeatConfig, HeartbeatMonitor, LiveConnection, LiveConnectionManager,

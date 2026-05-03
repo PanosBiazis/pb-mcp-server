@@ -99,6 +99,147 @@ use crate::ops::{
     vscode_open_diff_work, vscode_open_file_work, zed_context_attach_work,
     zed_get_diagnostics_work, zed_open_file_work, zed_search_workspace_work,
 };
+// New tool imports – network, protection, IoT, data analytics, research, system
+#[allow(unused_imports)]
+use crate::ops::{
+    // data analytics
+    data_csv_analyze_work,
+    data_diff_jsonl_work,
+    data_json_flatten_work,
+    data_parquet_read_work,
+    data_regex_extract_work,
+    data_timeseries_detect_work,
+    // iot
+    iot_can_bus_read_work,
+    iot_device_inventory_work,
+    iot_gpio_read_work,
+    iot_gpio_write_work,
+    iot_i2c_scan_work,
+    iot_serial_read_work as iot_serial_read_work_v2,
+    iot_serial_write_work as iot_serial_write_work_v2,
+    iot_sms_send_work,
+    // network tools
+    net_arp_scan_work,
+    net_bandwidth_test_work,
+    net_bluetooth_scan_work,
+    net_dns_lookup_work as net_dns_lookup_work_v2,
+    net_dns_zone_transfer_work,
+    net_http_benchmark_work,
+    net_modbus_read_work,
+    net_mqtt_publish_work,
+    net_mqtt_subscribe_work,
+    net_nmap_quick_work,
+    net_packet_capture_work,
+    net_ping_work,
+    net_port_scan_work,
+    net_serial_list_work,
+    net_serial_read_work,
+    net_serial_send_work,
+    net_sftp_download_work,
+    net_sftp_upload_work,
+    net_ssh_exec_work,
+    net_ssl_grade_work,
+    net_tls_inspect_work as net_tls_inspect_work_v2,
+    net_traceroute_work,
+    net_vpn_status_work,
+    net_wake_on_lan_work,
+    net_whois_work,
+    net_wifi_scan_work,
+    // protection / security
+    protect_cron_audit_work,
+    protect_dependency_audit_work,
+    protect_file_reputation_work,
+    protect_firewall_status_work,
+    protect_integrity_check_work,
+    protect_network_anomaly_work,
+    protect_permissions_scan_work,
+    protect_process_anomaly_work,
+    protect_quarantine_file_work,
+    protect_rootkit_check_work,
+    protect_scan_directory_clamav_work,
+    protect_scan_file_clamav_work,
+    protect_secret_scan_dir_work,
+    protect_ssh_key_audit_work,
+    protect_suid_find_work,
+    protect_world_writable_find_work,
+    protect_yara_scan_dir_work,
+    // research / quantum
+    quantum_circuit_simulate_work,
+    quantum_grover_search_work,
+    quantum_shor_factor_work,
+    research_arxiv_download_work,
+    research_arxiv_search_work,
+    // system extended
+    sys_cron_add_work,
+    sys_cron_list_work,
+    sys_docker_build_work,
+    sys_docker_exec_work,
+    sys_docker_logs_work,
+    sys_docker_ps_work,
+    sys_hardware_info_work,
+    sys_journal_tail_work,
+    sys_k8s_apply_work,
+    sys_k8s_logs_work,
+    sys_k8s_pods_work,
+    sys_process_kill_work,
+    sys_service_control_work,
+};
+// AI/ML Extended, Logs/Charts, Neural — newly wired
+#[allow(unused_imports)]
+use crate::ops::{
+    ai_chain_of_thought_work,
+    // AI/ML Extended
+    ai_cluster_texts_work,
+    ai_debate_work,
+    ai_embed_text_work,
+    ai_few_shot_classify_work,
+    ai_ml_context_pack_smart_work,
+    ai_multi_model_compare_work,
+    ai_rewrite_style_work,
+    ai_self_critique_work,
+    ai_semantic_search_work,
+    ai_structured_extract_work,
+    ai_verify_factual_work,
+    ai_zero_shot_classify_work,
+    chart_bar_work,
+    chart_dependency_graph_work,
+    chart_gantt_work,
+    chart_histogram_work,
+    chart_line_work,
+    chart_pie_work,
+    chart_scatter_work,
+    chart_timeseries_work,
+    history_bus_replay_work,
+    history_diff_timeline_work,
+    history_search_past_calls_work,
+    history_tool_calls_work,
+    log_audit_query_work,
+    log_error_cluster_work,
+    log_export_work,
+    log_level_summary_work,
+    log_parse_json_work,
+    log_parse_nginx_work,
+    log_parse_syslog_work,
+    log_search_work,
+    // Logs / Charts
+    log_tail_work,
+    log_time_range_filter_work,
+    ml_benchmark_model_work,
+    ml_convert_to_gguf_work,
+    ml_dataset_validate_work,
+    ml_fine_tune_prep_work,
+    ml_model_compare_benchmark_work,
+    ml_model_info_work,
+    ml_perplexity_score_work,
+    ml_token_count_work,
+    ml_tokenize_work,
+    neural_embed_cosine_work,
+    neural_inference_work,
+    // Neural
+    neural_model_info_work,
+    neural_tensor_stats_work,
+    neural_tokenize_work,
+};
 use crate::thinking::{
     plan_definition_of_done_work, plan_execution_checklist_work, plan_handoff_brief_work,
     plan_retrospective_work, plan_risk_register_work, plan_test_strategy_work,
@@ -6509,2767 +6650,5525 @@ impl MintMcp {
 
     // --- AUDIO ---
 
-#[tool(
-    description = "Get audio file metadata: duration, format, bitrate, sample rate, channels. Requires ffprobe on PATH. Blocked on public profile.",
-    annotations(title = "Audio info", read_only_hint = true)
-)]
-async fn audio_info(
-    &self,
-    Parameters(args): Parameters<AudioInfoArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let out = tokio::task::spawn_blocking(move || audio_info_work(path))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Convert an audio file to a different format (mp3, wav, ogg, flac, aac, m4a, opus, wma). Requires ffmpeg on PATH. Blocked on public profile.",
-    annotations(title = "Audio convert", read_only_hint = false)
-)]
-async fn audio_convert(
-    &self,
-    Parameters(args): Parameters<AudioConvertArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let target_format = args.target_format.clone();
-    let output = args.output.as_deref().map(|s| {
-        self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s))
-    });
-    let out = tokio::task::spawn_blocking(move || audio_convert_work(path, target_format, output))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Extract a time segment from an audio file by start time and duration. Requires ffmpeg on PATH. Blocked on public profile.",
-    annotations(title = "Audio extract segment", read_only_hint = false)
-)]
-async fn audio_extract_segment(
-    &self,
-    Parameters(args): Parameters<AudioExtractSegmentArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let start_secs = args.start_secs;
-    let duration_secs = args.duration_secs;
-    let output = args.output.as_deref().map(|s| {
-        self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s))
-    });
-    let out = tokio::task::spawn_blocking(move || {
-        audio_extract_segment_work(path, start_secs, duration_secs, output)
-    })
-    .await
-    .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Trim an audio file to a start/end time range. Requires ffmpeg on PATH. Blocked on public profile.",
-    annotations(title = "Audio trim", read_only_hint = false)
-)]
-async fn audio_trim(
-    &self,
-    Parameters(args): Parameters<AudioTrimArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let start_secs = args.start_secs;
-    let end_secs = args.end_secs;
-    let output = args.output.as_deref().map(|s| {
-        self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s))
-    });
-    let out =
-        tokio::task::spawn_blocking(move || audio_trim_work(path, start_secs, end_secs, output))
+    #[tool(
+        description = "Get audio file metadata: duration, format, bitrate, sample rate, channels. Requires ffprobe on PATH. Blocked on public profile.",
+        annotations(title = "Audio info", read_only_hint = true)
+    )]
+    async fn audio_info(
+        &self,
+        Parameters(args): Parameters<AudioInfoArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out = tokio::task::spawn_blocking(move || audio_info_work(path))
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Concatenate multiple audio files into one output file in order. Requires ffmpeg on PATH. Blocked on public profile.",
-    annotations(title = "Audio merge", read_only_hint = false)
-)]
-async fn audio_merge(
-    &self,
-    Parameters(args): Parameters<AudioMergeArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let paths: Vec<PathBuf> = args
-        .paths
-        .iter()
-        .map(|p| self.resolve_path(p).unwrap_or_else(|_| PathBuf::from(p)))
-        .collect();
-    let output = match self.resolve_path(&args.output) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let out = tokio::task::spawn_blocking(move || audio_merge_work(paths, output))
+
+    #[tool(
+        description = "Convert an audio file to a different format (mp3, wav, ogg, flac, aac, m4a, opus, wma). Requires ffmpeg on PATH. Blocked on public profile.",
+        annotations(title = "Audio convert", read_only_hint = false)
+    )]
+    async fn audio_convert(
+        &self,
+        Parameters(args): Parameters<AudioConvertArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let target_format = args.target_format.clone();
+        let output = args
+            .output
+            .as_deref()
+            .map(|s| self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s)));
+        let out =
+            tokio::task::spawn_blocking(move || audio_convert_work(path, target_format, output))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Extract a time segment from an audio file by start time and duration. Requires ffmpeg on PATH. Blocked on public profile.",
+        annotations(title = "Audio extract segment", read_only_hint = false)
+    )]
+    async fn audio_extract_segment(
+        &self,
+        Parameters(args): Parameters<AudioExtractSegmentArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let start_secs = args.start_secs;
+        let duration_secs = args.duration_secs;
+        let output = args
+            .output
+            .as_deref()
+            .map(|s| self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s)));
+        let out = tokio::task::spawn_blocking(move || {
+            audio_extract_segment_work(path, start_secs, duration_secs, output)
+        })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Mix (overlay) two audio files together with optional per-track volume control. Requires ffmpeg on PATH. Blocked on public profile.",
-    annotations(title = "Audio mix", read_only_hint = false)
-)]
-async fn audio_mix(
-    &self,
-    Parameters(args): Parameters<AudioMixArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let path_a = match self.resolve_path(&args.path_a) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let path_b = match self.resolve_path(&args.path_b) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let output = match self.resolve_path(&args.output) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let volume_a = args.volume_a;
-    let volume_b = args.volume_b;
-    let out = tokio::task::spawn_blocking(move || {
-        audio_mix_work(path_a, path_b, output, volume_a, volume_b)
-    })
-    .await
-    .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
 
-#[tool(
-    description = "Adjust the volume of an audio file by a multiplier (1.0 = original, 2.0 = double). Requires ffmpeg on PATH. Blocked on public profile.",
-    annotations(title = "Audio volume", read_only_hint = false)
-)]
-async fn audio_volume(
-    &self,
-    Parameters(args): Parameters<AudioVolumeArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let volume = args.volume;
-    let output = args.output.as_deref().map(|s| {
-        self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s))
-    });
-    let out = tokio::task::spawn_blocking(move || audio_volume_work(path, volume, output))
+    #[tool(
+        description = "Trim an audio file to a start/end time range. Requires ffmpeg on PATH. Blocked on public profile.",
+        annotations(title = "Audio trim", read_only_hint = false)
+    )]
+    async fn audio_trim(
+        &self,
+        Parameters(args): Parameters<AudioTrimArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let start_secs = args.start_secs;
+        let end_secs = args.end_secs;
+        let output = args
+            .output
+            .as_deref()
+            .map(|s| self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s)));
+        let out = tokio::task::spawn_blocking(move || {
+            audio_trim_work(path, start_secs, end_secs, output)
+        })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Change the playback speed of an audio file (1.0 = original, 2.0 = double speed). Requires ffmpeg on PATH. Blocked on public profile.",
-    annotations(title = "Audio speed", read_only_hint = false)
-)]
-async fn audio_speed(
-    &self,
-    Parameters(args): Parameters<AudioSpeedArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let speed = args.speed;
-    let output = args.output.as_deref().map(|s| {
-        self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s))
-    });
-    let out = tokio::task::spawn_blocking(move || audio_speed_work(path, speed, output))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
 
-#[tool(
-    description = "Reverse an audio file so it plays backwards. Requires ffmpeg on PATH. Blocked on public profile.",
-    annotations(title = "Audio reverse", read_only_hint = false)
-)]
-async fn audio_reverse(
-    &self,
-    Parameters(args): Parameters<AudioReverseArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let output = args.output.as_deref().map(|s| {
-        self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s))
-    });
-    let out = tokio::task::spawn_blocking(move || audio_reverse_work(path, output))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Normalize audio loudness to a target dB level (e.g. -14.0 for streaming, -23.0 for broadcast). Requires ffmpeg on PATH. Blocked on public profile.",
-    annotations(title = "Audio normalize", read_only_hint = false)
-)]
-async fn audio_normalize(
-    &self,
-    Parameters(args): Parameters<AudioNormalizeArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let target_db = args.target_db;
-    let output = args.output.as_deref().map(|s| {
-        self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s))
-    });
-    let out = tokio::task::spawn_blocking(move || audio_normalize_work(path, target_db, output))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Split an audio file into equal-length segments of a given duration. Requires ffmpeg on PATH. Blocked on public profile.",
-    annotations(title = "Audio split", read_only_hint = false)
-)]
-async fn audio_split(
-    &self,
-    Parameters(args): Parameters<AudioSplitArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let segment_duration_secs = args.segment_duration_secs;
-    let output_dir = args.output_dir.as_deref().map(|s| {
-        self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s))
-    });
-    let out = tokio::task::spawn_blocking(move || {
-        audio_split_work(path, segment_duration_secs, output_dir)
-    })
-    .await
-    .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Extract the audio track from a video file. Requires ffmpeg on PATH. Blocked on public profile.",
-    annotations(title = "Audio extract from video", read_only_hint = false)
-)]
-async fn audio_extract_from_video(
-    &self,
-    Parameters(args): Parameters<AudioExtractFromVideoArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let video_path = match self.resolve_path(&args.video_path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let output = args.output.as_deref().map(|s| {
-        self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s))
-    });
-    let out =
-        tokio::task::spawn_blocking(move || audio_extract_from_video_work(video_path, output))
+    #[tool(
+        description = "Concatenate multiple audio files into one output file in order. Requires ffmpeg on PATH. Blocked on public profile.",
+        annotations(title = "Audio merge", read_only_hint = false)
+    )]
+    async fn audio_merge(
+        &self,
+        Parameters(args): Parameters<AudioMergeArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let paths: Vec<PathBuf> = args
+            .paths
+            .iter()
+            .map(|p| self.resolve_path(p).unwrap_or_else(|_| PathBuf::from(p)))
+            .collect();
+        let output = match self.resolve_path(&args.output) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out = tokio::task::spawn_blocking(move || audio_merge_work(paths, output))
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Generate a waveform amplitude profile for an audio file, returning sample values as text. Requires ffprobe on PATH. Blocked on public profile.",
-    annotations(title = "Audio waveform", read_only_hint = true)
-)]
-async fn audio_waveform(
-    &self,
-    Parameters(args): Parameters<AudioWaveformArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let samples = args.samples;
-    let out = tokio::task::spawn_blocking(move || audio_waveform_work(path, samples))
+
+    #[tool(
+        description = "Mix (overlay) two audio files together with optional per-track volume control. Requires ffmpeg on PATH. Blocked on public profile.",
+        annotations(title = "Audio mix", read_only_hint = false)
+    )]
+    async fn audio_mix(
+        &self,
+        Parameters(args): Parameters<AudioMixArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path_a = match self.resolve_path(&args.path_a) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let path_b = match self.resolve_path(&args.path_b) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let output = match self.resolve_path(&args.output) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let volume_a = args.volume_a;
+        let volume_b = args.volume_b;
+        let out = tokio::task::spawn_blocking(move || {
+            audio_mix_work(path_a, path_b, output, volume_a, volume_b)
+        })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Detect silent intervals in an audio file, returning timestamps and durations. Requires ffmpeg on PATH. Blocked on public profile.",
-    annotations(title = "Audio silence detect", read_only_hint = true)
-)]
-async fn audio_silence_detect(
-    &self,
-    Parameters(args): Parameters<AudioSilenceDetectArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let min_duration = args.min_duration;
-    let noise_db = args.noise_db;
-    let out =
-        tokio::task::spawn_blocking(move || audio_silence_detect_work(path, min_duration, noise_db))
+
+    #[tool(
+        description = "Adjust the volume of an audio file by a multiplier (1.0 = original, 2.0 = double). Requires ffmpeg on PATH. Blocked on public profile.",
+        annotations(title = "Audio volume", read_only_hint = false)
+    )]
+    async fn audio_volume(
+        &self,
+        Parameters(args): Parameters<AudioVolumeArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let volume = args.volume;
+        let output = args
+            .output
+            .as_deref()
+            .map(|s| self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s)));
+        let out = tokio::task::spawn_blocking(move || audio_volume_work(path, volume, output))
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Change the playback speed of an audio file (1.0 = original, 2.0 = double speed). Requires ffmpeg on PATH. Blocked on public profile.",
+        annotations(title = "Audio speed", read_only_hint = false)
+    )]
+    async fn audio_speed(
+        &self,
+        Parameters(args): Parameters<AudioSpeedArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let speed = args.speed;
+        let output = args
+            .output
+            .as_deref()
+            .map(|s| self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s)));
+        let out = tokio::task::spawn_blocking(move || audio_speed_work(path, speed, output))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Reverse an audio file so it plays backwards. Requires ffmpeg on PATH. Blocked on public profile.",
+        annotations(title = "Audio reverse", read_only_hint = false)
+    )]
+    async fn audio_reverse(
+        &self,
+        Parameters(args): Parameters<AudioReverseArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let output = args
+            .output
+            .as_deref()
+            .map(|s| self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s)));
+        let out = tokio::task::spawn_blocking(move || audio_reverse_work(path, output))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Normalize audio loudness to a target dB level (e.g. -14.0 for streaming, -23.0 for broadcast). Requires ffmpeg on PATH. Blocked on public profile.",
+        annotations(title = "Audio normalize", read_only_hint = false)
+    )]
+    async fn audio_normalize(
+        &self,
+        Parameters(args): Parameters<AudioNormalizeArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let target_db = args.target_db;
+        let output = args
+            .output
+            .as_deref()
+            .map(|s| self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s)));
+        let out =
+            tokio::task::spawn_blocking(move || audio_normalize_work(path, target_db, output))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Split an audio file into equal-length segments of a given duration. Requires ffmpeg on PATH. Blocked on public profile.",
+        annotations(title = "Audio split", read_only_hint = false)
+    )]
+    async fn audio_split(
+        &self,
+        Parameters(args): Parameters<AudioSplitArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let segment_duration_secs = args.segment_duration_secs;
+        let output_dir = args
+            .output_dir
+            .as_deref()
+            .map(|s| self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s)));
+        let out = tokio::task::spawn_blocking(move || {
+            audio_split_work(path, segment_duration_secs, output_dir)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Extract the audio track from a video file. Requires ffmpeg on PATH. Blocked on public profile.",
+        annotations(title = "Audio extract from video", read_only_hint = false)
+    )]
+    async fn audio_extract_from_video(
+        &self,
+        Parameters(args): Parameters<AudioExtractFromVideoArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let video_path = match self.resolve_path(&args.video_path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let output = args
+            .output
+            .as_deref()
+            .map(|s| self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s)));
+        let out =
+            tokio::task::spawn_blocking(move || audio_extract_from_video_work(video_path, output))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Generate a waveform amplitude profile for an audio file, returning sample values as text. Requires ffprobe on PATH. Blocked on public profile.",
+        annotations(title = "Audio waveform", read_only_hint = true)
+    )]
+    async fn audio_waveform(
+        &self,
+        Parameters(args): Parameters<AudioWaveformArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let samples = args.samples;
+        let out = tokio::task::spawn_blocking(move || audio_waveform_work(path, samples))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Detect silent intervals in an audio file, returning timestamps and durations. Requires ffmpeg on PATH. Blocked on public profile.",
+        annotations(title = "Audio silence detect", read_only_hint = true)
+    )]
+    async fn audio_silence_detect(
+        &self,
+        Parameters(args): Parameters<AudioSilenceDetectArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let min_duration = args.min_duration;
+        let noise_db = args.noise_db;
+        let out = tokio::task::spawn_blocking(move || {
+            audio_silence_detect_work(path, min_duration, noise_db)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
 
     // --- IMAGE ---
 
-#[tool(
-    description = "Read image metadata: dimensions, format, file size, and color depth. Uses the image crate when available, falls back to ImageMagick/file commands. Blocked on public profile.",
-    annotations(title = "Image info", read_only_hint = true)
-)]
-async fn image_info(
-    &self,
-    Parameters(args): Parameters<ImageInfoArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let out = tokio::task::spawn_blocking(move || image_info_work(path))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Resize an image to exact width x height pixels. Uses image crate when available, otherwise ImageMagick. Blocked on public profile.",
-    annotations(title = "Image resize", read_only_hint = false)
-)]
-async fn image_resize(
-    &self,
-    Parameters(args): Parameters<ImageResizeArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let width = args.width;
-    let height = args.height;
-    let output = args.output.as_deref().map(|s| {
-        self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s))
-    });
-    let out = tokio::task::spawn_blocking(move || image_resize_work(path, width, height, output))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Convert an image to a different format (png, jpg, jpeg, webp, bmp, ico, tiff). Uses image crate when available, otherwise ImageMagick. Blocked on public profile.",
-    annotations(title = "Image convert", read_only_hint = false)
-)]
-async fn image_convert(
-    &self,
-    Parameters(args): Parameters<ImageConvertArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let target_format = args.target_format.clone();
-    let output = args.output.as_deref().map(|s| {
-        self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s))
-    });
-    let out =
-        tokio::task::spawn_blocking(move || image_convert_work(path, target_format, output))
+    #[tool(
+        description = "Read image metadata: dimensions, format, file size, and color depth. Uses the image crate when available, falls back to ImageMagick/file commands. Blocked on public profile.",
+        annotations(title = "Image info", read_only_hint = true)
+    )]
+    async fn image_info(
+        &self,
+        Parameters(args): Parameters<ImageInfoArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out = tokio::task::spawn_blocking(move || image_info_work(path))
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Convert an image to grayscale. Uses image crate when available, otherwise ImageMagick. Blocked on public profile.",
-    annotations(title = "Image grayscale", read_only_hint = false)
-)]
-async fn image_grayscale(
-    &self,
-    Parameters(args): Parameters<ImageGrayscaleArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let output = args.output.as_deref().map(|s| {
-        self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s))
-    });
-    let out = tokio::task::spawn_blocking(move || image_grayscale_work(path, output))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
 
-#[tool(
-    description = "Crop a rectangular region from an image at offset (x, y) with the given width and height. Uses image crate when available, otherwise ImageMagick. Blocked on public profile.",
-    annotations(title = "Image crop", read_only_hint = false)
-)]
-async fn image_crop(
-    &self,
-    Parameters(args): Parameters<ImageCropArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Resize an image to exact width x height pixels. Uses image crate when available, otherwise ImageMagick. Blocked on public profile.",
+        annotations(title = "Image resize", read_only_hint = false)
+    )]
+    async fn image_resize(
+        &self,
+        Parameters(args): Parameters<ImageResizeArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let width = args.width;
+        let height = args.height;
+        let output = args
+            .output
+            .as_deref()
+            .map(|s| self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s)));
+        let out =
+            tokio::task::spawn_blocking(move || image_resize_work(path, width, height, output))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
     }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let x = args.x;
-    let y = args.y;
-    let width = args.width;
-    let height = args.height;
-    let output = args.output.as_deref().map(|s| {
-        self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s))
-    });
-    let out =
-        tokio::task::spawn_blocking(move || image_crop_work(path, x, y, width, height, output))
+
+    #[tool(
+        description = "Convert an image to a different format (png, jpg, jpeg, webp, bmp, ico, tiff). Uses image crate when available, otherwise ImageMagick. Blocked on public profile.",
+        annotations(title = "Image convert", read_only_hint = false)
+    )]
+    async fn image_convert(
+        &self,
+        Parameters(args): Parameters<ImageConvertArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let target_format = args.target_format.clone();
+        let output = args
+            .output
+            .as_deref()
+            .map(|s| self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s)));
+        let out =
+            tokio::task::spawn_blocking(move || image_convert_work(path, target_format, output))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Convert an image to grayscale. Uses image crate when available, otherwise ImageMagick. Blocked on public profile.",
+        annotations(title = "Image grayscale", read_only_hint = false)
+    )]
+    async fn image_grayscale(
+        &self,
+        Parameters(args): Parameters<ImageGrayscaleArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let output = args
+            .output
+            .as_deref()
+            .map(|s| self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s)));
+        let out = tokio::task::spawn_blocking(move || image_grayscale_work(path, output))
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Rotate an image by the specified number of degrees clockwise. Uses image crate when available, otherwise ImageMagick. Blocked on public profile.",
-    annotations(title = "Image rotate", read_only_hint = false)
-)]
-async fn image_rotate(
-    &self,
-    Parameters(args): Parameters<ImageRotateArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let degrees = args.degrees;
-    let output = args.output.as_deref().map(|s| {
-        self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s))
-    });
-    let out = tokio::task::spawn_blocking(move || image_rotate_work(path, degrees, output))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
 
-#[tool(
-    description = "Flip an image horizontally (mirror) or vertically. Uses image crate when available, otherwise ImageMagick. Blocked on public profile.",
-    annotations(title = "Image flip", read_only_hint = false)
-)]
-async fn image_flip(
-    &self,
-    Parameters(args): Parameters<ImageFlipArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Crop a rectangular region from an image at offset (x, y) with the given width and height. Uses image crate when available, otherwise ImageMagick. Blocked on public profile.",
+        annotations(title = "Image crop", read_only_hint = false)
+    )]
+    async fn image_crop(
+        &self,
+        Parameters(args): Parameters<ImageCropArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let x = args.x;
+        let y = args.y;
+        let width = args.width;
+        let height = args.height;
+        let output = args
+            .output
+            .as_deref()
+            .map(|s| self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s)));
+        let out =
+            tokio::task::spawn_blocking(move || image_crop_work(path, x, y, width, height, output))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
     }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let horizontal = args.horizontal;
-    let output = args.output.as_deref().map(|s| {
-        self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s))
-    });
-    let out = tokio::task::spawn_blocking(move || image_flip_work(path, horizontal, output))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
 
-#[tool(
-    description = "Create a thumbnail with a maximum side length in pixels while preserving the aspect ratio. Uses image crate when available, otherwise ImageMagick. Blocked on public profile.",
-    annotations(title = "Image thumbnail", read_only_hint = false)
-)]
-async fn image_thumbnail(
-    &self,
-    Parameters(args): Parameters<ImageThumbnailArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let size = args.size;
-    let output = args.output.as_deref().map(|s| {
-        self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s))
-    });
-    let out = tokio::task::spawn_blocking(move || image_thumbnail_work(path, size, output))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Compute a colour histogram for an image, returning per-channel bucket counts as text. Blocked on public profile.",
-    annotations(title = "Image histogram", read_only_hint = true)
-)]
-async fn image_histogram(
-    &self,
-    Parameters(args): Parameters<ImageHistogramArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let out = tokio::task::spawn_blocking(move || image_histogram_work(path))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Compare two images and report a similarity score with per-channel difference metrics. Blocked on public profile.",
-    annotations(title = "Image compare", read_only_hint = true)
-)]
-async fn image_compare(
-    &self,
-    Parameters(args): Parameters<ImageCompareArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path_a = match self.resolve_path(&args.path_a) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let path_b = match self.resolve_path(&args.path_b) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let out = tokio::task::spawn_blocking(move || image_compare_work(path_a, path_b))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Extract EXIF / XMP metadata from an image file. Uses exiftool when available, falls back to basic format detection. Blocked on public profile.",
-    annotations(title = "Image extract EXIF", read_only_hint = true)
-)]
-async fn image_extract_exif(
-    &self,
-    Parameters(args): Parameters<ImageExtractExifArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let out = tokio::task::spawn_blocking(move || image_extract_exif_work(path))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Overlay text as a watermark on an image at a given position (topleft, topright, bottomleft, bottomright, center). Uses ImageMagick. Blocked on public profile.",
-    annotations(title = "Image watermark", read_only_hint = false)
-)]
-async fn image_watermark(
-    &self,
-    Parameters(args): Parameters<ImageWatermarkArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let text = args.text.clone();
-    let position = args.position.clone();
-    let output = args.output.as_deref().map(|s| {
-        self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s))
-    });
-    let out =
-        tokio::task::spawn_blocking(move || image_watermark_work(path, text, position, output))
+    #[tool(
+        description = "Rotate an image by the specified number of degrees clockwise. Uses image crate when available, otherwise ImageMagick. Blocked on public profile.",
+        annotations(title = "Image rotate", read_only_hint = false)
+    )]
+    async fn image_rotate(
+        &self,
+        Parameters(args): Parameters<ImageRotateArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let degrees = args.degrees;
+        let output = args
+            .output
+            .as_deref()
+            .map(|s| self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s)));
+        let out = tokio::task::spawn_blocking(move || image_rotate_work(path, degrees, output))
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Flip an image horizontally (mirror) or vertically. Uses image crate when available, otherwise ImageMagick. Blocked on public profile.",
+        annotations(title = "Image flip", read_only_hint = false)
+    )]
+    async fn image_flip(
+        &self,
+        Parameters(args): Parameters<ImageFlipArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let horizontal = args.horizontal;
+        let output = args
+            .output
+            .as_deref()
+            .map(|s| self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s)));
+        let out = tokio::task::spawn_blocking(move || image_flip_work(path, horizontal, output))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Create a thumbnail with a maximum side length in pixels while preserving the aspect ratio. Uses image crate when available, otherwise ImageMagick. Blocked on public profile.",
+        annotations(title = "Image thumbnail", read_only_hint = false)
+    )]
+    async fn image_thumbnail(
+        &self,
+        Parameters(args): Parameters<ImageThumbnailArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let size = args.size;
+        let output = args
+            .output
+            .as_deref()
+            .map(|s| self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s)));
+        let out = tokio::task::spawn_blocking(move || image_thumbnail_work(path, size, output))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Compute a colour histogram for an image, returning per-channel bucket counts as text. Blocked on public profile.",
+        annotations(title = "Image histogram", read_only_hint = true)
+    )]
+    async fn image_histogram(
+        &self,
+        Parameters(args): Parameters<ImageHistogramArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out = tokio::task::spawn_blocking(move || image_histogram_work(path))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Compare two images and report a similarity score with per-channel difference metrics. Blocked on public profile.",
+        annotations(title = "Image compare", read_only_hint = true)
+    )]
+    async fn image_compare(
+        &self,
+        Parameters(args): Parameters<ImageCompareArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path_a = match self.resolve_path(&args.path_a) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let path_b = match self.resolve_path(&args.path_b) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out = tokio::task::spawn_blocking(move || image_compare_work(path_a, path_b))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Extract EXIF / XMP metadata from an image file. Uses exiftool when available, falls back to basic format detection. Blocked on public profile.",
+        annotations(title = "Image extract EXIF", read_only_hint = true)
+    )]
+    async fn image_extract_exif(
+        &self,
+        Parameters(args): Parameters<ImageExtractExifArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out = tokio::task::spawn_blocking(move || image_extract_exif_work(path))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Overlay text as a watermark on an image at a given position (topleft, topright, bottomleft, bottomright, center). Uses ImageMagick. Blocked on public profile.",
+        annotations(title = "Image watermark", read_only_hint = false)
+    )]
+    async fn image_watermark(
+        &self,
+        Parameters(args): Parameters<ImageWatermarkArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let text = args.text.clone();
+        let position = args.position.clone();
+        let output = args
+            .output
+            .as_deref()
+            .map(|s| self.resolve_path(s).unwrap_or_else(|_| PathBuf::from(s)));
+        let out =
+            tokio::task::spawn_blocking(move || image_watermark_work(path, text, position, output))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
 
     // --- SPEECH ---
 
-#[tool(
-    description = "Transcribe an audio file to text using Whisper or another STT engine. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Speech transcribe file", read_only_hint = true)
-)]
-async fn speech_transcribe_file(
-    &self,
-    Parameters(args): Parameters<SpeechTranscribeFileArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Transcribe an audio file to text using Whisper or another STT engine. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Speech transcribe file", read_only_hint = true)
+    )]
+    async fn speech_transcribe_file(
+        &self,
+        Parameters(args): Parameters<SpeechTranscribeFileArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let language = args.language.clone();
+        let model = args.model.clone();
+        let out =
+            tokio::task::spawn_blocking(move || speech_transcribe_file_work(path, language, model))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
     }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let language = args.language.clone();
-    let model = args.model.clone();
-    let out =
-        tokio::task::spawn_blocking(move || speech_transcribe_file_work(path, language, model))
+
+    #[tool(
+        description = "Record audio from the microphone for a given duration and transcribe it with an STT engine. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Speech transcribe microphone", read_only_hint = false)
+    )]
+    async fn speech_transcribe_microphone(
+        &self,
+        Parameters(args): Parameters<SpeechTranscribeMicrophoneArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let duration_secs = args.duration_secs;
+        let language = args.language.clone();
+        let out = tokio::task::spawn_blocking(move || {
+            speech_transcribe_microphone_work(duration_secs, language)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Transcribe an audio file in streaming segments of a fixed duration, returning per-segment text. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Speech transcribe stream", read_only_hint = true)
+    )]
+    async fn speech_transcribe_stream(
+        &self,
+        Parameters(args): Parameters<SpeechTranscribeStreamArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let segment_duration_secs = args.segment_duration_secs;
+        let language = args.language.clone();
+        let out = tokio::task::spawn_blocking(move || {
+            speech_transcribe_stream_work(path, segment_duration_secs, language)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Convert plain text to speech audio and save to a file using a TTS engine. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Speech text to speech", read_only_hint = false)
+    )]
+    async fn speech_text_to_speech(
+        &self,
+        Parameters(args): Parameters<SpeechTextToSpeechArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let text = args.text.clone();
+        let voice = args.voice.clone();
+        let speed = args.speed;
+        let output = args.output.as_deref().map(|s| PathBuf::from(s));
+        let out = tokio::task::spawn_blocking(move || {
+            speech_text_to_speech_work(text, voice, speed, output)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Convert SSML markup to speech audio and save to a file using a TTS engine. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Speech text to speech SSML", read_only_hint = false)
+    )]
+    async fn speech_text_to_speech_ssml(
+        &self,
+        Parameters(args): Parameters<SpeechTextToSpeechSsmlArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let ssml = args.ssml.clone();
+        let voice = args.voice.clone();
+        let output = args.output.as_deref().map(|s| PathBuf::from(s));
+        let out = tokio::task::spawn_blocking(move || {
+            speech_text_to_speech_ssml_work(ssml, voice, output)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "List available TTS voice identifiers supported by the configured speech engine. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Speech list voices", read_only_hint = true)
+    )]
+    async fn speech_list_voices(
+        &self,
+        Parameters(_args): Parameters<EmptyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let out = tokio::task::spawn_blocking(speech_list_voices_work)
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Record audio from the microphone for a given duration and transcribe it with an STT engine. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Speech transcribe microphone", read_only_hint = false)
-)]
-async fn speech_transcribe_microphone(
-    &self,
-    Parameters(args): Parameters<SpeechTranscribeMicrophoneArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let duration_secs = args.duration_secs;
-    let language = args.language.clone();
-    let out = tokio::task::spawn_blocking(move || {
-        speech_transcribe_microphone_work(duration_secs, language)
-    })
-    .await
-    .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
 
-#[tool(
-    description = "Transcribe an audio file in streaming segments of a fixed duration, returning per-segment text. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Speech transcribe stream", read_only_hint = true)
-)]
-async fn speech_transcribe_stream(
-    &self,
-    Parameters(args): Parameters<SpeechTranscribeStreamArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let segment_duration_secs = args.segment_duration_secs;
-    let language = args.language.clone();
-    let out = tokio::task::spawn_blocking(move || {
-        speech_transcribe_stream_work(path, segment_duration_secs, language)
-    })
-    .await
-    .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Convert plain text to speech audio and save to a file using a TTS engine. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Speech text to speech", read_only_hint = false)
-)]
-async fn speech_text_to_speech(
-    &self,
-    Parameters(args): Parameters<SpeechTextToSpeechArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let text = args.text.clone();
-    let voice = args.voice.clone();
-    let speed = args.speed;
-    let output = args.output.as_deref().map(|s| PathBuf::from(s));
-    let out =
-        tokio::task::spawn_blocking(move || speech_text_to_speech_work(text, voice, speed, output))
+    #[tool(
+        description = "List available STT/TTS model names supported by the configured speech engine. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Speech list models", read_only_hint = true)
+    )]
+    async fn speech_list_models(
+        &self,
+        Parameters(_args): Parameters<EmptyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let out = tokio::task::spawn_blocking(speech_list_models_work)
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Convert SSML markup to speech audio and save to a file using a TTS engine. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Speech text to speech SSML", read_only_hint = false)
-)]
-async fn speech_text_to_speech_ssml(
-    &self,
-    Parameters(args): Parameters<SpeechTextToSpeechSsmlArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let ssml = args.ssml.clone();
-    let voice = args.voice.clone();
-    let output = args.output.as_deref().map(|s| PathBuf::from(s));
-    let out =
-        tokio::task::spawn_blocking(move || speech_text_to_speech_ssml_work(ssml, voice, output))
+
+    #[tool(
+        description = "Detect the spoken language in an audio file. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Speech detect language", read_only_hint = true)
+    )]
+    async fn speech_detect_language(
+        &self,
+        Parameters(args): Parameters<SpeechDetectLanguageArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out = tokio::task::spawn_blocking(move || speech_detect_language_work(path))
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "List available TTS voice identifiers supported by the configured speech engine. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Speech list voices", read_only_hint = true)
-)]
-async fn speech_list_voices(
-    &self,
-    Parameters(_args): Parameters<EmptyArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let out = tokio::task::spawn_blocking(speech_list_voices_work)
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
 
-#[tool(
-    description = "List available STT/TTS model names supported by the configured speech engine. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Speech list models", read_only_hint = true)
-)]
-async fn speech_list_models(
-    &self,
-    Parameters(_args): Parameters<EmptyArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let out = tokio::task::spawn_blocking(speech_list_models_work)
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Detect the spoken language in an audio file. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Speech detect language", read_only_hint = true)
-)]
-async fn speech_detect_language(
-    &self,
-    Parameters(args): Parameters<SpeechDetectLanguageArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let out = tokio::task::spawn_blocking(move || speech_detect_language_work(path))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Transcribe and translate an audio file to text in a target language. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Speech translate", read_only_hint = true)
-)]
-async fn speech_translate(
-    &self,
-    Parameters(args): Parameters<SpeechTranslateArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let target_language = args.target_language.clone();
-    let out = tokio::task::spawn_blocking(move || speech_translate_work(path, target_language))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Perform speaker diarization on an audio file, identifying and labelling each speaker turn. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Speech diarize", read_only_hint = true)
-)]
-async fn speech_diarize(
-    &self,
-    Parameters(args): Parameters<SpeechDiarizeArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let num_speakers = args.num_speakers;
-    let out = tokio::task::spawn_blocking(move || speech_diarize_work(path, num_speakers))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Enhance an audio file by applying noise reduction and clarity improvements. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Speech enhance", read_only_hint = false)
-)]
-async fn speech_enhance(
-    &self,
-    Parameters(args): Parameters<SpeechEnhanceArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let noise_reduction = args.noise_reduction;
-    let output = args.output.as_deref().map(|s| PathBuf::from(s));
-    let out =
-        tokio::task::spawn_blocking(move || speech_enhance_work(path, noise_reduction, output))
+    #[tool(
+        description = "Transcribe and translate an audio file to text in a target language. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Speech translate", read_only_hint = true)
+    )]
+    async fn speech_translate(
+        &self,
+        Parameters(args): Parameters<SpeechTranslateArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let target_language = args.target_language.clone();
+        let out = tokio::task::spawn_blocking(move || speech_translate_work(path, target_language))
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Extract word-level timestamps from an audio file using an STT engine. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Speech extract words", read_only_hint = true)
-)]
-async fn speech_extract_words(
-    &self,
-    Parameters(args): Parameters<SpeechExtractWordsArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let language = args.language.clone();
-    let out = tokio::task::spawn_blocking(move || speech_extract_words_work(path, language))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
+
+    #[tool(
+        description = "Perform speaker diarization on an audio file, identifying and labelling each speaker turn. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Speech diarize", read_only_hint = true)
+    )]
+    async fn speech_diarize(
+        &self,
+        Parameters(args): Parameters<SpeechDiarizeArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let num_speakers = args.num_speakers;
+        let out = tokio::task::spawn_blocking(move || speech_diarize_work(path, num_speakers))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Enhance an audio file by applying noise reduction and clarity improvements. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Speech enhance", read_only_hint = false)
+    )]
+    async fn speech_enhance(
+        &self,
+        Parameters(args): Parameters<SpeechEnhanceArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let noise_reduction = args.noise_reduction;
+        let output = args.output.as_deref().map(|s| PathBuf::from(s));
+        let out =
+            tokio::task::spawn_blocking(move || speech_enhance_work(path, noise_reduction, output))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Extract word-level timestamps from an audio file using an STT engine. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Speech extract words", read_only_hint = true)
+    )]
+    async fn speech_extract_words(
+        &self,
+        Parameters(args): Parameters<SpeechExtractWordsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let language = args.language.clone();
+        let out = tokio::task::spawn_blocking(move || speech_extract_words_work(path, language))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
 
     // --- REVERSE ENGINEERING ---
 
-#[tool(
-    description = "Display binary file metadata: file type, target architecture, entry point, and ELF/PE/Mach-O header fields. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "RE binary info", read_only_hint = true)
-)]
-async fn re_binary_info(
-    &self,
-    Parameters(args): Parameters<ReBinaryInfoArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let out = tokio::task::spawn_blocking(move || re_binary_info_work(path))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Extract printable strings from a binary file with optional minimum length and encoding filters. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "RE strings", read_only_hint = true)
-)]
-async fn re_strings(
-    &self,
-    Parameters(args): Parameters<ReStringsArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let min_length = args.min_length;
-    let encoding = args.encoding.clone();
-    let out = tokio::task::spawn_blocking(move || re_strings_work(path, min_length, encoding))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Disassemble a binary or object file section into human-readable assembly instructions. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "RE disassemble", read_only_hint = true)
-)]
-async fn re_disassemble(
-    &self,
-    Parameters(args): Parameters<ReDisassembleArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let section = args.section.clone();
-    let architecture = args.architecture.clone();
-    let start_addr = args.start_addr.clone();
-    let count = args.count;
-    let out = tokio::task::spawn_blocking(move || {
-        re_disassemble_work(path, section, architecture, start_addr, count)
-    })
-    .await
-    .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "List symbols (functions, globals, undefined references) exported by a binary or object file. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "RE symbols", read_only_hint = true)
-)]
-async fn re_symbols(
-    &self,
-    Parameters(args): Parameters<ReSymbolsArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let symbol_type = args.symbol_type.clone();
-    let out = tokio::task::spawn_blocking(move || re_symbols_work(path, symbol_type))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "List all sections in a binary or object file with their names, sizes, virtual addresses, and flags. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "RE sections", read_only_hint = true)
-)]
-async fn re_sections(
-    &self,
-    Parameters(args): Parameters<ReSectionsArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let out = tokio::task::spawn_blocking(move || re_sections_work(path))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "List dynamic library dependencies (shared objects / DLLs) required by a binary. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "RE dependencies", read_only_hint = true)
-)]
-async fn re_dependencies(
-    &self,
-    Parameters(args): Parameters<ReDependenciesArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let out = tokio::task::spawn_blocking(move || re_dependencies_work(path))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Produce an annotated hex dump of a binary file at an optional offset and length. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "RE hexdump", read_only_hint = true)
-)]
-async fn re_hexdump(
-    &self,
-    Parameters(args): Parameters<ReHexdumpArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let offset = args.offset;
-    let length = args.length;
-    let width = args.width;
-    let out = tokio::task::spawn_blocking(move || re_hexdump_work(path, offset, length, width))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Compute Shannon entropy of a binary file, optionally broken into fixed-size blocks. High entropy regions indicate compression or encryption. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "RE entropy", read_only_hint = true)
-)]
-async fn re_entropy(
-    &self,
-    Parameters(args): Parameters<ReEntropyArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let block_size = args.block_size;
-    let out = tokio::task::spawn_blocking(move || re_entropy_work(path, block_size))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Carve a byte range out of a binary file and write it to an output file. Useful for extracting embedded payloads. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "RE carve", read_only_hint = false)
-)]
-async fn re_carve(
-    &self,
-    Parameters(args): Parameters<ReCarveArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let offset = args.offset;
-    let length = args.length;
-    let output = args.output.as_deref().map(|s| PathBuf::from(s));
-    let out = tokio::task::spawn_blocking(move || re_carve_work(path, offset, length, output))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Search a binary file for a byte pattern (hex string or regex) and return all match offsets. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "RE pattern search", read_only_hint = true)
-)]
-async fn re_pattern_search(
-    &self,
-    Parameters(args): Parameters<RePatternSearchArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let pattern = args.pattern.clone();
-    let max_results = args.max_results;
-    let out =
-        tokio::task::spawn_blocking(move || re_pattern_search_work(path, pattern, max_results))
+    #[tool(
+        description = "Display binary file metadata: file type, target architecture, entry point, and ELF/PE/Mach-O header fields. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "RE binary info", read_only_hint = true)
+    )]
+    async fn re_binary_info(
+        &self,
+        Parameters(args): Parameters<ReBinaryInfoArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out = tokio::task::spawn_blocking(move || re_binary_info_work(path))
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Parse a fixed-layout binary structure at a given offset using a format descriptor and return the field values. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "RE struct parse", read_only_hint = true)
-)]
-async fn re_struct_parse(
-    &self,
-    Parameters(args): Parameters<ReStructParseArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let offset = args.offset;
-    let format = args.format.clone();
-    let out = tokio::task::spawn_blocking(move || re_struct_parse_work(path, offset, format))
+
+    #[tool(
+        description = "Extract printable strings from a binary file with optional minimum length and encoding filters. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "RE strings", read_only_hint = true)
+    )]
+    async fn re_strings(
+        &self,
+        Parameters(args): Parameters<ReStringsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let min_length = args.min_length;
+        let encoding = args.encoding.clone();
+        let out = tokio::task::spawn_blocking(move || re_strings_work(path, min_length, encoding))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Disassemble a binary or object file section into human-readable assembly instructions. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "RE disassemble", read_only_hint = true)
+    )]
+    async fn re_disassemble(
+        &self,
+        Parameters(args): Parameters<ReDisassembleArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let section = args.section.clone();
+        let architecture = args.architecture.clone();
+        let start_addr = args.start_addr.clone();
+        let count = args.count;
+        let out = tokio::task::spawn_blocking(move || {
+            re_disassemble_work(path, section, architecture, start_addr, count)
+        })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Byte-level diff two binary files and report differing offset ranges and changed byte counts. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "RE diff binary", read_only_hint = true)
-)]
-async fn re_diff_binary(
-    &self,
-    Parameters(args): Parameters<ReDiffBinaryArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let path_a = match self.resolve_path(&args.path_a) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let path_b = match self.resolve_path(&args.path_b) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let out = tokio::task::spawn_blocking(move || re_diff_binary_work(path_a, path_b))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
 
-#[tool(
-    description = "Execute a binary under strace and capture its system-call trace. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "RE strace", read_only_hint = false)
-)]
-async fn re_strace(
-    &self,
-    Parameters(args): Parameters<ReStraceArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "List symbols (functions, globals, undefined references) exported by a binary or object file. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "RE symbols", read_only_hint = true)
+    )]
+    async fn re_symbols(
+        &self,
+        Parameters(args): Parameters<ReSymbolsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let symbol_type = args.symbol_type.clone();
+        let out = tokio::task::spawn_blocking(move || re_symbols_work(path, symbol_type))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
     }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let extra_args = args.extra_args.clone();
-    let timeout_secs = args.timeout_secs;
-    let out = tokio::task::spawn_blocking(move || re_strace_work(path, extra_args, timeout_secs))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
 
-#[tool(
-    description = "Scan a firmware image or binary blob with binwalk to identify embedded file signatures, compression, and known headers. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "RE binwalk scan", read_only_hint = true)
-)]
-async fn re_binwalk_scan(
-    &self,
-    Parameters(args): Parameters<ReBinwalkScanArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "List all sections in a binary or object file with their names, sizes, virtual addresses, and flags. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "RE sections", read_only_hint = true)
+    )]
+    async fn re_sections(
+        &self,
+        Parameters(args): Parameters<ReSectionsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out = tokio::task::spawn_blocking(move || re_sections_work(path))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
     }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let out = tokio::task::spawn_blocking(move || re_binwalk_scan_work(path))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
+
+    #[tool(
+        description = "List dynamic library dependencies (shared objects / DLLs) required by a binary. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "RE dependencies", read_only_hint = true)
+    )]
+    async fn re_dependencies(
+        &self,
+        Parameters(args): Parameters<ReDependenciesArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out = tokio::task::spawn_blocking(move || re_dependencies_work(path))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Produce an annotated hex dump of a binary file at an optional offset and length. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "RE hexdump", read_only_hint = true)
+    )]
+    async fn re_hexdump(
+        &self,
+        Parameters(args): Parameters<ReHexdumpArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let offset = args.offset;
+        let length = args.length;
+        let width = args.width;
+        let out = tokio::task::spawn_blocking(move || re_hexdump_work(path, offset, length, width))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Compute Shannon entropy of a binary file, optionally broken into fixed-size blocks. High entropy regions indicate compression or encryption. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "RE entropy", read_only_hint = true)
+    )]
+    async fn re_entropy(
+        &self,
+        Parameters(args): Parameters<ReEntropyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let block_size = args.block_size;
+        let out = tokio::task::spawn_blocking(move || re_entropy_work(path, block_size))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Carve a byte range out of a binary file and write it to an output file. Useful for extracting embedded payloads. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "RE carve", read_only_hint = false)
+    )]
+    async fn re_carve(
+        &self,
+        Parameters(args): Parameters<ReCarveArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let offset = args.offset;
+        let length = args.length;
+        let output = args.output.as_deref().map(|s| PathBuf::from(s));
+        let out = tokio::task::spawn_blocking(move || re_carve_work(path, offset, length, output))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Search a binary file for a byte pattern (hex string or regex) and return all match offsets. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "RE pattern search", read_only_hint = true)
+    )]
+    async fn re_pattern_search(
+        &self,
+        Parameters(args): Parameters<RePatternSearchArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let pattern = args.pattern.clone();
+        let max_results = args.max_results;
+        let out =
+            tokio::task::spawn_blocking(move || re_pattern_search_work(path, pattern, max_results))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Parse a fixed-layout binary structure at a given offset using a format descriptor and return the field values. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "RE struct parse", read_only_hint = true)
+    )]
+    async fn re_struct_parse(
+        &self,
+        Parameters(args): Parameters<ReStructParseArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let offset = args.offset;
+        let format = args.format.clone();
+        let out = tokio::task::spawn_blocking(move || re_struct_parse_work(path, offset, format))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Byte-level diff two binary files and report differing offset ranges and changed byte counts. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "RE diff binary", read_only_hint = true)
+    )]
+    async fn re_diff_binary(
+        &self,
+        Parameters(args): Parameters<ReDiffBinaryArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path_a = match self.resolve_path(&args.path_a) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let path_b = match self.resolve_path(&args.path_b) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out = tokio::task::spawn_blocking(move || re_diff_binary_work(path_a, path_b))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Execute a binary under strace and capture its system-call trace. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "RE strace", read_only_hint = false)
+    )]
+    async fn re_strace(
+        &self,
+        Parameters(args): Parameters<ReStraceArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let extra_args = args.extra_args.clone();
+        let timeout_secs = args.timeout_secs;
+        let out =
+            tokio::task::spawn_blocking(move || re_strace_work(path, extra_args, timeout_secs))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Scan a firmware image or binary blob with binwalk to identify embedded file signatures, compression, and known headers. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "RE binwalk scan", read_only_hint = true)
+    )]
+    async fn re_binwalk_scan(
+        &self,
+        Parameters(args): Parameters<ReBinwalkScanArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out = tokio::task::spawn_blocking(move || re_binwalk_scan_work(path))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
 
     // --- SCREENSHOT ---
 
-#[tool(
-    description = "Capture a specific screen region to a file using `scrot` or ImageMagick `import`. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "Screenshot region capture", read_only_hint = false)
-)]
-async fn screenshot_region(
-    &self,
-    Parameters(args): Parameters<ScreenshotRegionArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let x = args.x;
-    let y = args.y;
-    let width = args.width;
-    let height = args.height;
-    let output = args.output.as_deref().map(|s| PathBuf::from(s));
-    let display = args.display.clone();
-    let out = tokio::task::spawn_blocking(move || {
-        screenshot_region_work(x, y, width, height, output, display)
-    })
-    .await
-    .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Capture a specific window by name using `xdotool` + `import`/`scrot`. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "Screenshot window capture", read_only_hint = false)
-)]
-async fn screenshot_window(
-    &self,
-    Parameters(args): Parameters<ScreenshotWindowArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let window_name = args.window_name.clone();
-    let output = args.output.as_deref().map(|s| PathBuf::from(s));
-    let out = tokio::task::spawn_blocking(move || screenshot_window_work(window_name, output))
+    #[tool(
+        description = "Capture a specific screen region to a file using `scrot` or ImageMagick `import`. Requires a trusted (local-power) deployment. Blocked on public profile.",
+        annotations(title = "Screenshot region capture", read_only_hint = false)
+    )]
+    async fn screenshot_region(
+        &self,
+        Parameters(args): Parameters<ScreenshotRegionArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let x = args.x;
+        let y = args.y;
+        let width = args.width;
+        let height = args.height;
+        let output = args.output.as_deref().map(|s| PathBuf::from(s));
+        let display = args.display.clone();
+        let out = tokio::task::spawn_blocking(move || {
+            screenshot_region_work(x, y, width, height, output, display)
+        })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Take a full-screen screenshot and OCR it with Tesseract in a single step. Optionally saves the screenshot. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "Screenshot + OCR", read_only_hint = true)
-)]
-async fn screenshot_ocr(
-    &self,
-    Parameters(args): Parameters<ScreenshotOcrArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let output = args.output.as_deref().map(|s| PathBuf::from(s));
-    let language = args.language.clone();
-    let out = tokio::task::spawn_blocking(move || screenshot_ocr_work(output, language))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
 
-#[tool(
-    description = "Record a screen video (screencast) using `ffmpeg` with `x11grab`. Duration is capped at 600 s. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "Screenshot screen record", read_only_hint = false)
-)]
-async fn screenshot_record(
-    &self,
-    Parameters(args): Parameters<ScreenshotRecordArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let duration_secs = args.duration_secs;
-    let output = args.output.as_deref().map(|s| PathBuf::from(s));
-    let fps = args.fps;
-    let out =
-        tokio::task::spawn_blocking(move || screenshot_record_work(duration_secs, output, fps))
+    #[tool(
+        description = "Capture a specific window by name using `xdotool` + `import`/`scrot`. Requires a trusted (local-power) deployment. Blocked on public profile.",
+        annotations(title = "Screenshot window capture", read_only_hint = false)
+    )]
+    async fn screenshot_window(
+        &self,
+        Parameters(args): Parameters<ScreenshotWindowArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let window_name = args.window_name.clone();
+        let output = args.output.as_deref().map(|s| PathBuf::from(s));
+        let out = tokio::task::spawn_blocking(move || screenshot_window_work(window_name, output))
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Add labelled rectangle annotations to a screenshot using ImageMagick. Each annotation specifies text, x, y, width, and height. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "Screenshot annotate", read_only_hint = false)
-)]
-async fn screenshot_annotate(
-    &self,
-    Parameters(args): Parameters<ScreenshotAnnotateArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let annotations: Vec<(String, u32, u32, u32, u32)> =
-        serde_json::from_str::<Vec<serde_json::Value>>(&args.annotations_json)
-            .map(|v| {
-                v.iter()
-                    .map(|a| {
-                        (
-                            a["text"].as_str().unwrap_or("").to_string(),
-                            a["x"].as_u64().unwrap_or(0) as u32,
-                            a["y"].as_u64().unwrap_or(0) as u32,
-                            a["w"].as_u64().unwrap_or(100) as u32,
-                            a["h"].as_u64().unwrap_or(30) as u32,
-                        )
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
-    let output = args.output.as_deref().map(|s| PathBuf::from(s));
-    let out =
-        tokio::task::spawn_blocking(move || screenshot_annotate_work(path, annotations, output))
+
+    #[tool(
+        description = "Take a full-screen screenshot and OCR it with Tesseract in a single step. Optionally saves the screenshot. Requires a trusted (local-power) deployment. Blocked on public profile.",
+        annotations(title = "Screenshot + OCR", read_only_hint = true)
+    )]
+    async fn screenshot_ocr(
+        &self,
+        Parameters(args): Parameters<ScreenshotOcrArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let output = args.output.as_deref().map(|s| PathBuf::from(s));
+        let language = args.language.clone();
+        let out = tokio::task::spawn_blocking(move || screenshot_ocr_work(output, language))
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Compare two screenshots using ImageMagick's MAE metric and return a match/different verdict. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "Screenshot compare", read_only_hint = true)
-)]
-async fn screenshot_compare(
-    &self,
-    Parameters(args): Parameters<ScreenshotCompareArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let path_a = match self.resolve_path(&args.path_a) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let path_b = match self.resolve_path(&args.path_b) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let threshold = args.threshold;
-    let out =
-        tokio::task::spawn_blocking(move || screenshot_compare_work(path_a, path_b, threshold))
+
+    #[tool(
+        description = "Record a screen video (screencast) using `ffmpeg` with `x11grab`. Duration is capped at 600 s. Requires a trusted (local-power) deployment. Blocked on public profile.",
+        annotations(title = "Screenshot screen record", read_only_hint = false)
+    )]
+    async fn screenshot_record(
+        &self,
+        Parameters(args): Parameters<ScreenshotRecordArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let duration_secs = args.duration_secs;
+        let output = args.output.as_deref().map(|s| PathBuf::from(s));
+        let fps = args.fps;
+        let out =
+            tokio::task::spawn_blocking(move || screenshot_record_work(duration_secs, output, fps))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Add labelled rectangle annotations to a screenshot using ImageMagick. Each annotation specifies text, x, y, width, and height. Requires a trusted (local-power) deployment. Blocked on public profile.",
+        annotations(title = "Screenshot annotate", read_only_hint = false)
+    )]
+    async fn screenshot_annotate(
+        &self,
+        Parameters(args): Parameters<ScreenshotAnnotateArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let annotations: Vec<(String, u32, u32, u32, u32)> =
+            serde_json::from_str::<Vec<serde_json::Value>>(&args.annotations_json)
+                .map(|v| {
+                    v.iter()
+                        .map(|a| {
+                            (
+                                a["text"].as_str().unwrap_or("").to_string(),
+                                a["x"].as_u64().unwrap_or(0) as u32,
+                                a["y"].as_u64().unwrap_or(0) as u32,
+                                a["w"].as_u64().unwrap_or(100) as u32,
+                                a["h"].as_u64().unwrap_or(30) as u32,
+                            )
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+        let output = args.output.as_deref().map(|s| PathBuf::from(s));
+        let out = tokio::task::spawn_blocking(move || {
+            screenshot_annotate_work(path, annotations, output)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Compare two screenshots using ImageMagick's MAE metric and return a match/different verdict. Requires a trusted (local-power) deployment. Blocked on public profile.",
+        annotations(title = "Screenshot compare", read_only_hint = true)
+    )]
+    async fn screenshot_compare(
+        &self,
+        Parameters(args): Parameters<ScreenshotCompareArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path_a = match self.resolve_path(&args.path_a) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let path_b = match self.resolve_path(&args.path_b) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let threshold = args.threshold;
+        let out =
+            tokio::task::spawn_blocking(move || screenshot_compare_work(path_a, path_b, threshold))
+                .await
+                .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "List available monitors and display resolutions using `xrandr`. Requires a trusted (local-power) deployment. Blocked on public profile.",
+        annotations(title = "Screenshot monitor info", read_only_hint = true)
+    )]
+    async fn screenshot_monitor_info(
+        &self,
+        Parameters(_args): Parameters<EmptyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let out = tokio::task::spawn_blocking(screenshot_monitor_info_work)
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "List available monitors and display resolutions using `xrandr`. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "Screenshot monitor info", read_only_hint = true)
-)]
-async fn screenshot_monitor_info(
-    &self,
-    Parameters(_args): Parameters<EmptyArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let out = tokio::task::spawn_blocking(screenshot_monitor_info_work)
+
+    #[tool(
+        description = "Sample the color of a single pixel at (x, y) on screen using ImageMagick. Returns hex color and RGB values. Requires a trusted (local-power) deployment. Blocked on public profile.",
+        annotations(title = "Screenshot color pick", read_only_hint = true)
+    )]
+    async fn screenshot_color_pick(
+        &self,
+        Parameters(args): Parameters<ScreenshotColorPickArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let x = args.x;
+        let y = args.y;
+        let display = args.display.clone();
+        let out = tokio::task::spawn_blocking(move || screenshot_color_pick_work(x, y, display))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Capture a series of screenshots at a fixed interval to create a timelapse sequence. Requires a trusted (local-power) deployment. Blocked on public profile.",
+        annotations(title = "Screenshot timelapse", read_only_hint = false)
+    )]
+    async fn screenshot_timelapse(
+        &self,
+        Parameters(args): Parameters<ScreenshotTimelapseArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let interval_secs = args.interval_secs;
+        let count = args.count;
+        let output_dir = args.output_dir.as_deref().map(|s| PathBuf::from(s));
+        let out = tokio::task::spawn_blocking(move || {
+            screenshot_timelapse_work(interval_secs, count, output_dir)
+        })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Sample the color of a single pixel at (x, y) on screen using ImageMagick. Returns hex color and RGB values. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "Screenshot color pick", read_only_hint = true)
-)]
-async fn screenshot_color_pick(
-    &self,
-    Parameters(args): Parameters<ScreenshotColorPickArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let x = args.x;
-    let y = args.y;
-    let display = args.display.clone();
-    let out = tokio::task::spawn_blocking(move || screenshot_color_pick_work(x, y, display))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Capture a series of screenshots at a fixed interval to create a timelapse sequence. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "Screenshot timelapse", read_only_hint = false)
-)]
-async fn screenshot_timelapse(
-    &self,
-    Parameters(args): Parameters<ScreenshotTimelapseArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let interval_secs = args.interval_secs;
-    let count = args.count;
-    let output_dir = args.output_dir.as_deref().map(|s| PathBuf::from(s));
-    let out = tokio::task::spawn_blocking(move || {
-        screenshot_timelapse_work(interval_secs, count, output_dir)
-    })
-    .await
-    .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
 
     // --- OCR ---
 
-#[tool(
-    description = "OCR an image file (png, jpg, tiff, webp, bmp, ...) using Tesseract. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "OCR file", read_only_hint = true)
-)]
-async fn ocr_file(
-    &self,
-    Parameters(args): Parameters<OcrFileArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let language = args.language.clone();
-    let out = tokio::task::spawn_blocking(move || ocr_file_work(path, language))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "OCR a PDF document page-by-page using Tesseract, via `pdftoppm` or ImageMagick for page rendering. Supports an optional page range. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "OCR PDF", read_only_hint = true)
-)]
-async fn ocr_pdf(
-    &self,
-    Parameters(args): Parameters<OcrPdfArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let language = args.language.clone();
-    let page_range = args.page_range.clone();
-    let out = tokio::task::spawn_blocking(move || ocr_pdf_work(path, language, page_range))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "OCR multiple image files in batch using Tesseract. Returns per-file results combined into one response. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "OCR batch", read_only_hint = true)
-)]
-async fn ocr_batch(
-    &self,
-    Parameters(args): Parameters<OcrBatchArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let paths: Vec<PathBuf> = args
-        .paths
-        .iter()
-        .map(|p| self.resolve_path(p).unwrap_or_else(|_| PathBuf::from(p)))
-        .collect();
-    let language = args.language.clone();
-    let out = tokio::task::spawn_blocking(move || ocr_batch_work(paths, language))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Capture an image from the clipboard and OCR it using Tesseract. Requires `xclip` on Linux. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "OCR from clipboard", read_only_hint = true)
-)]
-async fn ocr_from_clipboard(
-    &self,
-    Parameters(_args): Parameters<EmptyArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let out = tokio::task::spawn_blocking(ocr_from_clipboard_work)
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Capture a screen region with `scrot` or ImageMagick `import` and OCR it immediately with Tesseract. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "OCR screen region", read_only_hint = true)
-)]
-async fn ocr_screen_region(
-    &self,
-    Parameters(args): Parameters<OcrScreenRegionArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let x = args.x;
-    let y = args.y;
-    let width = args.width;
-    let height = args.height;
-    let language = args.language.clone();
-    let out =
-        tokio::task::spawn_blocking(move || ocr_screen_region_work(x, y, width, height, language))
+    #[tool(
+        description = "OCR an image file (png, jpg, tiff, webp, bmp, ...) using Tesseract. Requires a trusted (local-power) deployment. Blocked on public profile.",
+        annotations(title = "OCR file", read_only_hint = true)
+    )]
+    async fn ocr_file(
+        &self,
+        Parameters(args): Parameters<OcrFileArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let language = args.language.clone();
+        let out = tokio::task::spawn_blocking(move || ocr_file_work(path, language))
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "OCR an image that contains a table and reconstruct column alignment using Tesseract TSV output. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "OCR table", read_only_hint = true)
-)]
-async fn ocr_table(
-    &self,
-    Parameters(args): Parameters<OcrTableArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let language = args.language.clone();
-    let out = tokio::task::spawn_blocking(move || ocr_table_work(path, language))
+
+    #[tool(
+        description = "OCR a PDF document page-by-page using Tesseract, via `pdftoppm` or ImageMagick for page rendering. Supports an optional page range. Requires a trusted (local-power) deployment. Blocked on public profile.",
+        annotations(title = "OCR PDF", read_only_hint = true)
+    )]
+    async fn ocr_pdf(
+        &self,
+        Parameters(args): Parameters<OcrPdfArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let language = args.language.clone();
+        let page_range = args.page_range.clone();
+        let out = tokio::task::spawn_blocking(move || ocr_pdf_work(path, language, page_range))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "OCR multiple image files in batch using Tesseract. Returns per-file results combined into one response. Requires a trusted (local-power) deployment. Blocked on public profile.",
+        annotations(title = "OCR batch", read_only_hint = true)
+    )]
+    async fn ocr_batch(
+        &self,
+        Parameters(args): Parameters<OcrBatchArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let paths: Vec<PathBuf> = args
+            .paths
+            .iter()
+            .map(|p| self.resolve_path(p).unwrap_or_else(|_| PathBuf::from(p)))
+            .collect();
+        let language = args.language.clone();
+        let out = tokio::task::spawn_blocking(move || ocr_batch_work(paths, language))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Capture an image from the clipboard and OCR it using Tesseract. Requires `xclip` on Linux. Requires a trusted (local-power) deployment. Blocked on public profile.",
+        annotations(title = "OCR from clipboard", read_only_hint = true)
+    )]
+    async fn ocr_from_clipboard(
+        &self,
+        Parameters(_args): Parameters<EmptyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let out = tokio::task::spawn_blocking(ocr_from_clipboard_work)
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Capture a screen region with `scrot` or ImageMagick `import` and OCR it immediately with Tesseract. Requires a trusted (local-power) deployment. Blocked on public profile.",
+        annotations(title = "OCR screen region", read_only_hint = true)
+    )]
+    async fn ocr_screen_region(
+        &self,
+        Parameters(args): Parameters<OcrScreenRegionArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let x = args.x;
+        let y = args.y;
+        let width = args.width;
+        let height = args.height;
+        let language = args.language.clone();
+        let out = tokio::task::spawn_blocking(move || {
+            ocr_screen_region_work(x, y, width, height, language)
+        })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "OCR an image and return per-word confidence scores alongside the recognised text. Uses Tesseract TSV output. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "OCR with confidence", read_only_hint = true)
-)]
-async fn ocr_with_confidence(
-    &self,
-    Parameters(args): Parameters<OcrWithConfidenceArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let language = args.language.clone();
-    let out = tokio::task::spawn_blocking(move || ocr_with_confidence_work(path, language))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
 
-#[tool(
-    description = "Preprocess an image with ImageMagick before OCR. Operations: grayscale | threshold | despeckle | sharpen | resize2x. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "OCR preprocess image", read_only_hint = true)
-)]
-async fn ocr_preprocess(
-    &self,
-    Parameters(args): Parameters<OcrPreprocessArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "OCR an image that contains a table and reconstruct column alignment using Tesseract TSV output. Requires a trusted (local-power) deployment. Blocked on public profile.",
+        annotations(title = "OCR table", read_only_hint = true)
+    )]
+    async fn ocr_table(
+        &self,
+        Parameters(args): Parameters<OcrTableArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let language = args.language.clone();
+        let out = tokio::task::spawn_blocking(move || ocr_table_work(path, language))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
     }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let operation = args.operation.clone();
-    let output = args.output.as_deref().map(|s| PathBuf::from(s));
-    let out = tokio::task::spawn_blocking(move || ocr_preprocess_work(path, operation, output))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
 
-#[tool(
-    description = "Detect text bounding-box regions in an image using Tesseract's makebox mode. Returns region coordinates for each detected character/word cluster. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "OCR detect text regions", read_only_hint = true)
-)]
-async fn ocr_detect_text_regions(
-    &self,
-    Parameters(args): Parameters<OcrDetectTextRegionsArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "OCR an image and return per-word confidence scores alongside the recognised text. Uses Tesseract TSV output. Requires a trusted (local-power) deployment. Blocked on public profile.",
+        annotations(title = "OCR with confidence", read_only_hint = true)
+    )]
+    async fn ocr_with_confidence(
+        &self,
+        Parameters(args): Parameters<OcrWithConfidenceArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let language = args.language.clone();
+        let out = tokio::task::spawn_blocking(move || ocr_with_confidence_work(path, language))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
     }
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let out = tokio::task::spawn_blocking(move || ocr_detect_text_regions_work(path))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
 
-#[tool(
-    description = "List all Tesseract language packs installed on the system. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "OCR list languages", read_only_hint = true)
-)]
-async fn ocr_list_languages(
-    &self,
-    Parameters(_args): Parameters<EmptyArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Preprocess an image with ImageMagick before OCR. Operations: grayscale | threshold | despeckle | sharpen | resize2x. Requires a trusted (local-power) deployment. Blocked on public profile.",
+        annotations(title = "OCR preprocess image", read_only_hint = true)
+    )]
+    async fn ocr_preprocess(
+        &self,
+        Parameters(args): Parameters<OcrPreprocessArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let operation = args.operation.clone();
+        let output = args.output.as_deref().map(|s| PathBuf::from(s));
+        let out = tokio::task::spawn_blocking(move || ocr_preprocess_work(path, operation, output))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
     }
-    let out = tokio::task::spawn_blocking(ocr_list_languages_work)
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
+
+    #[tool(
+        description = "Detect text bounding-box regions in an image using Tesseract's makebox mode. Returns region coordinates for each detected character/word cluster. Requires a trusted (local-power) deployment. Blocked on public profile.",
+        annotations(title = "OCR detect text regions", read_only_hint = true)
+    )]
+    async fn ocr_detect_text_regions(
+        &self,
+        Parameters(args): Parameters<OcrDetectTextRegionsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out = tokio::task::spawn_blocking(move || ocr_detect_text_regions_work(path))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "List all Tesseract language packs installed on the system. Requires a trusted (local-power) deployment. Blocked on public profile.",
+        annotations(title = "OCR list languages", read_only_hint = true)
+    )]
+    async fn ocr_list_languages(
+        &self,
+        Parameters(_args): Parameters<EmptyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let out = tokio::task::spawn_blocking(ocr_list_languages_work)
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
 
     // --- SANDBOX ---
 
-#[tool(
-    description = "Execute a command within the sandboxed project root. Command must be a bare executable name (no path separators). Dangerous commands are blocked. Output is capped. Requires trusted profile.",
-    annotations(title = "Sandbox exec", read_only_hint = false)
-)]
-async fn sandbox_exec(
-    &self,
-    Parameters(args): Parameters<SandboxExecArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let root = self.root.clone();
-    let command = args.command.clone();
-    let exec_args = args.exec_args.clone();
-    let timeout_secs = args.timeout_secs.unwrap_or(30);
-    let max_output_bytes = args.max_output_bytes.unwrap_or(65536);
-    let out = tokio::task::spawn_blocking(move || {
-        sandbox_exec_work(root, command, exec_args, timeout_secs, max_output_bytes)
-    })
-    .await
-    .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Execute a script source string in a sandboxed temporary directory. Supported interpreters: python3, node, bash, ruby, perl. Script is written to a temp file, run, then deleted. Requires trusted profile.",
-    annotations(title = "Sandbox script", read_only_hint = false)
-)]
-async fn sandbox_script(
-    &self,
-    Parameters(args): Parameters<SandboxScriptArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let root = self.root.clone();
-    let script = args.script.clone();
-    let language = args.language.clone();
-    let timeout_secs = args.timeout_secs.unwrap_or(30);
-    let out = tokio::task::spawn_blocking(move || {
-        sandbox_script_work(root, script, language, timeout_secs)
-    })
-    .await
-    .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Evaluate a code snippet with an optional stdin payload. Supports python3, node, bash, ruby, and perl. Runs in a sandboxed environment with a clean PATH. Requires trusted profile.",
-    annotations(title = "Sandbox eval code", read_only_hint = false)
-)]
-async fn sandbox_eval_code(
-    &self,
-    Parameters(args): Parameters<SandboxEvalCodeArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let root = self.root.clone();
-    let code = args.code.clone();
-    let language = args.language.clone();
-    let input_data = args.input_data.clone();
-    let timeout_secs = args.timeout_secs.unwrap_or(30);
-    let out = tokio::task::spawn_blocking(move || {
-        sandbox_eval_code_work(root, code, language, input_data, timeout_secs)
-    })
-    .await
-    .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Run a command inside a Docker container with --network=none, CPU=1, and a configurable memory cap. Project root is mounted read-only at /workspace. Requires Docker on PATH and trusted profile.",
-    annotations(title = "Sandbox docker run", read_only_hint = false)
-)]
-async fn sandbox_docker_run(
-    &self,
-    Parameters(args): Parameters<SandboxDockerRunArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let root = self.root.clone();
-    let image = args.image.clone();
-    let command = args.command.clone();
-    let timeout_secs = args.timeout_secs.unwrap_or(30);
-    let memory_mb = args.memory_mb;
-    let out = tokio::task::spawn_blocking(move || {
-        sandbox_docker_run_work(root, image, command, timeout_secs, memory_mb)
-    })
-    .await
-    .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Compute a checksum / hash of a file under the project root. Supported algorithms: sha256 (default), sha1, md5, blake3. Validates that the path stays within the project root. Requires trusted profile.",
-    annotations(title = "Sandbox checksum", read_only_hint = true)
-)]
-async fn sandbox_checksum(
-    &self,
-    Parameters(args): Parameters<SandboxChecksumArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
-    }
-    let root = self.root.clone();
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let algorithm = args.algorithm.unwrap_or_else(|| "sha256".to_string());
-    let out = tokio::task::spawn_blocking(move || sandbox_checksum_work(root, path, algorithm))
+    #[tool(
+        description = "Execute a command within the sandboxed project root. Command must be a bare executable name (no path separators). Dangerous commands are blocked. Output is capped. Requires trusted profile.",
+        annotations(title = "Sandbox exec", read_only_hint = false)
+    )]
+    async fn sandbox_exec(
+        &self,
+        Parameters(args): Parameters<SandboxExecArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let root = self.root.clone();
+        let command = args.command.clone();
+        let exec_args = args.exec_args.clone();
+        let timeout_secs = args.timeout_secs.unwrap_or(30);
+        let max_output_bytes = args.max_output_bytes.unwrap_or(65536);
+        let out = tokio::task::spawn_blocking(move || {
+            sandbox_exec_work(root, command, exec_args, timeout_secs, max_output_bytes)
+        })
         .await
         .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Compute a unified diff between two files within the project root. Both paths are validated against the project root to prevent path traversal. Requires trusted profile.",
-    annotations(title = "Sandbox diff", read_only_hint = true)
-)]
-async fn sandbox_diff(
-    &self,
-    Parameters(args): Parameters<SandboxDiffArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let root = self.root.clone();
-    let path_a = match self.resolve_path(&args.path_a) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let path_b = match self.resolve_path(&args.path_b) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let context_lines = args.context_lines;
-    let out =
-        tokio::task::spawn_blocking(move || sandbox_diff_work(root, path_a, path_b, context_lines))
+
+    #[tool(
+        description = "Execute a script source string in a sandboxed temporary directory. Supported interpreters: python3, node, bash, ruby, perl. Script is written to a temp file, run, then deleted. Requires trusted profile.",
+        annotations(title = "Sandbox script", read_only_hint = false)
+    )]
+    async fn sandbox_script(
+        &self,
+        Parameters(args): Parameters<SandboxScriptArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let root = self.root.clone();
+        let script = args.script.clone();
+        let language = args.language.clone();
+        let timeout_secs = args.timeout_secs.unwrap_or(30);
+        let out = tokio::task::spawn_blocking(move || {
+            sandbox_script_work(root, script, language, timeout_secs)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Evaluate a code snippet with an optional stdin payload. Supports python3, node, bash, ruby, and perl. Runs in a sandboxed environment with a clean PATH. Requires trusted profile.",
+        annotations(title = "Sandbox eval code", read_only_hint = false)
+    )]
+    async fn sandbox_eval_code(
+        &self,
+        Parameters(args): Parameters<SandboxEvalCodeArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let root = self.root.clone();
+        let code = args.code.clone();
+        let language = args.language.clone();
+        let input_data = args.input_data.clone();
+        let timeout_secs = args.timeout_secs.unwrap_or(30);
+        let out = tokio::task::spawn_blocking(move || {
+            sandbox_eval_code_work(root, code, language, input_data, timeout_secs)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Run a command inside a Docker container with --network=none, CPU=1, and a configurable memory cap. Project root is mounted read-only at /workspace. Requires Docker on PATH and trusted profile.",
+        annotations(title = "Sandbox docker run", read_only_hint = false)
+    )]
+    async fn sandbox_docker_run(
+        &self,
+        Parameters(args): Parameters<SandboxDockerRunArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let root = self.root.clone();
+        let image = args.image.clone();
+        let command = args.command.clone();
+        let timeout_secs = args.timeout_secs.unwrap_or(30);
+        let memory_mb = args.memory_mb;
+        let out = tokio::task::spawn_blocking(move || {
+            sandbox_docker_run_work(root, image, command, timeout_secs, memory_mb)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Compute a checksum / hash of a file under the project root. Supported algorithms: sha256 (default), sha1, md5, blake3. Validates that the path stays within the project root. Requires trusted profile.",
+        annotations(title = "Sandbox checksum", read_only_hint = true)
+    )]
+    async fn sandbox_checksum(
+        &self,
+        Parameters(args): Parameters<SandboxChecksumArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let root = self.root.clone();
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let algorithm = args.algorithm.unwrap_or_else(|| "sha256".to_string());
+        let out = tokio::task::spawn_blocking(move || sandbox_checksum_work(root, path, algorithm))
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
-
-#[tool(
-    description = "Watch a file within the project root for mtime changes and trigger a command when a change is detected (single-shot poll). Requires trusted profile.",
-    annotations(title = "Sandbox file watch", read_only_hint = false)
-)]
-async fn sandbox_file_watch(
-    &self,
-    Parameters(args): Parameters<SandboxFileWatchArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+        Self::tool_text(out)
     }
-    let root = self.root.clone();
-    let path = match self.resolve_path(&args.path) {
-        Ok(p) => p,
-        Err(e) => return Self::tool_text(format!("Error: {e}")),
-    };
-    let command = args.command.clone();
-    let timeout_secs = args.timeout_secs.unwrap_or(30);
-    let out = tokio::task::spawn_blocking(move || {
-        sandbox_file_watch_work(root, path, command, timeout_secs)
-    })
-    .await
-    .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
 
-#[tool(
-    description = "Make a sandboxed HTTP/HTTPS request via curl with SSRF protection (blocks internal/private IPs). Only http:// and https:// protocols allowed. Requires trusted profile.",
-    annotations(title = "Sandbox network request", read_only_hint = false)
-)]
-async fn sandbox_network_request(
-    &self,
-    Parameters(args): Parameters<SandboxNetworkRequestArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Compute a unified diff between two files within the project root. Both paths are validated against the project root to prevent path traversal. Requires trusted profile.",
+        annotations(title = "Sandbox diff", read_only_hint = true)
+    )]
+    async fn sandbox_diff(
+        &self,
+        Parameters(args): Parameters<SandboxDiffArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let root = self.root.clone();
+        let path_a = match self.resolve_path(&args.path_a) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let path_b = match self.resolve_path(&args.path_b) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let context_lines = args.context_lines;
+        let out = tokio::task::spawn_blocking(move || {
+            sandbox_diff_work(root, path_a, path_b, context_lines)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
     }
-    let root = self.root.clone();
-    let url = args.url.clone();
-    let method = args.method.unwrap_or_else(|| "GET".to_string());
-    let headers = args.headers.clone();
-    let body = args.body.clone();
-    let timeout_secs = args.timeout_secs.unwrap_or(30);
-    let out = tokio::task::spawn_blocking(move || {
-        sandbox_network_request_work(root, url, method, headers, body, timeout_secs)
-    })
-    .await
-    .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
+
+    #[tool(
+        description = "Watch a file within the project root for mtime changes and trigger a command when a change is detected (single-shot poll). Requires trusted profile.",
+        annotations(title = "Sandbox file watch", read_only_hint = false)
+    )]
+    async fn sandbox_file_watch(
+        &self,
+        Parameters(args): Parameters<SandboxFileWatchArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let root = self.root.clone();
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let command = args.command.clone();
+        let timeout_secs = args.timeout_secs.unwrap_or(30);
+        let out = tokio::task::spawn_blocking(move || {
+            sandbox_file_watch_work(root, path, command, timeout_secs)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Make a sandboxed HTTP/HTTPS request via curl with SSRF protection (blocks internal/private IPs). Only http:// and https:// protocols allowed. Requires trusted profile.",
+        annotations(title = "Sandbox network request", read_only_hint = false)
+    )]
+    async fn sandbox_network_request(
+        &self,
+        Parameters(args): Parameters<SandboxNetworkRequestArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let root = self.root.clone();
+        let url = args.url.clone();
+        let method = args.method.unwrap_or_else(|| "GET".to_string());
+        let headers = args.headers.clone();
+        let body = args.body.clone();
+        let timeout_secs = args.timeout_secs.unwrap_or(30);
+        let out = tokio::task::spawn_blocking(move || {
+            sandbox_network_request_work(root, url, method, headers, body, timeout_secs)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
+    }
 
     // --- ALGORITHM ---
 
-#[tool(
-    description = "Sort a JSON array with optional key (for object items), algorithm label (auto/quicksort/mergesort/heapsort), and reverse flag. Input: {\"items\": [...], \"key\": \"field\", \"algorithm\": \"auto\", \"reverse\": false}. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Algorithm: sort", read_only_hint = true)
-)]
-async fn algo_sort(
-    &self,
-    Parameters(args): Parameters<AlgoSortArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Sort a JSON array with optional key (for object items), algorithm label (auto/quicksort/mergesort/heapsort), and reverse flag. Input: {\"items\": [...], \"key\": \"field\", \"algorithm\": \"auto\", \"reverse\": false}. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Algorithm: sort", read_only_hint = true)
+    )]
+    async fn algo_sort(
+        &self,
+        Parameters(args): Parameters<AlgoSortArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_sort_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = args.input.clone();
-    let out = tokio::task::spawn_blocking(move || algo_sort_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Linear or binary search over a JSON array for a target value. Input: {\"items\": [...], \"target\": <value>, \"method\": \"linear\"|\"binary\"}. Binary search requires a pre-sorted array. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Algorithm: search", read_only_hint = true)
-)]
-async fn algo_search(
-    &self,
-    Parameters(args): Parameters<AlgoSearchArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Linear or binary search over a JSON array for a target value. Input: {\"items\": [...], \"target\": <value>, \"method\": \"linear\"|\"binary\"}. Binary search requires a pre-sorted array. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Algorithm: search", read_only_hint = true)
+    )]
+    async fn algo_search(
+        &self,
+        Parameters(args): Parameters<AlgoSearchArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_search_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = args.input.clone();
-    let out = tokio::task::spawn_blocking(move || algo_search_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Breadth-first search traversal of a JSON adjacency-list graph. Input: {\"graph\": {\"node\": [\"neighbour\", ...]}, \"start\": \"nodeID\"}. Returns visited node order and count. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Algorithm: graph BFS", read_only_hint = true)
-)]
-async fn algo_graph_bfs(
-    &self,
-    Parameters(args): Parameters<AlgoGraphBfsArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Breadth-first search traversal of a JSON adjacency-list graph. Input: {\"graph\": {\"node\": [\"neighbour\", ...]}, \"start\": \"nodeID\"}. Returns visited node order and count. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Algorithm: graph BFS", read_only_hint = true)
+    )]
+    async fn algo_graph_bfs(
+        &self,
+        Parameters(args): Parameters<AlgoGraphBfsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_graph_bfs_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = args.input.clone();
-    let out = tokio::task::spawn_blocking(move || algo_graph_bfs_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Depth-first search traversal of a JSON adjacency-list graph. Input: {\"graph\": {\"node\": [\"neighbour\", ...]}, \"start\": \"nodeID\"}. Returns visited node order and count. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Algorithm: graph DFS", read_only_hint = true)
-)]
-async fn algo_graph_dfs(
-    &self,
-    Parameters(args): Parameters<AlgoGraphDfsArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Depth-first search traversal of a JSON adjacency-list graph. Input: {\"graph\": {\"node\": [\"neighbour\", ...]}, \"start\": \"nodeID\"}. Returns visited node order and count. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Algorithm: graph DFS", read_only_hint = true)
+    )]
+    async fn algo_graph_dfs(
+        &self,
+        Parameters(args): Parameters<AlgoGraphDfsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_graph_dfs_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = args.input.clone();
-    let out = tokio::task::spawn_blocking(move || algo_graph_dfs_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Dijkstra shortest-path on a weighted directed graph. Input: {\"graph\": {\"node\": {\"neighbour\": weight}}, \"start\": \"A\", \"end\": \"Z\"}. Returns path array and total distance. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Algorithm: graph shortest path", read_only_hint = true)
-)]
-async fn algo_graph_shortest_path(
-    &self,
-    Parameters(args): Parameters<AlgoGraphShortestPathArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Dijkstra shortest-path on a weighted directed graph. Input: {\"graph\": {\"node\": {\"neighbour\": weight}}, \"start\": \"A\", \"end\": \"Z\"}. Returns path array and total distance. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Algorithm: graph shortest path", read_only_hint = true)
+    )]
+    async fn algo_graph_shortest_path(
+        &self,
+        Parameters(args): Parameters<AlgoGraphShortestPathArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_graph_shortest_path_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = args.input.clone();
-    let out = tokio::task::spawn_blocking(move || algo_graph_shortest_path_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Topological sort of a DAG using Kahn's algorithm. Input: {\"graph\": {\"node\": [\"dependent\", ...]}}. Returns sorted order or an error with cycle nodes. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Algorithm: graph topological sort", read_only_hint = true)
-)]
-async fn algo_graph_topo_sort(
-    &self,
-    Parameters(args): Parameters<AlgoGraphTopoSortArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Topological sort of a DAG using Kahn's algorithm. Input: {\"graph\": {\"node\": [\"dependent\", ...]}}. Returns sorted order or an error with cycle nodes. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Algorithm: graph topological sort", read_only_hint = true)
+    )]
+    async fn algo_graph_topo_sort(
+        &self,
+        Parameters(args): Parameters<AlgoGraphTopoSortArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_graph_topo_sort_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = args.input.clone();
-    let out = tokio::task::spawn_blocking(move || algo_graph_topo_sort_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Matrix operations: multiply, transpose, determinant, or inverse. Input: {\"operation\": \"multiply\"|\"transpose\"|\"determinant\"|\"inverse\", \"a\": [[...]], \"b\": [[...]]}. \"b\" is required for multiply. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Algorithm: matrix operations", read_only_hint = true)
-)]
-async fn algo_matrix_ops(
-    &self,
-    Parameters(args): Parameters<AlgoMatrixOpsArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Matrix operations: multiply, transpose, determinant, or inverse. Input: {\"operation\": \"multiply\"|\"transpose\"|\"determinant\"|\"inverse\", \"a\": [[...]], \"b\": [[...]]}. \"b\" is required for multiply. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Algorithm: matrix operations", read_only_hint = true)
+    )]
+    async fn algo_matrix_ops(
+        &self,
+        Parameters(args): Parameters<AlgoMatrixOpsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_matrix_ops_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = args.input.clone();
-    let out = tokio::task::spawn_blocking(move || algo_matrix_ops_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Compute descriptive statistics for a numeric array: mean, median, mode, std_dev, min, max, percentiles (p25/p50/p75/p95/p99), IQR, and count. Input: {\"values\": [1, 2, 3, ...]}. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Algorithm: stats describe", read_only_hint = true)
-)]
-async fn algo_stats_describe(
-    &self,
-    Parameters(args): Parameters<AlgoStatsDescribeArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Compute descriptive statistics for a numeric array: mean, median, mode, std_dev, min, max, percentiles (p25/p50/p75/p95/p99), IQR, and count. Input: {\"values\": [1, 2, 3, ...]}. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Algorithm: stats describe", read_only_hint = true)
+    )]
+    async fn algo_stats_describe(
+        &self,
+        Parameters(args): Parameters<AlgoStatsDescribeArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_stats_describe_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = args.input.clone();
-    let out = tokio::task::spawn_blocking(move || algo_stats_describe_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Pearson or Spearman correlation between two numeric arrays. Input: {\"x\": [...], \"y\": [...], \"method\": \"pearson\"|\"spearman\"}. Both arrays must have the same length (>= 2). Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Algorithm: stats correlation", read_only_hint = true)
-)]
-async fn algo_stats_correlation(
-    &self,
-    Parameters(args): Parameters<AlgoStatsCorrelationArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Pearson or Spearman correlation between two numeric arrays. Input: {\"x\": [...], \"y\": [...], \"method\": \"pearson\"|\"spearman\"}. Both arrays must have the same length (>= 2). Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Algorithm: stats correlation", read_only_hint = true)
+    )]
+    async fn algo_stats_correlation(
+        &self,
+        Parameters(args): Parameters<AlgoStatsCorrelationArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_stats_correlation_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = args.input.clone();
-    let out = tokio::task::spawn_blocking(move || algo_stats_correlation_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Simple linear regression (y = slope * x + intercept) over two numeric arrays. Input: {\"x\": [...], \"y\": [...]}. Returns slope, intercept, r_squared, and n. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Algorithm: stats linear regression", read_only_hint = true)
-)]
-async fn algo_stats_regression(
-    &self,
-    Parameters(args): Parameters<AlgoStatsRegressionArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Simple linear regression (y = slope * x + intercept) over two numeric arrays. Input: {\"x\": [...], \"y\": [...]}. Returns slope, intercept, r_squared, and n. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Algorithm: stats linear regression", read_only_hint = true)
+    )]
+    async fn algo_stats_regression(
+        &self,
+        Parameters(args): Parameters<AlgoStatsRegressionArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_stats_regression_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = args.input.clone();
-    let out = tokio::task::spawn_blocking(move || algo_stats_regression_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Discrete Fourier Transform (DFT) over a real-valued signal. Input: {\"values\": [0.0, 1.0, ...]}. Returns the first N/2 frequency bins with frequency index, magnitude, and phase. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Algorithm: FFT / DFT", read_only_hint = true)
-)]
-async fn algo_fft(
-    &self,
-    Parameters(args): Parameters<AlgoFftArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Discrete Fourier Transform (DFT) over a real-valued signal. Input: {\"values\": [0.0, 1.0, ...]}. Returns the first N/2 frequency bins with frequency index, magnitude, and phase. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Algorithm: FFT / DFT", read_only_hint = true)
+    )]
+    async fn algo_fft(
+        &self,
+        Parameters(args): Parameters<AlgoFftArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_fft_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = args.input.clone();
-    let out = tokio::task::spawn_blocking(move || algo_fft_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Hash a text string using SHA-256 (default), SHA-512, MD5, or blake3 (falls back to SHA-256). Input: {\"text\": \"hello\", \"algorithm\": \"sha256\"}. Returns hex-encoded digest. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Algorithm: hash text", read_only_hint = true)
-)]
-async fn algo_hash_text(
-    &self,
-    Parameters(args): Parameters<AlgoHashTextArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Hash a text string using SHA-256 (default), SHA-512, MD5, or blake3 (falls back to SHA-256). Input: {\"text\": \"hello\", \"algorithm\": \"sha256\"}. Returns hex-encoded digest. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Algorithm: hash text", read_only_hint = true)
+    )]
+    async fn algo_hash_text(
+        &self,
+        Parameters(args): Parameters<AlgoHashTextArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_hash_text_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = args.input.clone();
-    let out = tokio::task::spawn_blocking(move || algo_hash_text_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Compute Levenshtein edit distance between two strings. Input: {\"a\": \"kitten\", \"b\": \"sitting\"}. Returns the minimum number of single-character edits (insert/delete/substitute). Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Algorithm: edit distance", read_only_hint = true)
-)]
-async fn algo_edit_distance(
-    &self,
-    Parameters(args): Parameters<AlgoEditDistanceArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Compute Levenshtein edit distance between two strings. Input: {\"a\": \"kitten\", \"b\": \"sitting\"}. Returns the minimum number of single-character edits (insert/delete/substitute). Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Algorithm: edit distance", read_only_hint = true)
+    )]
+    async fn algo_edit_distance(
+        &self,
+        Parameters(args): Parameters<AlgoEditDistanceArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_edit_distance_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = args.input.clone();
-    let out = tokio::task::spawn_blocking(move || algo_edit_distance_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "N-gram Jaccard similarity between two strings. Input: {\"a\": \"hello world\", \"b\": \"hello there\", \"n\": 2}. Returns similarity in [0, 1] and intersection/union counts. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Algorithm: n-gram similarity", read_only_hint = true)
-)]
-async fn algo_ngram_similarity(
-    &self,
-    Parameters(args): Parameters<AlgoNgramSimilarityArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "N-gram Jaccard similarity between two strings. Input: {\"a\": \"hello world\", \"b\": \"hello there\", \"n\": 2}. Returns similarity in [0, 1] and intersection/union counts. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Algorithm: n-gram similarity", read_only_hint = true)
+    )]
+    async fn algo_ngram_similarity(
+        &self,
+        Parameters(args): Parameters<AlgoNgramSimilarityArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_ngram_similarity_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = args.input.clone();
-    let out = tokio::task::spawn_blocking(move || algo_ngram_similarity_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Bloom filter: build a filter from a string set, or query for probable membership. Input: {\"operation\": \"build\"|\"query\", \"items\": [...], \"query\": \"item\", \"size\": 1000, \"hash_count\": 3}. Requires an experimental-lab deployment. Blocked on public profile.",
-    annotations(title = "Algorithm: bloom filter", read_only_hint = true)
-)]
-async fn algo_bloom_filter(
-    &self,
-    Parameters(args): Parameters<AlgoBloomFilterArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Bloom filter: build a filter from a string set, or query for probable membership. Input: {\"operation\": \"build\"|\"query\", \"items\": [...], \"query\": \"item\", \"size\": 1000, \"hash_count\": 3}. Requires an experimental-lab deployment. Blocked on public profile.",
+        annotations(title = "Algorithm: bloom filter", read_only_hint = true)
+    )]
+    async fn algo_bloom_filter(
+        &self,
+        Parameters(args): Parameters<AlgoBloomFilterArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_bloom_filter_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = args.input.clone();
-    let out = tokio::task::spawn_blocking(move || algo_bloom_filter_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
     // --- IDE ---
 
-#[tool(
-    description = "Open a file in the Zed editor, optionally navigating to a specific line. Runs `zed <path>:<line>`. Requires Zed on PATH and a trusted deployment. Blocked on public profile.",
-    annotations(title = "Zed: open file", read_only_hint = false)
-)]
-async fn zed_open_file(
-    &self,
-    Parameters(args): Parameters<ZedOpenFileArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Open a file in the Zed editor, optionally navigating to a specific line. Runs `zed <path>:<line>`. Requires Zed on PATH and a trusted deployment. Blocked on public profile.",
+        annotations(title = "Zed: open file", read_only_hint = false)
+    )]
+    async fn zed_open_file(
+        &self,
+        Parameters(args): Parameters<ZedOpenFileArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({
+            "path": args.path,
+            "line": args.line,
+            "column": args.column,
+        });
+        let out = tokio::task::spawn_blocking(move || zed_open_file_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({
-        "path": args.path,
-        "line": args.line,
-        "column": args.column,
-    });
-    let out = tokio::task::spawn_blocking(move || zed_open_file_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Retrieve diagnostics from the Zed editor. Zed does not yet expose diagnostics via CLI; returns a placeholder with guidance to use the LSP bridge for live diagnostics. Requires a trusted deployment. Blocked on public profile.",
-    annotations(title = "Zed: get diagnostics", read_only_hint = true)
-)]
-async fn zed_get_diagnostics(
-    &self,
-    Parameters(_args): Parameters<EmptyArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Retrieve diagnostics from the Zed editor. Zed does not yet expose diagnostics via CLI; returns a placeholder with guidance to use the LSP bridge for live diagnostics. Requires a trusted deployment. Blocked on public profile.",
+        annotations(title = "Zed: get diagnostics", read_only_hint = true)
+    )]
+    async fn zed_get_diagnostics(
+        &self,
+        Parameters(_args): Parameters<EmptyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({});
+        let out = tokio::task::spawn_blocking(move || zed_get_diagnostics_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({});
-    let out = tokio::task::spawn_blocking(move || zed_get_diagnostics_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Trigger a workspace-wide search in the Zed editor via `zed --search <query>`. Returns a note that the search was triggered; results appear in the Zed UI. Requires Zed on PATH and a trusted deployment. Blocked on public profile.",
-    annotations(title = "Zed: search workspace", read_only_hint = true)
-)]
-async fn zed_search_workspace(
-    &self,
-    Parameters(args): Parameters<ZedSearchWorkspaceArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Trigger a workspace-wide search in the Zed editor via `zed --search <query>`. Returns a note that the search was triggered; results appear in the Zed UI. Requires Zed on PATH and a trusted deployment. Blocked on public profile.",
+        annotations(title = "Zed: search workspace", read_only_hint = true)
+    )]
+    async fn zed_search_workspace(
+        &self,
+        Parameters(args): Parameters<ZedSearchWorkspaceArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({
+            "query": args.query,
+        });
+        let out = tokio::task::spawn_blocking(move || zed_search_workspace_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({
-        "query": args.query,
-    });
-    let out = tokio::task::spawn_blocking(move || zed_search_workspace_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Attach a file to the Zed AI session context. Opens the file in Zed and reads its content for use as AI context. Returns instructions for using @<path> in the Zed AI Assistant panel. Requires a trusted deployment. Blocked on public profile.",
-    annotations(title = "Zed: context attach", read_only_hint = false)
-)]
-async fn zed_context_attach(
-    &self,
-    Parameters(args): Parameters<ZedContextAttachArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Attach a file to the Zed AI session context. Opens the file in Zed and reads its content for use as AI context. Returns instructions for using @<path> in the Zed AI Assistant panel. Requires a trusted deployment. Blocked on public profile.",
+        annotations(title = "Zed: context attach", read_only_hint = false)
+    )]
+    async fn zed_context_attach(
+        &self,
+        Parameters(args): Parameters<ZedContextAttachArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({
+            "path": args.path,
+            "role": args.role.unwrap_or_else(|| "reference".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || zed_context_attach_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({
-        "path": args.path,
-        "role": args.role.unwrap_or_else(|| "reference".to_string()),
-    });
-    let out = tokio::task::spawn_blocking(move || zed_context_attach_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Open a file in the Cursor editor, optionally navigating to a specific line. Runs `cursor <path>:<line>`. Requires Cursor on PATH and a trusted deployment. Blocked on public profile.",
-    annotations(title = "Cursor: open file", read_only_hint = false)
-)]
-async fn cursor_open_file(
-    &self,
-    Parameters(args): Parameters<CursorOpenFileArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Open a file in the Cursor editor, optionally navigating to a specific line. Runs `cursor <path>:<line>`. Requires Cursor on PATH and a trusted deployment. Blocked on public profile.",
+        annotations(title = "Cursor: open file", read_only_hint = false)
+    )]
+    async fn cursor_open_file(
+        &self,
+        Parameters(args): Parameters<CursorOpenFileArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({
+            "path": args.path,
+            "line": args.line,
+            "column": args.column,
+        });
+        let out = tokio::task::spawn_blocking(move || cursor_open_file_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({
-        "path": args.path,
-        "line": args.line,
-        "column": args.column,
-    });
-    let out = tokio::task::spawn_blocking(move || cursor_open_file_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Send content to the Cursor Composer panel (Ctrl+I / Cmd+I). Opens the associated file in Cursor and returns Composer instructions. Requires Cursor on PATH and a trusted deployment. Blocked on public profile.",
-    annotations(title = "Cursor: composer send", read_only_hint = false)
-)]
-async fn cursor_composer_send(
-    &self,
-    Parameters(args): Parameters<CursorComposerSendArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Send content to the Cursor Composer panel (Ctrl+I / Cmd+I). Opens the associated file in Cursor and returns Composer instructions. Requires Cursor on PATH and a trusted deployment. Blocked on public profile.",
+        annotations(title = "Cursor: composer send", read_only_hint = false)
+    )]
+    async fn cursor_composer_send(
+        &self,
+        Parameters(args): Parameters<CursorComposerSendArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({
+            "content": args.content,
+            "path": args.path,
+            "instruction": args.instruction,
+        });
+        let out = tokio::task::spawn_blocking(move || cursor_composer_send_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({
-        "content": args.content,
-        "path": args.path,
-        "instruction": args.instruction,
-    });
-    let out = tokio::task::spawn_blocking(move || cursor_composer_send_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Open a side-by-side diff view in VS Code between two files. Runs `code --diff <left> <right>`. Requires VS Code CLI (`code`) on PATH and a trusted deployment. Blocked on public profile.",
-    annotations(title = "VS Code: open diff", read_only_hint = false)
-)]
-async fn vscode_open_diff(
-    &self,
-    Parameters(args): Parameters<VscodeOpenDiffArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Open a side-by-side diff view in VS Code between two files. Runs `code --diff <left> <right>`. Requires VS Code CLI (`code`) on PATH and a trusted deployment. Blocked on public profile.",
+        annotations(title = "VS Code: open diff", read_only_hint = false)
+    )]
+    async fn vscode_open_diff(
+        &self,
+        Parameters(args): Parameters<VscodeOpenDiffArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({
+            "left": args.left,
+            "right": args.right,
+        });
+        let out = tokio::task::spawn_blocking(move || vscode_open_diff_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({
-        "left": args.left,
-        "right": args.right,
-    });
-    let out = tokio::task::spawn_blocking(move || vscode_open_diff_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Open a file in VS Code, optionally jumping to a specific line via `code --goto <path>:<line>`. Requires VS Code CLI (`code`) on PATH and a trusted deployment. Blocked on public profile.",
-    annotations(title = "VS Code: open file", read_only_hint = false)
-)]
-async fn vscode_open_file(
-    &self,
-    Parameters(args): Parameters<VscodeOpenFileArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Open a file in VS Code, optionally jumping to a specific line via `code --goto <path>:<line>`. Requires VS Code CLI (`code`) on PATH and a trusted deployment. Blocked on public profile.",
+        annotations(title = "VS Code: open file", read_only_hint = false)
+    )]
+    async fn vscode_open_file(
+        &self,
+        Parameters(args): Parameters<VscodeOpenFileArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({
+            "path": args.path,
+            "line": args.line,
+            "column": args.column,
+        });
+        let out = tokio::task::spawn_blocking(move || vscode_open_file_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({
-        "path": args.path,
-        "line": args.line,
-        "column": args.column,
-    });
-    let out = tokio::task::spawn_blocking(move || vscode_open_file_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "List installed VS Code extensions via `code --list-extensions --show-names`. Returns an array of {id, name} objects. Requires VS Code CLI (`code`) on PATH and a trusted deployment. Blocked on public profile.",
-    annotations(title = "VS Code: list extensions", read_only_hint = true)
-)]
-async fn vscode_list_extensions(
-    &self,
-    Parameters(_args): Parameters<EmptyArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "List installed VS Code extensions via `code --list-extensions --show-names`. Returns an array of {id, name} objects. Requires VS Code CLI (`code`) on PATH and a trusted deployment. Blocked on public profile.",
+        annotations(title = "VS Code: list extensions", read_only_hint = true)
+    )]
+    async fn vscode_list_extensions(
+        &self,
+        Parameters(_args): Parameters<EmptyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({});
+        let out = tokio::task::spawn_blocking(move || vscode_list_extensions_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({});
-    let out = tokio::task::spawn_blocking(move || vscode_list_extensions_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Install a VS Code extension by its marketplace identifier via `code --install-extension <id>`. Requires VS Code CLI (`code`) on PATH and a trusted deployment. Blocked on public profile.",
-    annotations(title = "VS Code: install extension", read_only_hint = false)
-)]
-async fn vscode_install_extension(
-    &self,
-    Parameters(args): Parameters<VscodeInstallExtensionArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Install a VS Code extension by its marketplace identifier via `code --install-extension <id>`. Requires VS Code CLI (`code`) on PATH and a trusted deployment. Blocked on public profile.",
+        annotations(title = "VS Code: install extension", read_only_hint = false)
+    )]
+    async fn vscode_install_extension(
+        &self,
+        Parameters(args): Parameters<VscodeInstallExtensionArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({
+            "extension_id": args.extension_id,
+        });
+        let out = tokio::task::spawn_blocking(move || vscode_install_extension_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({
-        "extension_id": args.extension_id,
-    });
-    let out = tokio::task::spawn_blocking(move || vscode_install_extension_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Read VS Code diagnostics for a file or workspace. VS Code does not expose live diagnostics via CLI; returns best-effort output from `code --status` and guidance to use the Problems panel (Ctrl+Shift+M). Requires VS Code CLI (`code`) on PATH and a trusted deployment. Blocked on public profile.",
-    annotations(title = "VS Code: get diagnostics", read_only_hint = true)
-)]
-async fn vscode_get_diagnostics(
-    &self,
-    Parameters(args): Parameters<VscodeGetDiagnosticsArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Read VS Code diagnostics for a file or workspace. VS Code does not expose live diagnostics via CLI; returns best-effort output from `code --status` and guidance to use the Problems panel (Ctrl+Shift+M). Requires VS Code CLI (`code`) on PATH and a trusted deployment. Blocked on public profile.",
+        annotations(title = "VS Code: get diagnostics", read_only_hint = true)
+    )]
+    async fn vscode_get_diagnostics(
+        &self,
+        Parameters(args): Parameters<VscodeGetDiagnosticsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({
+            "path": args.path,
+            "severity": args.severity,
+        });
+        let out = tokio::task::spawn_blocking(move || vscode_get_diagnostics_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({
-        "path": args.path,
-        "severity": args.severity,
-    });
-    let out = tokio::task::spawn_blocking(move || vscode_get_diagnostics_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Open a file in a JetBrains IDE (idea/android-studio/clion/pycharm/rustrover), optionally at a specific line. Requires the IDE CLI on PATH and a trusted deployment. Blocked on public profile.",
-    annotations(title = "JetBrains: open file", read_only_hint = false)
-)]
-async fn jetbrains_open_file(
-    &self,
-    Parameters(args): Parameters<JetbrainsOpenFileArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Open a file in a JetBrains IDE (idea/android-studio/clion/pycharm/rustrover), optionally at a specific line. Requires the IDE CLI on PATH and a trusted deployment. Blocked on public profile.",
+        annotations(title = "JetBrains: open file", read_only_hint = false)
+    )]
+    async fn jetbrains_open_file(
+        &self,
+        Parameters(args): Parameters<JetbrainsOpenFileArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({
+            "path": args.path,
+            "ide": args.ide,
+            "line": args.line,
+        });
+        let out = tokio::task::spawn_blocking(move || jetbrains_open_file_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({
-        "path": args.path,
-        "ide": args.ide,
-        "line": args.line,
-    });
-    let out = tokio::task::spawn_blocking(move || jetbrains_open_file_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Execute an ADB shell command on a connected Android device via `adb shell <command>`. Optionally targets a specific device by serial. Requires ADB on PATH and a trusted deployment. Blocked on public profile.",
-    annotations(title = "JetBrains: ADB shell", read_only_hint = false)
-)]
-async fn jetbrains_adb_shell(
-    &self,
-    Parameters(args): Parameters<JetbrainsAdbShellArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Execute an ADB shell command on a connected Android device via `adb shell <command>`. Optionally targets a specific device by serial. Requires ADB on PATH and a trusted deployment. Blocked on public profile.",
+        annotations(title = "JetBrains: ADB shell", read_only_hint = false)
+    )]
+    async fn jetbrains_adb_shell(
+        &self,
+        Parameters(args): Parameters<JetbrainsAdbShellArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({
+            "command": args.command,
+            "device": args.device,
+        });
+        let out = tokio::task::spawn_blocking(move || jetbrains_adb_shell_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({
-        "command": args.command,
-        "device": args.device,
-    });
-    let out = tokio::task::spawn_blocking(move || jetbrains_adb_shell_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "List connected Android devices via `adb devices -l`. Returns an array of {serial, state, model} records. Requires ADB on PATH and a trusted deployment. Blocked on public profile.",
-    annotations(title = "JetBrains: ADB device list", read_only_hint = true)
-)]
-async fn jetbrains_device_list(
-    &self,
-    Parameters(_args): Parameters<EmptyArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "List connected Android devices via `adb devices -l`. Returns an array of {serial, state, model} records. Requires ADB on PATH and a trusted deployment. Blocked on public profile.",
+        annotations(title = "JetBrains: ADB device list", read_only_hint = true)
+    )]
+    async fn jetbrains_device_list(
+        &self,
+        Parameters(_args): Parameters<EmptyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({});
+        let out = tokio::task::spawn_blocking(move || jetbrains_device_list_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({});
-    let out = tokio::task::spawn_blocking(move || jetbrains_device_list_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Read the last N lines of Android Logcat via `adb logcat -d -t <n>`. Optionally filters by tag expression and targets a specific device serial. Requires ADB on PATH and a trusted deployment. Blocked on public profile.",
-    annotations(title = "JetBrains: logcat tail", read_only_hint = true)
-)]
-async fn jetbrains_logcat_tail(
-    &self,
-    Parameters(args): Parameters<JetbrainsLogcatTailArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Read the last N lines of Android Logcat via `adb logcat -d -t <n>`. Optionally filters by tag expression and targets a specific device serial. Requires ADB on PATH and a trusted deployment. Blocked on public profile.",
+        annotations(title = "JetBrains: logcat tail", read_only_hint = true)
+    )]
+    async fn jetbrains_logcat_tail(
+        &self,
+        Parameters(args): Parameters<JetbrainsLogcatTailArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({
+            "device": args.device,
+            "n": args.n,
+            "filter": args.filter,
+        });
+        let out = tokio::task::spawn_blocking(move || jetbrains_logcat_tail_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({
-        "device": args.device,
-        "n": args.n,
-        "filter": args.filter,
-    });
-    let out = tokio::task::spawn_blocking(move || jetbrains_logcat_tail_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Execute an LSP code action (quick fix, refactor, source) via the JetBrains built-in REST API at the given file position. Requires the IDE on PATH and a trusted deployment. Blocked on public profile.",
-    annotations(title = "JetBrains: LSP code action", read_only_hint = false)
-)]
-async fn jetbrains_lsp_code_action(
-    &self,
-    Parameters(args): Parameters<JetbrainsLspCodeActionArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Execute an LSP code action (quick fix, refactor, source) via the JetBrains built-in REST API at the given file position. Requires the IDE on PATH and a trusted deployment. Blocked on public profile.",
+        annotations(title = "JetBrains: LSP code action", read_only_hint = false)
+    )]
+    async fn jetbrains_lsp_code_action(
+        &self,
+        Parameters(args): Parameters<JetbrainsLspCodeActionArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({
+            "path": args.path,
+            "ide": args.ide,
+            "line": args.line,
+            "column": args.column,
+            "action_kind": args.action_kind,
+            "port": args.port,
+        });
+        let out = tokio::task::spawn_blocking(move || jetbrains_lsp_code_action_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({
-        "path": args.path,
-        "ide": args.ide,
-        "line": args.line,
-        "column": args.column,
-        "action_kind": args.action_kind,
-        "port": args.port,
-    });
-    let out = tokio::task::spawn_blocking(move || jetbrains_lsp_code_action_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Trigger a saved JetBrains run/debug configuration via the IDE CLI. Supports idea/android-studio/clion/pycharm/rustrover/webstorm/goland. Requires the IDE on PATH and a trusted deployment. Blocked on public profile.",
-    annotations(title = "JetBrains: run configuration", read_only_hint = false)
-)]
-async fn jetbrains_run_configuration(
-    &self,
-    Parameters(args): Parameters<JetbrainsRunConfigurationArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Trigger a saved JetBrains run/debug configuration via the IDE CLI. Supports idea/android-studio/clion/pycharm/rustrover/webstorm/goland. Requires the IDE on PATH and a trusted deployment. Blocked on public profile.",
+        annotations(title = "JetBrains: run configuration", read_only_hint = false)
+    )]
+    async fn jetbrains_run_configuration(
+        &self,
+        Parameters(args): Parameters<JetbrainsRunConfigurationArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({
+            "ide": args.ide,
+            "config_name": args.config_name,
+            "debug": args.debug.unwrap_or(false),
+        });
+        let out = tokio::task::spawn_blocking(move || jetbrains_run_configuration_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({
-        "ide": args.ide,
-        "config_name": args.config_name,
-        "debug": args.debug.unwrap_or(false),
-    });
-    let out = tokio::task::spawn_blocking(move || jetbrains_run_configuration_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Detect running IDEs on this machine by scanning /proc on Linux. Returns an array of {name, pid} records for known IDEs (zed, code, cursor, idea, android-studio, clion, pycharm, rustrover, vim, nvim, emacs, ...). Requires a trusted deployment. Blocked on public profile.",
-    annotations(title = "IDE: detect running", read_only_hint = true)
-)]
-async fn ide_detect(
-    &self,
-    Parameters(_args): Parameters<EmptyArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Detect running IDEs on this machine by scanning /proc on Linux. Returns an array of {name, pid} records for known IDEs (zed, code, cursor, idea, android-studio, clion, pycharm, rustrover, vim, nvim, emacs, ...). Requires a trusted deployment. Blocked on public profile.",
+        annotations(title = "IDE: detect running", read_only_hint = true)
+    )]
+    async fn ide_detect(
+        &self,
+        Parameters(_args): Parameters<EmptyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({});
+        let out = tokio::task::spawn_blocking(move || ide_detect_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({});
-    let out = tokio::task::spawn_blocking(move || ide_detect_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Format a file using rustfmt, prettier, black, or clang-format. Runs the formatter in-place on the specified path. Requires the formatter on PATH and a trusted deployment. Blocked on public profile.",
-    annotations(title = "IDE: format document", read_only_hint = false)
-)]
-async fn ide_format_document(
-    &self,
-    Parameters(args): Parameters<IdeFormatDocumentArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Format a file using rustfmt, prettier, black, or clang-format. Runs the formatter in-place on the specified path. Requires the formatter on PATH and a trusted deployment. Blocked on public profile.",
+        annotations(title = "IDE: format document", read_only_hint = false)
+    )]
+    async fn ide_format_document(
+        &self,
+        Parameters(args): Parameters<IdeFormatDocumentArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({
+            "path": args.path,
+            "formatter": args.formatter,
+        });
+        let out = tokio::task::spawn_blocking(move || ide_format_document_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({
-        "path": args.path,
-        "formatter": args.formatter,
-    });
-    let out = tokio::task::spawn_blocking(move || ide_format_document_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Run tests for a file using the language's test runner: cargo test (rust), pytest (python), jest (javascript/typescript). Returns {success, output}. Requires the test runner on PATH and a trusted deployment. Blocked on public profile.",
-    annotations(title = "IDE: run test", read_only_hint = false)
-)]
-async fn ide_run_test(
-    &self,
-    Parameters(args): Parameters<IdeRunTestArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Run tests for a file using the language's test runner: cargo test (rust), pytest (python), jest (javascript/typescript). Returns {success, output}. Requires the test runner on PATH and a trusted deployment. Blocked on public profile.",
+        annotations(title = "IDE: run test", read_only_hint = false)
+    )]
+    async fn ide_run_test(
+        &self,
+        Parameters(args): Parameters<IdeRunTestArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({
+            "language": args.language,
+            "path": args.path.unwrap_or_default(),
+            "line": args.line,
+        });
+        let out = tokio::task::spawn_blocking(move || ide_run_test_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({
-        "language": args.language,
-        "path": args.path.unwrap_or_default(),
-        "line": args.line,
-    });
-    let out = tokio::task::spawn_blocking(move || ide_run_test_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Find a symbol's definition location by running `grep -rn <symbol> <path>`. Returns up to 50 matching {file, line, context} records. Requires grep on PATH and a trusted deployment. Blocked on public profile.",
-    annotations(title = "IDE: go to definition", read_only_hint = false)
-)]
-async fn ide_goto_definition(
-    &self,
-    Parameters(args): Parameters<IdeGotoDefinitionArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Find a symbol's definition location by running `grep -rn <symbol> <path>`. Returns up to 50 matching {file, line, context} records. Requires grep on PATH and a trusted deployment. Blocked on public profile.",
+        annotations(title = "IDE: go to definition", read_only_hint = false)
+    )]
+    async fn ide_goto_definition(
+        &self,
+        Parameters(args): Parameters<IdeGotoDefinitionArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({
+            "symbol": args.symbol,
+            "path": args.path,
+        });
+        let out = tokio::task::spawn_blocking(move || ide_goto_definition_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({
-        "symbol": args.symbol,
-        "path": args.path,
-    });
-    let out = tokio::task::spawn_blocking(move || ide_goto_definition_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
-#[tool(
-    description = "Find all references to a symbol by running `grep -rn <symbol> <path>`. Returns up to 50 matching {file, line, context} records and a total count. Requires grep on PATH and a trusted deployment. Blocked on public profile.",
-    annotations(title = "IDE: find references", read_only_hint = false)
-)]
-async fn ide_find_references(
-    &self,
-    Parameters(args): Parameters<IdeFindReferencesArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Find all references to a symbol by running `grep -rn <symbol> <path>`. Returns up to 50 matching {file, line, context} records and a total count. Requires grep on PATH and a trusted deployment. Blocked on public profile.",
+        annotations(title = "IDE: find references", read_only_hint = false)
+    )]
+    async fn ide_find_references(
+        &self,
+        Parameters(args): Parameters<IdeFindReferencesArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = serde_json::json!({
+            "symbol": args.symbol,
+            "path": args.path,
+        });
+        let out = tokio::task::spawn_blocking(move || ide_find_references_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
     }
-    let input = serde_json::json!({
-        "symbol": args.symbol,
-        "path": args.path,
-    });
-    let out = tokio::task::spawn_blocking(move || ide_find_references_work(input))
-        .await
-        .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
-    let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
-    Self::tool_text(text)
-}
 
     // --- FILE CRYPTO ---
 
-#[tool(
-    description = "Encrypt a file using AES-256-GCM (XOR+base64 implementation). Writes an .enc output file next to the original. Requires trusted profile.",
-    annotations(title = "File encrypt", read_only_hint = false)
-)]
-async fn file_encrypt(
-    &self,
-    Parameters(args): Parameters<FileEncryptArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Encrypt a file using AES-256-GCM (XOR+base64 implementation). Writes an .enc output file next to the original. Requires trusted profile.",
+        annotations(title = "File encrypt", read_only_hint = false)
+    )]
+    async fn file_encrypt(
+        &self,
+        Parameters(args): Parameters<FileEncryptArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let params = serde_json::json!({
+            "path": args.path,
+            "passphrase": args.passphrase,
+        });
+        let out = tokio::task::spawn_blocking(move || file_encrypt_work(params))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
     }
-    let params = serde_json::json!({
-        "path": args.path,
-        "passphrase": args.passphrase,
-    });
-    let out = tokio::task::spawn_blocking(move || file_encrypt_work(params))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
 
-#[tool(
-    description = "Decrypt a file previously encrypted with file_encrypt. Reads an .enc file and writes the plaintext back (stripping the .enc suffix). Requires trusted profile.",
-    annotations(title = "File decrypt", read_only_hint = false)
-)]
-async fn file_decrypt(
-    &self,
-    Parameters(args): Parameters<FileDecryptArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Decrypt a file previously encrypted with file_encrypt. Reads an .enc file and writes the plaintext back (stripping the .enc suffix). Requires trusted profile.",
+        annotations(title = "File decrypt", read_only_hint = false)
+    )]
+    async fn file_decrypt(
+        &self,
+        Parameters(args): Parameters<FileDecryptArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let params = serde_json::json!({
+            "path": args.path,
+            "passphrase": args.passphrase,
+        });
+        let out = tokio::task::spawn_blocking(move || file_decrypt_work(params))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
     }
-    let params = serde_json::json!({
-        "path": args.path,
-        "passphrase": args.passphrase,
-    });
-    let out = tokio::task::spawn_blocking(move || file_decrypt_work(params))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
 
-#[tool(
-    description = "Sign a file with HMAC-SHA256 using a passphrase. Writes a .sig file alongside the input containing the hex-encoded signature and the file's SHA-256 hash. Requires trusted profile.",
-    annotations(title = "File sign", read_only_hint = false)
-)]
-async fn file_sign(
-    &self,
-    Parameters(args): Parameters<FileSignArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Sign a file with HMAC-SHA256 using a passphrase. Writes a .sig file alongside the input containing the hex-encoded signature and the file's SHA-256 hash. Requires trusted profile.",
+        annotations(title = "File sign", read_only_hint = false)
+    )]
+    async fn file_sign(
+        &self,
+        Parameters(args): Parameters<FileSignArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let params = serde_json::json!({
+            "path": args.path,
+            "passphrase": args.passphrase,
+        });
+        let out = tokio::task::spawn_blocking(move || file_sign_work(params))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
     }
-    let params = serde_json::json!({
-        "path": args.path,
-        "passphrase": args.passphrase,
-    });
-    let out = tokio::task::spawn_blocking(move || file_sign_work(params))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
 
-#[tool(
-    description = "Verify a file's HMAC-SHA256 signature against a .sig file. Returns verified=true when the signature matches. Uses constant-time comparison to prevent timing attacks. Read-only.",
-    annotations(title = "File verify signature", read_only_hint = true)
-)]
-async fn file_verify_signature(
-    &self,
-    Parameters(args): Parameters<FileVerifySignatureArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Verify a file's HMAC-SHA256 signature against a .sig file. Returns verified=true when the signature matches. Uses constant-time comparison to prevent timing attacks. Read-only.",
+        annotations(title = "File verify signature", read_only_hint = true)
+    )]
+    async fn file_verify_signature(
+        &self,
+        Parameters(args): Parameters<FileVerifySignatureArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let params = serde_json::json!({
+            "path": args.path,
+            "sig_path": args.sig_path,
+            "passphrase": args.passphrase,
+        });
+        let out = tokio::task::spawn_blocking(move || file_verify_signature_work(params))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
     }
-    let params = serde_json::json!({
-        "path": args.path,
-        "sig_path": args.sig_path,
-        "passphrase": args.passphrase,
-    });
-    let out = tokio::task::spawn_blocking(move || file_verify_signature_work(params))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
 
-#[tool(
-    description = "Find duplicate files in a directory tree by comparing SHA-256 content hashes. Returns groups of files with identical content along with their sizes and paths. Requires trusted profile.",
-    annotations(title = "File deduplicate", read_only_hint = false)
-)]
-async fn file_deduplicate(
-    &self,
-    Parameters(args): Parameters<FileDeduplicateArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Find duplicate files in a directory tree by comparing SHA-256 content hashes. Returns groups of files with identical content along with their sizes and paths. Requires trusted profile.",
+        annotations(title = "File deduplicate", read_only_hint = false)
+    )]
+    async fn file_deduplicate(
+        &self,
+        Parameters(args): Parameters<FileDeduplicateArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let params = serde_json::json!({
+            "path": args.path,
+            "max_depth": args.max_depth,
+        });
+        let out = tokio::task::spawn_blocking(move || file_deduplicate_work(params))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
     }
-    let params = serde_json::json!({
-        "path": args.path,
-        "max_depth": args.max_depth,
-    });
-    let out = tokio::task::spawn_blocking(move || file_deduplicate_work(params))
-        .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
 
-#[tool(
-    description = "Snapshot a file or directory's metadata (mtime, size, SHA-256). Call twice at different times and compare snapshots to detect changes. Requires trusted profile.",
-    annotations(title = "File watch", read_only_hint = false)
-)]
-async fn file_watch(
-    &self,
-    Parameters(args): Parameters<FileWatchArgs>,
-) -> Result<CallToolResult, McpError> {
-    if let Err(e) = self.require_trusted_deployment() {
-        return Self::tool_text(e);
+    #[tool(
+        description = "Snapshot a file or directory's metadata (mtime, size, SHA-256). Call twice at different times and compare snapshots to detect changes. Requires trusted profile.",
+        annotations(title = "File watch", read_only_hint = false)
+    )]
+    async fn file_watch(
+        &self,
+        Parameters(args): Parameters<FileWatchArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let params = serde_json::json!({
+            "path": args.path,
+            "compute_hash": args.compute_hash,
+        });
+        let out = tokio::task::spawn_blocking(move || file_watch_work(params))
+            .await
+            .unwrap_or_else(|e| format!("Error: task failed: {e}"));
+        Self::tool_text(out)
     }
-    let params = serde_json::json!({
-        "path": args.path,
-        "compute_hash": args.compute_hash,
-    });
-    let out = tokio::task::spawn_blocking(move || file_watch_work(params))
+
+    // ── Network Tools ──────────────────────────────────────────────────────────
+
+    #[tool(
+        description = "ICMP ping a host and return round-trip statistics.",
+        annotations(title = "Ping host", read_only_hint = true)
+    )]
+    async fn net_ping(
+        &self,
+        Parameters(args): Parameters<NetPingArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"host": args.host, "count": args.count});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_ping_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
         .await
-        .unwrap_or_else(|e| format!("Error: task failed: {e}"));
-    Self::tool_text(out)
-}
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Trace the network path to a host hop-by-hop.",
+        annotations(title = "Traceroute", read_only_hint = true)
+    )]
+    async fn net_traceroute(
+        &self,
+        Parameters(args): Parameters<NetTracerouteArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"host": args.host, "max_hops": args.max_hops});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_traceroute_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Scan TCP ports on a remote host.",
+        annotations(title = "Port scan", read_only_hint = true)
+    )]
+    async fn net_port_scan(
+        &self,
+        Parameters(args): Parameters<NetPortScanArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"host": args.host, "ports": args.ports, "timeout_ms": args.timeout_ms});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_port_scan_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Perform a DNS lookup for one or more record types.",
+        annotations(title = "DNS lookup (net)", read_only_hint = true)
+    )]
+    async fn net_dns_lookup(
+        &self,
+        Parameters(args): Parameters<NetDnsLookupArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"domain": args.domain, "record_type": args.record_type});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_dns_lookup_work_v2(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Query WHOIS registration data for a domain.",
+        annotations(title = "WHOIS lookup", read_only_hint = true)
+    )]
+    async fn net_whois(
+        &self,
+        Parameters(args): Parameters<NetWhoisArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"domain": args.domain});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_whois_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Inspect the TLS/SSL certificate chain of a remote host.",
+        annotations(title = "TLS inspect (net)", read_only_hint = true)
+    )]
+    async fn net_tls_inspect(
+        &self,
+        Parameters(args): Parameters<NetTlsInspectArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"host": args.host, "port": args.port});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_tls_inspect_work_v2(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Run an HTTP benchmark (load test) against a URL.",
+        annotations(title = "HTTP benchmark", read_only_hint = true)
+    )]
+    async fn net_http_benchmark(
+        &self,
+        Parameters(args): Parameters<NetHttpBenchmarkArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"url": args.url, "requests": args.requests, "concurrency": args.concurrency});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_http_benchmark_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Scan the local network for hosts using ARP.",
+        annotations(title = "ARP scan", read_only_hint = true)
+    )]
+    async fn net_arp_scan(
+        &self,
+        Parameters(args): Parameters<NetArpScanArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"interface": args.interface});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_arp_scan_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Scan for nearby Wi-Fi networks.",
+        annotations(title = "Wi-Fi scan", read_only_hint = true)
+    )]
+    async fn net_wifi_scan(
+        &self,
+        Parameters(args): Parameters<NetWifiScanArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"interface": args.interface});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_wifi_scan_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Measure network bandwidth to a target host.",
+        annotations(title = "Bandwidth test", read_only_hint = true)
+    )]
+    async fn net_bandwidth_test(
+        &self,
+        Parameters(args): Parameters<NetBandwidthTestArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"target": args.target, "duration_s": args.duration_s});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_bandwidth_test_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Run a quick nmap port/service scan.",
+        annotations(title = "nmap quick scan", read_only_hint = true)
+    )]
+    async fn net_nmap_quick(
+        &self,
+        Parameters(args): Parameters<NetNmapQuickArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"target": args.target, "ports": args.ports});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_nmap_quick_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Execute a command on a remote host via SSH.",
+        annotations(title = "SSH exec", read_only_hint = false)
+    )]
+    async fn net_ssh_exec(
+        &self,
+        Parameters(args): Parameters<NetSshExecArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"host": args.host, "user": args.user, "command": args.command, "port": args.port, "key_path": args.key_path});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_ssh_exec_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Upload a local file to a remote host via SFTP.",
+        annotations(title = "SFTP upload", read_only_hint = false)
+    )]
+    async fn net_sftp_upload(
+        &self,
+        Parameters(args): Parameters<NetSftpUploadArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"host": args.host, "user": args.user, "local_path": args.local_path, "remote_path": args.remote_path, "port": args.port});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_sftp_upload_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Download a file from a remote host via SFTP.",
+        annotations(title = "SFTP download", read_only_hint = false)
+    )]
+    async fn net_sftp_download(
+        &self,
+        Parameters(args): Parameters<NetSftpDownloadArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"host": args.host, "user": args.user, "remote_path": args.remote_path, "local_path": args.local_path, "port": args.port});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_sftp_download_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Wake a machine on the LAN using a Wake-on-LAN magic packet.",
+        annotations(title = "Wake-on-LAN", read_only_hint = false)
+    )]
+    async fn net_wake_on_lan(
+        &self,
+        Parameters(args): Parameters<NetWakeOnLanArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args =
+            serde_json::json!({"mac_address": args.mac_address, "broadcast": args.broadcast});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_wake_on_lan_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "List available serial/COM ports on this system.",
+        annotations(title = "Serial list ports", read_only_hint = true)
+    )]
+    async fn net_serial_list(
+        &self,
+        Parameters(_args): Parameters<NetSerialListArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_serial_list_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Send data to a serial port.",
+        annotations(title = "Serial send", read_only_hint = false)
+    )]
+    async fn net_serial_send(
+        &self,
+        Parameters(args): Parameters<NetSerialSendArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args =
+            serde_json::json!({"port": args.port, "data": args.data, "baud": args.baud});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_serial_send_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Read data from a serial port.",
+        annotations(title = "Serial read", read_only_hint = true)
+    )]
+    async fn net_serial_read(
+        &self,
+        Parameters(args): Parameters<NetSerialReadArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"port": args.port, "baud": args.baud, "timeout_ms": args.timeout_ms, "bytes": args.bytes});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_serial_read_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Scan for nearby Bluetooth devices.",
+        annotations(title = "Bluetooth scan", read_only_hint = true)
+    )]
+    async fn net_bluetooth_scan(
+        &self,
+        Parameters(args): Parameters<NetBluetoothScanArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"timeout_s": args.timeout_s});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_bluetooth_scan_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Publish a message to an MQTT broker topic.",
+        annotations(title = "MQTT publish", read_only_hint = false)
+    )]
+    async fn net_mqtt_publish(
+        &self,
+        Parameters(args): Parameters<NetMqttPublishArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"broker": args.broker, "topic": args.topic, "message": args.message, "port": args.port, "qos": args.qos});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_mqtt_publish_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Subscribe to an MQTT topic and collect messages.",
+        annotations(title = "MQTT subscribe", read_only_hint = true)
+    )]
+    async fn net_mqtt_subscribe(
+        &self,
+        Parameters(args): Parameters<NetMqttSubscribeArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"broker": args.broker, "topic": args.topic, "timeout_s": args.timeout_s, "port": args.port});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_mqtt_subscribe_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Capture live network packets on an interface.",
+        annotations(title = "Packet capture", read_only_hint = true)
+    )]
+    async fn net_packet_capture(
+        &self,
+        Parameters(args): Parameters<NetPacketCaptureArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"interface": args.interface, "count": args.count, "filter": args.filter, "timeout_s": args.timeout_s});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_packet_capture_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Show the current status of a VPN connection.",
+        annotations(title = "VPN status", read_only_hint = true)
+    )]
+    async fn net_vpn_status(
+        &self,
+        Parameters(args): Parameters<NetVpnStatusArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"vpn_type": args.vpn_type});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_vpn_status_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Attempt a DNS zone transfer (AXFR) for a domain.",
+        annotations(title = "DNS zone transfer", read_only_hint = true)
+    )]
+    async fn net_dns_zone_transfer(
+        &self,
+        Parameters(args): Parameters<NetDnsZoneTransferArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"domain": args.domain, "nameserver": args.nameserver});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_dns_zone_transfer_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Grade the SSL/TLS configuration of a remote host.",
+        annotations(title = "SSL grade", read_only_hint = true)
+    )]
+    async fn net_ssl_grade(
+        &self,
+        Parameters(args): Parameters<NetSslGradeArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"host": args.host, "port": args.port});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_ssl_grade_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Read registers from a Modbus TCP device.",
+        annotations(title = "Modbus read", read_only_hint = true)
+    )]
+    async fn net_modbus_read(
+        &self,
+        Parameters(args): Parameters<NetModbusReadArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "host": args.host,
+            "unit_id": args.unit_id,
+            "function_code": args.function_code,
+            "start_address": args.start_address,
+            "count": args.count,
+            "port": args.port,
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = net_modbus_read_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    // ── Protection / Security ──────────────────────────────────────────────────
+
+    #[tool(
+        description = "Scan a single file with ClamAV antivirus.",
+        annotations(title = "ClamAV scan file", read_only_hint = true)
+    )]
+    async fn protect_scan_file(
+        &self,
+        Parameters(args): Parameters<ProtectScanFileArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"path": args.path});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = protect_scan_file_clamav_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Recursively scan a directory with ClamAV antivirus.",
+        annotations(title = "ClamAV scan directory", read_only_hint = true)
+    )]
+    async fn protect_scan_directory(
+        &self,
+        Parameters(args): Parameters<ProtectScanDirectoryArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"path": args.path, "max_depth": args.max_depth});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = protect_scan_directory_clamav_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Scan a file or directory with YARA rules.",
+        annotations(title = "YARA scan", read_only_hint = true)
+    )]
+    async fn protect_yara_scan(
+        &self,
+        Parameters(args): Parameters<ProtectYaraScanArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"path": args.path, "rules_path": args.rules_path});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = protect_yara_scan_dir_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Verify (or update) a SHA-256 integrity manifest for a path.",
+        annotations(title = "Integrity check", read_only_hint = false)
+    )]
+    async fn protect_integrity_check(
+        &self,
+        Parameters(args): Parameters<ProtectIntegrityCheckArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "path": args.path,
+            "manifest_path": args.manifest_path,
+            "update": args.update,
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = protect_integrity_check_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Scan files for accidentally committed secrets (API keys, tokens, passwords).",
+        annotations(title = "Secret scan", read_only_hint = true)
+    )]
+    async fn protect_secret_scan(
+        &self,
+        Parameters(args): Parameters<ProtectSecretScanArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"path": args.path, "max_depth": args.max_depth});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = protect_secret_scan_dir_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Audit project dependencies for known vulnerabilities.",
+        annotations(title = "Dependency audit", read_only_hint = true)
+    )]
+    async fn protect_dependency_audit(
+        &self,
+        Parameters(args): Parameters<ProtectDependencyAuditArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        // Note: the underlying function reads "language" key, not "manager"
+        let json_args = serde_json::json!({"path": args.path, "language": args.manager});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = protect_dependency_audit_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Find SUID/SGID binaries under a path.",
+        annotations(title = "SUID find", read_only_hint = true)
+    )]
+    async fn protect_suid_find(
+        &self,
+        Parameters(args): Parameters<ProtectSuidFindArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"path": args.path});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = protect_suid_find_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Find world-writable files and directories under a path.",
+        annotations(title = "World-writable find", read_only_hint = true)
+    )]
+    async fn protect_world_writable_find(
+        &self,
+        Parameters(args): Parameters<ProtectWorldWritableFindArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"path": args.path});
+        let out = tokio::task::spawn_blocking(move || {
+            let r = protect_world_writable_find_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Run a basic rootkit detection check using rkhunter or chkrootkit.",
+        annotations(title = "Rootkit check", read_only_hint = true)
+    )]
+    async fn protect_rootkit_check(
+        &self,
+        Parameters(_args): Parameters<ProtectRootkitCheckArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({});
+        let out = tokio::task::spawn_blocking(move || protect_rootkit_check_work(json_args))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Detect anomalous processes (hidden PIDs, suspicious names, missing executables).",
+        annotations(title = "Process anomaly detect", read_only_hint = true)
+    )]
+    async fn protect_process_anomaly(
+        &self,
+        Parameters(_args): Parameters<ProtectProcessAnomalyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({});
+        let out = tokio::task::spawn_blocking(move || protect_process_anomaly_work(json_args))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Detect anomalous network connections (unexpected listeners, unusual destinations).",
+        annotations(title = "Network anomaly detect", read_only_hint = true)
+    )]
+    async fn protect_network_anomaly(
+        &self,
+        Parameters(_args): Parameters<ProtectNetworkAnomalyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({});
+        let out = tokio::task::spawn_blocking(move || protect_network_anomaly_work(json_args))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Audit cron jobs for suspicious or world-writable entries.",
+        annotations(title = "Cron audit", read_only_hint = true)
+    )]
+    async fn protect_cron_audit(
+        &self,
+        Parameters(_args): Parameters<ProtectCronAuditArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({});
+        let out = tokio::task::spawn_blocking(move || protect_cron_audit_work(json_args))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Audit SSH authorized keys and private key permissions.",
+        annotations(title = "SSH key audit", read_only_hint = true)
+    )]
+    async fn protect_ssh_key_audit(
+        &self,
+        Parameters(args): Parameters<ProtectSshKeyAuditArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"path": args.path});
+        let out = tokio::task::spawn_blocking(move || protect_ssh_key_audit_work(json_args))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Report the current firewall status (iptables / nftables / ufw).",
+        annotations(title = "Firewall status", read_only_hint = true)
+    )]
+    async fn protect_firewall_status(
+        &self,
+        Parameters(_args): Parameters<ProtectFirewallStatusArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({});
+        let out = tokio::task::spawn_blocking(move || protect_firewall_status_work(json_args))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Move a suspicious file to a quarantine directory.",
+        annotations(title = "Quarantine file", read_only_hint = false)
+    )]
+    async fn protect_quarantine_file(
+        &self,
+        Parameters(args): Parameters<ProtectQuarantineFileArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args =
+            serde_json::json!({"path": args.path, "quarantine_dir": args.quarantine_dir});
+        let out = tokio::task::spawn_blocking(move || protect_quarantine_file_work(json_args))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Check a file's hash against known malware reputation databases.",
+        annotations(title = "File reputation", read_only_hint = true)
+    )]
+    async fn protect_file_reputation(
+        &self,
+        Parameters(args): Parameters<ProtectFileReputationArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"path": args.path});
+        let out = tokio::task::spawn_blocking(move || protect_file_reputation_work(json_args))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Scan file permissions under a path for security issues.",
+        annotations(title = "Permissions scan", read_only_hint = true)
+    )]
+    async fn protect_permissions_scan(
+        &self,
+        Parameters(args): Parameters<ProtectPermissionsScanArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({"path": args.path});
+        let out = tokio::task::spawn_blocking(move || protect_permissions_scan_work(json_args))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    // ── IoT Tools ──────────────────────────────────────────────────────────────
+
+    #[tool(
+        description = "Enumerate IoT/embedded devices visible on the system (USB, serial, I2C, GPIO).",
+        annotations(title = "IoT device inventory", read_only_hint = true)
+    )]
+    async fn iot_device_inventory(
+        &self,
+        Parameters(_args): Parameters<IotDeviceInventoryArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let out = tokio::task::spawn_blocking(iot_device_inventory_work)
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Read bytes from a serial port (IoT / embedded device context).",
+        annotations(title = "IoT serial read", read_only_hint = true)
+    )]
+    async fn iot_serial_read(
+        &self,
+        Parameters(args): Parameters<IotSerialReadArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let port = args.port.clone();
+        let baud = args.baud.unwrap_or(9600);
+        let timeout_ms = args.timeout_ms.unwrap_or(2000);
+        let bytes = args.bytes.unwrap_or(256);
+        let out = tokio::task::spawn_blocking(move || {
+            iot_serial_read_work_v2(port, baud, timeout_ms, bytes)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Write data to a serial port (IoT / embedded device context).",
+        annotations(title = "IoT serial write", read_only_hint = false)
+    )]
+    async fn iot_serial_write(
+        &self,
+        Parameters(args): Parameters<IotSerialWriteArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let port = args.port.clone();
+        let data = args.data.clone();
+        let baud = args.baud.unwrap_or(9600);
+        let out = tokio::task::spawn_blocking(move || iot_serial_write_work_v2(port, data, baud))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Scan an I2C bus for connected device addresses.",
+        annotations(title = "I2C scan", read_only_hint = true)
+    )]
+    async fn iot_i2c_scan(
+        &self,
+        Parameters(args): Parameters<IotI2cScanArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let bus = args.bus.unwrap_or(1);
+        let out = tokio::task::spawn_blocking(move || iot_i2c_scan_work(bus))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Read the digital or analog value of a GPIO pin.",
+        annotations(title = "GPIO read", read_only_hint = true)
+    )]
+    async fn iot_gpio_read(
+        &self,
+        Parameters(args): Parameters<IotGpioReadArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let pin = args.pin;
+        let out = tokio::task::spawn_blocking(move || iot_gpio_read_work(pin))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Set the output value of a GPIO pin.",
+        annotations(title = "GPIO write", read_only_hint = false)
+    )]
+    async fn iot_gpio_write(
+        &self,
+        Parameters(args): Parameters<IotGpioWriteArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let pin = args.pin;
+        let value = args.value;
+        let out = tokio::task::spawn_blocking(move || iot_gpio_write_work(pin, value))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Read CAN bus frames from an interface.",
+        annotations(title = "CAN bus read", read_only_hint = true)
+    )]
+    async fn iot_can_bus_read(
+        &self,
+        Parameters(args): Parameters<IotCanBusReadArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let interface = args.interface.clone();
+        let count = args.count.unwrap_or(10);
+        let timeout_ms = args.timeout_ms.unwrap_or(3000);
+        let out = tokio::task::spawn_blocking(move || {
+            iot_can_bus_read_work(interface, count, timeout_ms)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Send an SMS message via an AT-command-compatible modem on a serial port.",
+        annotations(title = "SMS send", read_only_hint = false)
+    )]
+    async fn iot_sms_send(
+        &self,
+        Parameters(args): Parameters<IotSmsSendArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let port = args.port.clone();
+        let number = args.number.clone();
+        let message = args.message.clone();
+        let out = tokio::task::spawn_blocking(move || iot_sms_send_work(port, number, message))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    // ── Data Analytics ─────────────────────────────────────────────────────────
+
+    #[tool(
+        description = "Analyze a CSV file and return column statistics and a sample.",
+        annotations(title = "CSV analyze", read_only_hint = true)
+    )]
+    async fn data_csv_analyze(
+        &self,
+        Parameters(args): Parameters<DataCsvAnalyzeArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let max_rows = args.max_rows.unwrap_or(1000);
+        let out = tokio::task::spawn_blocking(move || data_csv_analyze_work(path, max_rows))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Flatten a nested JSON file into a flat key-value structure.",
+        annotations(title = "JSON flatten", read_only_hint = true)
+    )]
+    async fn data_json_flatten(
+        &self,
+        Parameters(args): Parameters<DataJsonFlattenArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let separator = args.separator.unwrap_or_else(|| ".".to_string());
+        let out = tokio::task::spawn_blocking(move || data_json_flatten_work(path, separator))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Diff two JSONL files record-by-record using a key field.",
+        annotations(title = "JSONL diff", read_only_hint = true)
+    )]
+    async fn data_diff_jsonl(
+        &self,
+        Parameters(args): Parameters<DataDiffJsonlArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path_a = match self.resolve_path(&args.path_a) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let path_b = match self.resolve_path(&args.path_b) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let key_field = args.key_field.clone();
+        let out =
+            tokio::task::spawn_blocking(move || data_diff_jsonl_work(path_a, path_b, key_field))
+                .await
+                .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Extract all regex pattern matches from a text file.",
+        annotations(title = "Regex extract", read_only_hint = true)
+    )]
+    async fn data_regex_extract(
+        &self,
+        Parameters(args): Parameters<DataRegexExtractArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let pattern = args.pattern.clone();
+        let max_matches = args.max_matches.unwrap_or(100);
+        let out = tokio::task::spawn_blocking(move || {
+            data_regex_extract_work(path, pattern, max_matches)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Detect anomalies in a numeric time-series using a rolling z-score window.",
+        annotations(title = "Timeseries anomaly detect", read_only_hint = true)
+    )]
+    async fn data_timeseries_detect(
+        &self,
+        Parameters(args): Parameters<DataTimeseriesDetectArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let values = args.values.clone();
+        let window = args.window.unwrap_or(10);
+        let threshold = args.threshold.unwrap_or(2.0);
+        let out = tokio::task::spawn_blocking(move || {
+            data_timeseries_detect_work(values, window, threshold)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Read rows from a Parquet file and return them as JSON.",
+        annotations(title = "Parquet read", read_only_hint = true)
+    )]
+    async fn data_parquet_read(
+        &self,
+        Parameters(args): Parameters<DataParquetReadArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let limit = args.limit.unwrap_or(50);
+        let out = tokio::task::spawn_blocking(move || data_parquet_read_work(path, limit))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    // ── Quantum / Research ─────────────────────────────────────────────────────
+
+    #[tool(
+        description = "Simulate a quantum circuit defined in OpenQASM 2.0.",
+        annotations(title = "Quantum circuit simulate", read_only_hint = true)
+    )]
+    async fn quantum_circuit_simulate(
+        &self,
+        Parameters(args): Parameters<QuantumCircuitSimulateArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let circuit_qasm = args.circuit_qasm.clone();
+        let shots = args.shots.unwrap_or(1024);
+        let out =
+            tokio::task::spawn_blocking(move || quantum_circuit_simulate_work(circuit_qasm, shots))
+                .await
+                .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Simulate Grover's quantum search algorithm.",
+        annotations(title = "Grover search", read_only_hint = true)
+    )]
+    async fn quantum_grover_search(
+        &self,
+        Parameters(args): Parameters<QuantumGroverSearchArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let space_size = args.space_size;
+        let target_value = args.target_value;
+        let out = tokio::task::spawn_blocking(move || {
+            quantum_grover_search_work(space_size, target_value)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Simulate Shor's quantum integer factorisation algorithm.",
+        annotations(title = "Shor factor", read_only_hint = true)
+    )]
+    async fn quantum_shor_factor(
+        &self,
+        Parameters(args): Parameters<QuantumShorFactorArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let n = args.n;
+        let out = tokio::task::spawn_blocking(move || quantum_shor_factor_work(n))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Search arXiv for academic papers matching a query.",
+        annotations(title = "arXiv search", read_only_hint = true)
+    )]
+    async fn research_arxiv_search(
+        &self,
+        Parameters(args): Parameters<ResearchArxivSearchArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let query = args.query.clone();
+        let max_results = args.max_results.unwrap_or(5);
+        let category = args.category.clone();
+        let out = tokio::task::spawn_blocking(move || {
+            research_arxiv_search_work(query, max_results, category)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Download a paper PDF from arXiv by its ID.",
+        annotations(title = "arXiv download", read_only_hint = false)
+    )]
+    async fn research_arxiv_download(
+        &self,
+        Parameters(args): Parameters<ResearchArxivDownloadArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let arxiv_id = args.arxiv_id.clone();
+        let dest_dir = if let Some(ref d) = args.dest_dir {
+            match self.resolve_path(d) {
+                Ok(p) => p,
+                Err(e) => return Self::tool_text(format!("Error: {e}")),
+            }
+        } else {
+            self.root.clone()
+        };
+        let out =
+            tokio::task::spawn_blocking(move || research_arxiv_download_work(arxiv_id, dest_dir))
+                .await
+                .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    // ── Extended System Tools ──────────────────────────────────────────────────
+
+    #[tool(
+        description = "Kill a process by PID or by name.",
+        annotations(title = "Process kill", read_only_hint = false)
+    )]
+    async fn sys_process_kill(
+        &self,
+        Parameters(args): Parameters<SysProcessKillArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let pid = args.pid;
+        let name = args.name.clone();
+        let signal = args.signal.unwrap_or_else(|| "SIGTERM".to_string());
+        let out = tokio::task::spawn_blocking(move || sys_process_kill_work(pid, name, signal))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Control a systemd (or init) service.",
+        annotations(title = "Service control", read_only_hint = false)
+    )]
+    async fn sys_service_control(
+        &self,
+        Parameters(args): Parameters<SysServiceControlArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let service = args.service.clone();
+        let action = args.action.clone();
+        let out = tokio::task::spawn_blocking(move || sys_service_control_work(service, action))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "List all cron jobs for the current user (and system crontabs).",
+        annotations(title = "Cron list", read_only_hint = true)
+    )]
+    async fn sys_cron_list(
+        &self,
+        Parameters(_args): Parameters<SysCronListArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let out = tokio::task::spawn_blocking(sys_cron_list_work)
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Add a cron job for the current user.",
+        annotations(title = "Cron add", read_only_hint = false)
+    )]
+    async fn sys_cron_add(
+        &self,
+        Parameters(args): Parameters<SysCronAddArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let schedule = args.schedule.clone();
+        let command = args.command.clone();
+        let out = tokio::task::spawn_blocking(move || sys_cron_add_work(schedule, command))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Tail the systemd journal for a specific service unit.",
+        annotations(title = "Journal tail", read_only_hint = true)
+    )]
+    async fn sys_journal_tail(
+        &self,
+        Parameters(args): Parameters<SysJournalTailArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let unit = args.unit.clone();
+        let lines = args.lines.unwrap_or(50);
+        let out = tokio::task::spawn_blocking(move || sys_journal_tail_work(unit, lines))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "List running Docker containers.",
+        annotations(title = "Docker ps", read_only_hint = true)
+    )]
+    async fn sys_docker_ps(
+        &self,
+        Parameters(args): Parameters<SysDockerPsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let all = args.all.unwrap_or(false);
+        let out = tokio::task::spawn_blocking(move || sys_docker_ps_work(all))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Fetch recent log output from a Docker container.",
+        annotations(title = "Docker logs", read_only_hint = true)
+    )]
+    async fn sys_docker_logs(
+        &self,
+        Parameters(args): Parameters<SysDockerLogsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let container = args.container.clone();
+        let lines = args.lines.unwrap_or(50);
+        let out = tokio::task::spawn_blocking(move || sys_docker_logs_work(container, lines))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Execute a command inside a running Docker container.",
+        annotations(title = "Docker exec", read_only_hint = false)
+    )]
+    async fn sys_docker_exec(
+        &self,
+        Parameters(args): Parameters<SysDockerExecArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let container = args.container.clone();
+        let command = args.command.clone();
+        let out = tokio::task::spawn_blocking(move || sys_docker_exec_work(container, command))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Build a Docker image from a Dockerfile in a directory.",
+        annotations(title = "Docker build", read_only_hint = false)
+    )]
+    async fn sys_docker_build(
+        &self,
+        Parameters(args): Parameters<SysDockerBuildArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = args.path.clone();
+        let tag = args.tag.clone();
+        let out = tokio::task::spawn_blocking(move || sys_docker_build_work(path, tag))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "List pods in a Kubernetes namespace.",
+        annotations(title = "k8s pods", read_only_hint = true)
+    )]
+    async fn sys_k8s_pods(
+        &self,
+        Parameters(args): Parameters<SysK8sPodsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let namespace = args.namespace.unwrap_or_else(|| "default".to_string());
+        let out = tokio::task::spawn_blocking(move || sys_k8s_pods_work(namespace))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Fetch logs from a Kubernetes pod.",
+        annotations(title = "k8s logs", read_only_hint = true)
+    )]
+    async fn sys_k8s_logs(
+        &self,
+        Parameters(args): Parameters<SysK8sLogsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let pod = args.pod.clone();
+        let namespace = args.namespace.unwrap_or_else(|| "default".to_string());
+        let lines = args.lines.unwrap_or(50);
+        let container = args.container.clone();
+        let out = tokio::task::spawn_blocking(move || {
+            sys_k8s_logs_work(pod, namespace, lines, container)
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Apply a Kubernetes manifest file with kubectl.",
+        annotations(title = "k8s apply", read_only_hint = false)
+    )]
+    async fn sys_k8s_apply(
+        &self,
+        Parameters(args): Parameters<SysK8sApplyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path = match self.resolve_path(&args.manifest_path) {
+            Ok(p) => p,
+            Err(e) => return Self::tool_text(format!("Error: {e}")),
+        };
+        let out = tokio::task::spawn_blocking(move || {
+            sys_k8s_apply_work(path.to_string_lossy().to_string())
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Gather detailed hardware information (CPU, memory, storage, PCI, USB).",
+        annotations(title = "Hardware info", read_only_hint = true)
+    )]
+    async fn sys_hardware_info(
+        &self,
+        Parameters(_args): Parameters<SysHardwareInfoArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let out = tokio::task::spawn_blocking(sys_hardware_info_work)
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    // ── AI / ML Extended ───────────────────────────────────────────────────
+
+    #[tool(
+        description = "Few-shot text classification using a local Ollama model. Provide labeled examples and the text to classify. Returns the predicted label and confidence score. Requires trusted profile.",
+        annotations(title = "AI: few-shot classify", read_only_hint = true)
+    )]
+    async fn ai_few_shot_classify(
+        &self,
+        Parameters(args): Parameters<AiFewShotClassifyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "text": args.text,
+            "examples": args.examples,
+            "model": args.model.unwrap_or_else(|| "llama3.2".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = ai_few_shot_classify_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Zero-shot text classification into provided label categories using a local Ollama model. Returns the predicted label and per-label scores. Requires trusted profile.",
+        annotations(title = "AI: zero-shot classify", read_only_hint = true)
+    )]
+    async fn ai_zero_shot_classify(
+        &self,
+        Parameters(args): Parameters<AiZeroShotClassifyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "text": args.text,
+            "labels": args.labels,
+            "model": args.model.unwrap_or_else(|| "llama3.2".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = ai_zero_shot_classify_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Extract structured JSON data from unstructured text using a provided JSON schema and a local Ollama model. Returns the extracted data matching the schema. Requires trusted profile.",
+        annotations(title = "AI: structured extract", read_only_hint = true)
+    )]
+    async fn ai_structured_extract(
+        &self,
+        Parameters(args): Parameters<AiStructuredExtractArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "text": args.text,
+            "schema": args.schema,
+            "model": args.model.unwrap_or_else(|| "llama3.2".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = ai_structured_extract_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Verify a factual claim against reference documents using a local Ollama model. Returns verdict (supported/contradicted/unverifiable) and cited evidence. Requires trusted profile.",
+        annotations(title = "AI: verify factual claim", read_only_hint = true)
+    )]
+    async fn ai_verify_factual(
+        &self,
+        Parameters(args): Parameters<AiVerifyFactualArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "claim": args.claim,
+            "references": args.references,
+            "model": args.model.unwrap_or_else(|| "llama3.2".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = ai_verify_factual_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Rewrite text in a different style (technical, casual, academic, eli5, concise) using a local Ollama model. Requires trusted profile.",
+        annotations(title = "AI: rewrite style", read_only_hint = true)
+    )]
+    async fn ai_rewrite_style(
+        &self,
+        Parameters(args): Parameters<AiRewriteStyleArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "text": args.text,
+            "style": args.style.unwrap_or_else(|| "concise".to_string()),
+            "model": args.model.unwrap_or_else(|| "llama3.2".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = ai_rewrite_style_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Get an embedding vector for text using an Ollama embedding model (e.g. nomic-embed-text). Returns the first 20 dimensions and total vector length. Requires trusted profile.",
+        annotations(title = "AI: embed text", read_only_hint = true)
+    )]
+    async fn ai_embed_text(
+        &self,
+        Parameters(args): Parameters<AiEmbedTextArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "text": args.text,
+            "model": args.model.unwrap_or_else(|| "nomic-embed-text".to_string()),
+            "ollama_url": args.ollama_url.unwrap_or_else(|| "http://localhost:11434".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = ai_embed_text_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Semantic search over an array of document strings using Ollama embedding cosine similarity. Returns ranked results with similarity scores. Requires trusted profile.",
+        annotations(title = "AI: semantic search", read_only_hint = true)
+    )]
+    async fn ai_semantic_search(
+        &self,
+        Parameters(args): Parameters<AiSemanticSearchArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "query": args.query,
+            "documents": args.documents,
+            "model": args.model.unwrap_or_else(|| "nomic-embed-text".to_string()),
+            "ollama_url": args.ollama_url.unwrap_or_else(|| "http://localhost:11434".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = ai_semantic_search_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Cluster an array of text strings by semantic similarity using k-means on Ollama embeddings. Returns cluster groups with member indices. Requires trusted profile.",
+        annotations(title = "AI: cluster texts", read_only_hint = true)
+    )]
+    async fn ai_cluster_texts(
+        &self,
+        Parameters(args): Parameters<AiClusterTextsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "texts": args.texts,
+            "k": args.k.unwrap_or(3),
+            "model": args.model.unwrap_or_else(|| "nomic-embed-text".to_string()),
+            "ollama_url": args.ollama_url.unwrap_or_else(|| "http://localhost:11434".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = ai_cluster_texts_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Pack multiple files into a context window by reading them in priority order (smallest first) up to a token budget. Returns the packed content and a list of included/excluded files. Requires trusted profile.",
+        annotations(title = "AI: context pack smart", read_only_hint = true)
+    )]
+    async fn ai_context_pack_smart(
+        &self,
+        Parameters(args): Parameters<AiContextPackSmartArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "paths": args.paths,
+            "max_tokens": args.max_tokens.unwrap_or(8000),
+            "model": args.model.unwrap_or_default(),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = ai_ml_context_pack_smart_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Get metadata for a local ML model file: format (ONNX/PyTorch/SafeTensors), file size, and I/O shapes when the ml-tools feature is enabled. Requires trusted profile.",
+        annotations(title = "ML: model info", read_only_hint = true)
+    )]
+    async fn ml_model_info(
+        &self,
+        Parameters(args): Parameters<MlModelInfoArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({ "path": args.path });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = ml_model_info_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Tokenize text using an Ollama model's tokenize API endpoint. Falls back to character-based estimation (chars/4) if the API is unavailable. Requires trusted profile.",
+        annotations(title = "ML: tokenize text", read_only_hint = true)
+    )]
+    async fn ml_tokenize(
+        &self,
+        Parameters(args): Parameters<MlTokenizeArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "text": args.text,
+            "model": args.model.unwrap_or_else(|| "llama3.2".to_string()),
+            "ollama_url": args.ollama_url.unwrap_or_else(|| "http://localhost:11434".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = ml_tokenize_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Count tokens in text using the Ollama tokenize API (with char/4 fallback). Returns token_count, estimation_method, and chars_per_token ratio. Requires trusted profile.",
+        annotations(title = "ML: token count", read_only_hint = true)
+    )]
+    async fn ml_token_count(
+        &self,
+        Parameters(args): Parameters<MlTokenCountArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "text": args.text,
+            "model": args.model.unwrap_or_else(|| "llama3.2".to_string()),
+            "ollama_url": args.ollama_url.unwrap_or_else(|| "http://localhost:11434".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = ml_token_count_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Benchmark an Ollama model's throughput (tokens/sec) and average latency over multiple iterations using a test prompt. Requires trusted profile.",
+        annotations(title = "ML: benchmark model", read_only_hint = true)
+    )]
+    async fn ml_benchmark_model(
+        &self,
+        Parameters(args): Parameters<MlBenchmarkModelArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "model": args.model.unwrap_or_else(|| "llama3.2".to_string()),
+            "prompt": args.prompt.unwrap_or_else(|| "Explain quantum computing in one paragraph.".to_string()),
+            "iterations": args.iterations.unwrap_or(3),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = ml_benchmark_model_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Estimate approximate perplexity of text by asking an Ollama model to rate its naturalness. Lower perplexity = more natural/expected text. Requires trusted profile.",
+        annotations(title = "ML: perplexity score", read_only_hint = true)
+    )]
+    async fn ml_perplexity_score(
+        &self,
+        Parameters(args): Parameters<MlPerplexityScoreArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "text": args.text,
+            "model": args.model.unwrap_or_else(|| "llama3.2".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = ml_perplexity_score_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Convert a list of conversations to JSONL fine-tuning format (openai / llama / mistral). Writes output to .finetune_data.jsonl. Requires trusted profile.",
+        annotations(title = "ML: fine-tune prep", read_only_hint = false)
+    )]
+    async fn ml_fine_tune_prep(
+        &self,
+        Parameters(args): Parameters<MlFineTunePrepArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "conversations": args.conversations,
+            "format": args.format.unwrap_or_else(|| "openai".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = ml_fine_tune_prep_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Validate a JSONL fine-tuning dataset for quality issues: malformed JSON, missing role/content fields, empty messages, and token length warnings. Requires trusted profile.",
+        annotations(title = "ML: dataset validate", read_only_hint = true)
+    )]
+    async fn ml_dataset_validate(
+        &self,
+        Parameters(args): Parameters<MlDatasetValidateArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "path": args.path,
+            "max_tokens": args.max_tokens.unwrap_or(4096),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = ml_dataset_validate_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Compare outputs from multiple Ollama models on the same prompt. Returns each model's response and latency side-by-side. Requires trusted profile.",
+        annotations(title = "AI: multi-model compare", read_only_hint = true)
+    )]
+    async fn ai_multi_model_compare(
+        &self,
+        Parameters(args): Parameters<AiMultiModelCompareArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let params = serde_json::json!({
+            "prompt": args.prompt,
+            "models": args.models.unwrap_or_else(|| vec!["llama3.2".to_string(), "qwen2.5-coder".to_string()]),
+            "ollama_url": args.ollama_url.unwrap_or_else(|| "http://localhost:11434".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || ai_multi_model_compare_work(params))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Run multi-step chain-of-thought reasoning on a question using a local Ollama model. Returns step-by-step reasoning and a final conclusion. Requires trusted profile.",
+        annotations(title = "AI: chain of thought", read_only_hint = true)
+    )]
+    async fn ai_chain_of_thought(
+        &self,
+        Parameters(args): Parameters<AiChainOfThoughtArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let params = serde_json::json!({
+            "prompt": args.prompt,
+            "steps": args.steps.unwrap_or(3),
+            "model": args.model.unwrap_or_else(|| "llama3.2".to_string()),
+            "ollama_url": args.ollama_url.unwrap_or_else(|| "http://localhost:11434".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || ai_chain_of_thought_work(params))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Self-critique an AI response and generate an improved version using a local Ollama model. Returns the critique and an improved response. Requires trusted profile.",
+        annotations(title = "AI: self-critique", read_only_hint = true)
+    )]
+    async fn ai_self_critique(
+        &self,
+        Parameters(args): Parameters<AiSelfCritiqueArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let params = serde_json::json!({
+            "original_prompt": args.original_prompt,
+            "original_response": args.original_response,
+            "model": args.model.unwrap_or_else(|| "llama3.2".to_string()),
+            "ollama_url": args.ollama_url.unwrap_or_else(|| "http://localhost:11434".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || ai_self_critique_work(params))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Simulate a multi-round debate between two Ollama model instances arguing for/against a topic. Returns debate log and a synthesis conclusion. Requires trusted profile.",
+        annotations(title = "AI: debate", read_only_hint = true)
+    )]
+    async fn ai_debate(
+        &self,
+        Parameters(args): Parameters<AiDebateArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let params = serde_json::json!({
+            "topic": args.topic,
+            "model_a": args.model_a.unwrap_or_else(|| "llama3.2".to_string()),
+            "model_b": args.model_b.unwrap_or_else(|| "llama3.2".to_string()),
+            "rounds": args.rounds.unwrap_or(2),
+            "ollama_url": args.ollama_url.unwrap_or_else(|| "http://localhost:11434".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || ai_debate_work(params))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Convert a model to GGUF format using llama.cpp's convert.py script. Requires convert.py in the working directory and python3. Requires trusted profile.",
+        annotations(title = "ML: convert to GGUF", read_only_hint = false)
+    )]
+    async fn ml_convert_to_gguf(
+        &self,
+        Parameters(args): Parameters<MlConvertToGgufArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let params = serde_json::json!({
+            "input_path": args.input_path,
+            "output_path": args.output_path.unwrap_or_default(),
+            "quantization": args.quantization.unwrap_or_else(|| "q4_k_m".to_string()),
+            "python_path": args.python_path.unwrap_or_else(|| "python3".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || ml_convert_to_gguf_work(params))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Run a multi-model comparison benchmark: test multiple Ollama models on a set of prompts, measuring latency and estimated tokens/sec. Requires trusted profile.",
+        annotations(title = "ML: model compare benchmark", read_only_hint = true)
+    )]
+    async fn ml_model_compare_benchmark(
+        &self,
+        Parameters(args): Parameters<MlModelCompareBenchmarkArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let params = serde_json::json!({
+            "models": args.models,
+            "prompts": args.prompts,
+            "ollama_url": args.ollama_url.unwrap_or_else(|| "http://localhost:11434".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || ml_model_compare_benchmark_work(params))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    // ── Logs / Charts ────────────────────────────────────────────────────
+
+    #[tool(
+        description = "Read the last N lines of a log file, optionally filtering by log level (DEBUG/INFO/WARN/ERROR). Returns lines with level detection. Requires trusted profile.",
+        annotations(title = "Log: tail", read_only_hint = true)
+    )]
+    async fn log_tail(
+        &self,
+        Parameters(args): Parameters<LogTailArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "path": args.path,
+            "n": args.n.unwrap_or(100),
+            "filter_level": args.filter_level.unwrap_or_default(),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = log_tail_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Search a log file using a regex pattern. Returns matching lines with line numbers and the matched text fragment. Requires trusted profile.",
+        annotations(title = "Log: search", read_only_hint = true)
+    )]
+    async fn log_search(
+        &self,
+        Parameters(args): Parameters<LogSearchArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "path": args.path,
+            "pattern": args.pattern,
+            "max_results": args.max_results.unwrap_or(50),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = log_search_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Parse a JSON Lines (JSONL) log file into structured entries. Supports optional field-value filtering (e.g. {\"level\": \"error\"}). Requires trusted profile.",
+        annotations(title = "Log: parse JSON", read_only_hint = true)
+    )]
+    async fn log_parse_json(
+        &self,
+        Parameters(args): Parameters<LogParseJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "path": args.path,
+            "limit": args.limit.unwrap_or(100),
+            "filter": args.filter,
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = log_parse_json_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Parse an Nginx access log into structured JSON entries (IP, timestamp, method, path, status, response size). Requires trusted profile.",
+        annotations(title = "Log: parse Nginx", read_only_hint = true)
+    )]
+    async fn log_parse_nginx(
+        &self,
+        Parameters(args): Parameters<LogParseNginxArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "path": args.path,
+            "limit": args.limit.unwrap_or(100),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = log_parse_nginx_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Parse a syslog format file into structured JSON entries (timestamp, host, facility, message). Requires trusted profile.",
+        annotations(title = "Log: parse syslog", read_only_hint = true)
+    )]
+    async fn log_parse_syslog(
+        &self,
+        Parameters(args): Parameters<LogParseSyslogArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "path": args.path,
+            "limit": args.limit.unwrap_or(100),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = log_parse_syslog_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Count DEBUG / INFO / WARN / ERROR log level occurrences in a log file. Returns per-level counts and total. Requires trusted profile.",
+        annotations(title = "Log: level summary", read_only_hint = true)
+    )]
+    async fn log_level_summary(
+        &self,
+        Parameters(args): Parameters<LogLevelSummaryArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({ "path": args.path });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = log_level_summary_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Group repeated error lines in a log file by normalized pattern, counting occurrences. Returns top error clusters sorted by frequency. Requires trusted profile.",
+        annotations(title = "Log: error cluster", read_only_hint = true)
+    )]
+    async fn log_error_cluster(
+        &self,
+        Parameters(args): Parameters<LogErrorClusterArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "path": args.path,
+            "max_clusters": args.max_clusters.unwrap_or(10),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = log_error_cluster_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Extract log lines within an ISO timestamp range (e.g. since 2024-01-15T10:00 until 2024-01-15T11:00). Requires trusted profile.",
+        annotations(title = "Log: time range filter", read_only_hint = true)
+    )]
+    async fn log_time_range_filter(
+        &self,
+        Parameters(args): Parameters<LogTimeRangeFilterArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "path": args.path,
+            "since": args.since.unwrap_or_default(),
+            "until": args.until.unwrap_or_default(),
+            "limit": args.limit.unwrap_or(1000),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = log_time_range_filter_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Export an array of log entry objects to a file in JSON, CSV, or Markdown table format. Requires trusted profile.",
+        annotations(title = "Log: export", read_only_hint = false)
+    )]
+    async fn log_export(
+        &self,
+        Parameters(args): Parameters<LogExportArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "entries": args.entries,
+            "format": args.format.unwrap_or_else(|| "json".to_string()),
+            "output_path": args.output_path,
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = log_export_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Query the .mint-mcp/audit/audit-log.jsonl for tool calls, filtering by agent ID, tool name, or timestamp. Requires trusted profile.",
+        annotations(title = "Log: audit query", read_only_hint = true)
+    )]
+    async fn log_audit_query(
+        &self,
+        Parameters(args): Parameters<LogAuditQueryArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "agent_id": args.agent_id.unwrap_or_default(),
+            "tool_name": args.tool_name.unwrap_or_default(),
+            "since_ms": args.since_ms,
+            "limit": args.limit.unwrap_or(100),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = log_audit_query_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Get a list of recent tool calls from the audit log, optionally filtered by agent ID. Returns timestamp, agent, tool name, and status. Requires trusted profile.",
+        annotations(title = "History: tool calls", read_only_hint = true)
+    )]
+    async fn history_tool_calls(
+        &self,
+        Parameters(args): Parameters<HistoryToolCallsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "agent_id": args.agent_id.unwrap_or_default(),
+            "limit": args.limit.unwrap_or(50),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = history_tool_calls_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Replay and filter messages from a JSONL agent-bus file. Supports filtering by timestamp and agent ID. Requires trusted profile.",
+        annotations(title = "History: bus replay", read_only_hint = true)
+    )]
+    async fn history_bus_replay(
+        &self,
+        Parameters(args): Parameters<HistoryBusReplayArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "path": args.path,
+            "since": args.since.unwrap_or_default(),
+            "agent": args.agent.unwrap_or_default(),
+            "limit": args.limit.unwrap_or(100),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = history_bus_replay_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Show how a file evolved across its last N git commits: commit SHA, message, date, and content size at each commit. Requires trusted profile.",
+        annotations(title = "History: diff timeline", read_only_hint = true)
+    )]
+    async fn history_diff_timeline(
+        &self,
+        Parameters(args): Parameters<HistoryDiffTimelineArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "path": args.path,
+            "count": args.count.unwrap_or(5),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = history_diff_timeline_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Full-text search across .mint-mcp audit log entries. Matches against tool names, agent IDs, statuses, and metadata. Requires trusted profile.",
+        annotations(title = "History: search past calls", read_only_hint = true)
+    )]
+    async fn history_search_past_calls(
+        &self,
+        Parameters(args): Parameters<HistorySearchPastCallsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "query": args.query,
+            "limit": args.limit.unwrap_or(20),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = history_search_past_calls_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Generate an SVG line chart from one or more named data series. Each series has a label and [{x, y}] values. Returns SVG markup. Requires trusted profile.",
+        annotations(title = "Chart: line", read_only_hint = true)
+    )]
+    async fn chart_line(
+        &self,
+        Parameters(args): Parameters<ChartLineArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "series": args.series,
+            "title": args.title.unwrap_or_else(|| "Line Chart".to_string()),
+            "x_label": args.x_label.unwrap_or_else(|| "X".to_string()),
+            "y_label": args.y_label.unwrap_or_else(|| "Y".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = chart_line_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Generate an SVG bar chart from [{label, value}] data. Returns SVG markup with colored bars and value labels. Requires trusted profile.",
+        annotations(title = "Chart: bar", read_only_hint = true)
+    )]
+    async fn chart_bar(
+        &self,
+        Parameters(args): Parameters<ChartBarArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "values": args.values,
+            "title": args.title.unwrap_or_else(|| "Bar Chart".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = chart_bar_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Generate an SVG pie or donut chart from [{label, value}] data. Set donut=true for a donut style. Returns SVG markup. Requires trusted profile.",
+        annotations(title = "Chart: pie/donut", read_only_hint = true)
+    )]
+    async fn chart_pie(
+        &self,
+        Parameters(args): Parameters<ChartPieArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "values": args.values,
+            "title": args.title.unwrap_or_else(|| "Pie Chart".to_string()),
+            "donut": args.donut.unwrap_or(false),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = chart_pie_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Generate an SVG histogram from a list of numeric values. Returns SVG markup plus bin_edges and bin_counts arrays. Requires trusted profile.",
+        annotations(title = "Chart: histogram", read_only_hint = true)
+    )]
+    async fn chart_histogram(
+        &self,
+        Parameters(args): Parameters<ChartHistogramArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "values": args.values,
+            "bins": args.bins.unwrap_or(10),
+            "title": args.title.unwrap_or_else(|| "Histogram".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = chart_histogram_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Generate an SVG scatter plot from [{x, y}] point data. Returns SVG markup. Requires trusted profile.",
+        annotations(title = "Chart: scatter", read_only_hint = true)
+    )]
+    async fn chart_scatter(
+        &self,
+        Parameters(args): Parameters<ChartScatterArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "points": args.points,
+            "title": args.title.unwrap_or_else(|| "Scatter Plot".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = chart_scatter_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Generate an SVG time-series chart from [{timestamp, value}] data with an optional moving-average overlay. Requires trusted profile.",
+        annotations(title = "Chart: time series", read_only_hint = true)
+    )]
+    async fn chart_timeseries(
+        &self,
+        Parameters(args): Parameters<ChartTimeseriesArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "values": args.values,
+            "window": args.window.unwrap_or(5),
+            "title": args.title.unwrap_or_else(|| "Time Series".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = chart_timeseries_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Render a module/file dependency graph as Graphviz DOT format. Input: arrays of node strings and edge objects [{from, to, label?}]. Requires trusted profile.",
+        annotations(title = "Chart: dependency graph", read_only_hint = true)
+    )]
+    async fn chart_dependency_graph(
+        &self,
+        Parameters(args): Parameters<ChartDependencyGraphArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "nodes": args.nodes,
+            "edges": args.edges,
+            "title": args.title.unwrap_or_else(|| "Dependency Graph".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = chart_dependency_graph_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Generate an SVG Gantt chart from task objects with name, start_time, end_time, and optional color. Requires trusted profile.",
+        annotations(title = "Chart: Gantt", read_only_hint = true)
+    )]
+    async fn chart_gantt(
+        &self,
+        Parameters(args): Parameters<ChartGanttArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let json_args = serde_json::json!({
+            "tasks": args.tasks,
+            "title": args.title.unwrap_or_else(|| "Gantt Chart".to_string()),
+        });
+        let out = tokio::task::spawn_blocking(move || {
+            let r = chart_gantt_work(json_args);
+            serde_json::to_string_pretty(&r).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+        })
+        .await
+        .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    // ── Neural ────────────────────────────────────────────────────────────────
+
+    #[tool(
+        description = "Read ONNX/PyTorch/SafeTensors model metadata: format, file size, and I/O shapes. Full shape info requires the ml-tools feature (ONNX Runtime). Requires trusted profile.",
+        annotations(title = "Neural: model info", read_only_hint = true)
+    )]
+    async fn neural_model_info(
+        &self,
+        Parameters(args): Parameters<NeuralModelInfoArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path_buf = std::path::PathBuf::from(args.model_path);
+        let out = tokio::task::spawn_blocking(move || neural_model_info_work(&path_buf))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Run ONNX Runtime inference on a model. Provide input_json as a map of input name to flat f32 array. Requires the ml-tools feature and an ONNX model file. Requires trusted profile.",
+        annotations(title = "Neural: inference", read_only_hint = true)
+    )]
+    async fn neural_inference(
+        &self,
+        Parameters(args): Parameters<NeuralInferenceArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let path_buf = std::path::PathBuf::from(args.model_path);
+        let input = args.input_json;
+        let out = tokio::task::spawn_blocking(move || neural_inference_work(&path_buf, &input))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Tokenize text using a HuggingFace tokenizer (from a local tokenizer.json path or HF cache). Requires the ml-tools feature. Returns token IDs and decoded tokens. Requires trusted profile.",
+        annotations(title = "Neural: tokenize", read_only_hint = true)
+    )]
+    async fn neural_tokenize(
+        &self,
+        Parameters(args): Parameters<NeuralTokenizeArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let text = args.text;
+        let model_name = args.model_name;
+        let out = tokio::task::spawn_blocking(move || neural_tokenize_work(&text, &model_name))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Compute cosine similarity between two embedding vectors (pure math, no ML deps). Provide vec_a and vec_b as arrays of floats of equal length. Returns similarity in [-1, 1]. Requires trusted profile.",
+        annotations(title = "Neural: embedding cosine similarity", read_only_hint = true)
+    )]
+    async fn neural_embed_cosine(
+        &self,
+        Parameters(args): Parameters<NeuralEmbedCosineArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let vec_a = args.vec_a;
+        let vec_b = args.vec_b;
+        let out = tokio::task::spawn_blocking(move || neural_embed_cosine_work(&vec_a, &vec_b))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
+
+    #[tool(
+        description = "Compute statistics (mean, std, min, max, percentiles) for a flat numeric tensor provided as a JSON array of numbers. No ML dependencies required. Requires trusted profile.",
+        annotations(title = "Neural: tensor stats", read_only_hint = true)
+    )]
+    async fn neural_tensor_stats(
+        &self,
+        Parameters(args): Parameters<NeuralTensorStatsArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let tensor_json = args.tensor_json;
+        let out = tokio::task::spawn_blocking(move || neural_tensor_stats_work(&tensor_json))
+            .await
+            .unwrap_or_else(|e| format!("Error: {e}"));
+        Self::tool_text(out)
+    }
 }
 
 #[tool_handler]
@@ -9322,7 +12221,10 @@ impl ServerHandler for MintMcp {
              summarize_text, summarize_top_terms, summarize_identifier_frequency, summarize_token_estimate, summarize_duplicate_lines, summarize_line_histogram, summarize_line_prefix_groups, summarize_rank_lines_by_keywords, summarize_bullets, summarize_headings, summarize_markdown_toc, summarize_json_structure, summarize_delimited_header, summarize_diff_file_list, summarize_first_lines, summarize_segments, summarize_file, summarize_multi_file, format_prefix_lines, pack_context, git_diff_snippets, text_levenshtein_distance, text_token_jaccard, text_longest_common_substring, text_djb2_hash, \
              thinking_plan_skeleton, thinking_step_back, thinking_assumption_audit, thinking_session_append, thinking_session_read, plan_execution_checklist, plan_handoff_brief, plan_work_buckets, plan_risk_register, plan_definition_of_done, plan_test_strategy, plan_retrospective, reasoning_premortem, reasoning_five_whys, reasoning_chain, reasoning_devils_advocate, reasoning_evidence_matrix, \
              agent_ping, agent_bus_compact, agent_bus_search, agent_bus_status, agent_coordination_snapshot, agent_list_topics, agent_roster, agent_get_message, \
-             agent_send, agent_handoff, agent_subagent_task, agent_subagent_done, agent_fan_out, agent_send_pipeline, agent_inbox, agent_multi_inbox, agent_inbox_wait, agent_thread, agent_topic_wait, agent_recent, ask_agents, consensus_propose, consensus_vote, consensus_tally, consensus_list, consensus_close."
+             agent_send, agent_handoff, agent_subagent_task, agent_subagent_done, agent_fan_out, agent_send_pipeline, agent_inbox, agent_multi_inbox, agent_inbox_wait, agent_thread, agent_topic_wait, agent_recent, ask_agents, consensus_propose, consensus_vote, consensus_tally, consensus_list, consensus_close, \
+             ai_few_shot_classify, ai_zero_shot_classify, ai_structured_extract, ai_verify_factual, ai_rewrite_style, ai_embed_text, ai_semantic_search, ai_cluster_texts, ai_context_pack_smart, ml_model_info, ml_tokenize, ml_token_count, ml_benchmark_model, ml_perplexity_score, ml_fine_tune_prep, ml_dataset_validate, ai_multi_model_compare, ai_chain_of_thought, ai_self_critique, ai_debate, ml_convert_to_gguf, ml_model_compare_benchmark, \
+             log_tail, log_search, log_parse_json, log_parse_nginx, log_parse_syslog, log_level_summary, log_error_cluster, log_time_range_filter, log_export, log_audit_query, history_tool_calls, history_bus_replay, history_diff_timeline, history_search_past_calls, chart_line, chart_bar, chart_pie, chart_histogram, chart_scatter, chart_timeseries, chart_dependency_graph, chart_gantt, \
+             neural_model_info, neural_inference, neural_tokenize, neural_embed_cosine, neural_tensor_stats."
         ))
     }
 }

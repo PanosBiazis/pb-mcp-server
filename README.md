@@ -26,7 +26,7 @@
 
 ## Overview
 
-`pb-mcp-server` is a Rust-based MCP (Model Context Protocol) server designed for IDE agents in Zed, Cursor, and similar editors. It exposes **253 tools** across six profiles and is built as a Cargo workspace with 5 members covering the MCP core, HTTP gateway, LSP bridge, P2P networking, and an admin dashboard. It provides:
+`pb-mcp-server` is a Rust-based MCP (Model Context Protocol) server designed for IDE agents in Zed, Cursor, and similar editors. It exposes **484+ tools** across six profiles and is built as a Cargo workspace with 5 members covering the MCP core, HTTP gateway, LSP bridge, P2P networking, and an admin dashboard. It provides:
 
 - **Profile-based tool exposure** - Different tool sets for different workflows
 - **Multi-agent coordination** - Durable append-only message bus for agent communication
@@ -49,12 +49,15 @@
 
 ### 🛡️ Security Features
 
-- **Path sandboxing** - All file operations confined to project root
-- **Command allowlists** - Only approved executables can run
-- **Rate limiting** - Prevent abuse and resource exhaustion
-- **Profile gating** - Dangerous tools require explicit enablement
-- **Symlink protection** - Prevents escape via symlink resolution
-- **Input validation** - All inputs validated at entry points
+- **`#![deny(unsafe_code)]`** - Unsafe code forbidden at compile time (one gated exception for `perf-mmap`)
+- **Path sandboxing** - All file operations confined to project root, symlink depth-limited
+- **Command allowlists** - Only approved executables can run; shell metacharacters blocked
+- **HMAC-SHA256 message signing** - All inter-node messages are signed; covers `id`, `from`, `to`, `kind`, `nonce`, `ts`, `body`
+- **Replay protection** - Per-message nonces prevent exact-replay attacks
+- **Constant-time auth** - Token and signature comparisons use constant-time routines
+- **Rate limiting** - Bus operations are rate-limited per agent
+- **Profile gating** - Dangerous tools require explicit feature flags and env vars
+- **Input validation** - All inputs validated with length limits at entry points
 
 ### 📊 Profile System
 
@@ -98,25 +101,25 @@ cargo build --release
 
 ### Run in Zed
 
-1. Copy `setup.json` to your Zed configuration:
+1. Copy the example configuration into your Zed MCP settings:
    ```bash
-   cp setup.json ~/.config/zed/
+   # Zed stores MCP server configs in its settings.json
+   # Copy and fill in your paths
+   cp setup.example.json setup.json
+   # Edit setup.json: replace /path/to/pb-mcp-server and /path/to/your/project
    ```
 
-2. Set the environment variable:
-   ```bash
-   export MINT_PROJECT_ROOT=/path/to/your/project
-   ```
+2. In Zed, open **Settings → MCP Servers** and add the entry from `setup.json`, or merge it into `~/.config/zed/settings.json` under the `"context_servers"` key.
 
-3. Restart Zed - the MCP server will connect automatically
+3. Restart Zed — the MCP server will connect automatically and expose all tools.
 
 ### Verify Installation
 
 ```bash
-# Check the server version
-MINT_PROJECT_ROOT=$(pwd) ./target/release/pb-mcp-server --version
+# Quick sanity check — the binary should print its version and exit
+PB_PROJECT_ROOT=$(pwd) ./target/release/pb-mcp-server 2>&1 | head -5
 
-# Quick health check (if gateway is running)
+# If you also start the gateway binary:
 curl http://localhost:8080/health
 ```
 
@@ -141,37 +144,74 @@ The repository is a Cargo workspace with five members:
 ```
 pb-mcp-server/
 ├── src/
-│   ├── main.rs              # Entry point + MCP handler
-│   ├── lib.rs               # Library root with re-exports
-│   ├── server/              # MCP server implementation
-│   │   ├── mod.rs           # Server core
-│   │   ├── router.rs        # Tool routing
-│   │   └── profiles.rs      # Profile registration
-│   ├── tools/               # Tool handlers by category
-│   │   ├── fs.rs            # File system tools
-│   │   ├── git_read.rs      # Git read operations
-│   │   ├── git_write.rs     # Git write operations
-│   │   ├── code_index.rs    # Code indexing
-│   │   ├── agent_bus.rs     # Multi-agent bus
-│   │   ├── planning.rs      # Planning/reasoning
-│   │   └── execution.rs     # Terminal execution
-│   ├── ops/                 # Business logic
-│   │   ├── file.rs          # File operations
-│   │   ├── git.rs           # Git operations
-│   │   ├── text.rs          # Text processing
-│   │   └── compress.rs      # Compression utilities
+│   ├── main.rs              # Entry point + all MCP tool handlers (~12k LOC)
+│   ├── lib.rs               # Library root with module declarations & re-exports
+│   ├── server.rs            # MCP server core implementation
+│   ├── tool_args_wired.rs   # Strongly-typed arg structs (JsonSchema)
+│   ├── mcp_args.rs          # Additional MCP argument types
+│   ├── bus.rs               # Durable JSONL message bus
+│   ├── bus_rate.rs          # Bus rate limiting
+│   ├── code_index.rs        # Symbol indexing engine
+│   ├── thinking.rs          # Planning/reasoning scaffolds
+│   ├── profiles.rs          # Profile definitions
+│   ├── network_profile.rs   # Network security profiles
+│   ├── output.rs            # Output formatting utilities
+│   ├── error.rs             # Error types
+│   ├── health.rs            # Health monitoring
+│   ├── metrics.rs           # Performance metrics
+│   ├── agent/               # Multi-agent coordination
+│   │   ├── mod.rs           # Agent registry, sync, consensus
+│   │   └── live.rs          # Real-time streaming & P2P channels
+│   ├── args/                # Argument structures by category
+│   ├── ops/                 # Business logic (28 modules)
+│   │   ├── ai_ops.rs        # Ollama AI generation & embedding
+│   │   ├── ai_ml_extended.rs # 22 AI/ML classification & reasoning tools
+│   │   ├── algorithms.rs    # Sorting, graph, stats, FFT
+│   │   ├── audio.rs         # Audio processing (ffmpeg)
+│   │   ├── code_intel.rs    # AST, imports, language detection
+│   │   ├── convert_ext.rs   # Archive, binary, document conversion
+│   │   ├── data_analytics.rs # CSV, JSON, timeseries analysis
+│   │   ├── db.rs            # SQLite query/exec/schema
+│   │   ├── debug.rs         # Trace, replay, failure clustering
+│   │   ├── file_crypto.rs   # Encrypt, sign, verify (HMAC-SHA256)
+│   │   ├── ide_tools.rs     # Zed, Cursor, VSCode, JetBrains integration
+│   │   ├── image.rs         # Image processing & manipulation
+│   │   ├── iot.rs           # IoT device, serial, GPIO, CAN bus
+│   │   ├── logs_charts.rs   # 22 log analysis & SVG chart tools
+│   │   ├── network_tools.rs # Ping, traceroute, port scan, SSH, MQTT
+│   │   ├── neural.rs        # ONNX inference, tokenization, embeddings
+│   │   ├── notify.rs        # Desktop, email, webhook notifications
+│   │   ├── ocr_tools.rs     # OCR (Tesseract-based)
+│   │   ├── protection.rs    # Security scanning, YARA, integrity
+│   │   ├── research.rs      # arXiv search & quantum simulation
+│   │   ├── reverse_eng.rs   # Binary analysis, disassembly, entropy
+│   │   ├── review.rs        # PR review, diff risk, missing tests
+│   │   ├── sandbox.rs       # Sandboxed execution & Docker
+│   │   ├── screenshot_tools.rs # Screen capture, OCR, timelapse
+│   │   ├── speech.rs        # Speech-to-text, TTS, diarization
+│   │   ├── system.rs        # Process, disk, Docker, K8s management
+│   │   └── web_ext.rs       # HTTP API, RSS, web search
 │   ├── security/            # Security modules
-│   │   ├── path_guard.rs    # Path validation
-│   │   ├── command_policy.rs # Execution policy
-│   │   └── rate_limiter.rs  # Rate limiting
-│   ├── args/                # Argument structures
-│   ├── bus.rs               # Durable message bus
-│   ├── code_index.rs        # Symbol indexing
-│   ├── thinking.rs          # Planning scaffolds
-│   └── profiles.rs          # Profile definitions
+│   │   ├── path_guard.rs    # Path traversal prevention
+│   │   ├── command_policy.rs # Command execution policy
+│   │   ├── rate_limiter.rs  # Rate limiting
+│   │   ├── scanner.rs       # Secret & vulnerability scanning
+│   │   └── audit.rs         # Audit logging
+│   ├── tools/               # Tool handler modules by category
+│   ├── cache/               # File caching layer
+│   ├── gateway/             # HTTP gateway (auth, routes, state)
+│   ├── network/             # P2P networking (libp2p)
+│   ├── resilience/          # Circuit breaker, retry, bulkhead
+│   └── web/                 # Web utilities
+├── crates/                  # Workspace members
+│   ├── pb-gateway/          # HTTP REST gateway binary
+│   ├── pb-lsp-bridge/       # LSP↔MCP bridge
+│   ├── pb-network-node/     # P2P networking node
+│   └── pb-dashboard/        # egui admin dashboard
 ├── tests/                   # Integration tests
 ├── benches/                 # Performance benchmarks
-└── docs/                    # Documentation
+├── docs/                    # Documentation
+└── deploy/                  # Deployment configs
 ```
 
 ### Module Dependencies
@@ -206,11 +246,11 @@ pb-mcp-server/
 **Purpose:** Default coding workflow in Zed/Cursor
 
 **Tools:**
-- File: `fs.read_file`, `fs.read_tail`, `fs.list`, `fs.tree`, `fs.find`, `fs.info`
-- Git: `git.read.status`, `git.read.diff`, `git.read.log`, `git.read.show`
-- Code: `code.index.search`, `code.analyze.inventory`
-- Text: `text.transform`, `text.summarize`, `text.stats`
-- Context: `pack_context`, `workspace_context`
+- File: `read_file`, `read_file_tail`, `list_files`, `project_tree`, `find_files`, `file_info`, `file_stats`
+- Git: `git_status`, `git_diff`, `git_log`, `git_show`, `git_branches`
+- Code: `code_index_build`, `code_index_search`, `codebase_index`, `codebase_path_list`
+- Text: `compress_context`, `pack_context`, `summarize_text`, `text_stats`
+- Context: `workspace_context`, `grep_code`
 
 **Risk Level:** Low (read-only)
 
@@ -219,10 +259,10 @@ pb-mcp-server/
 **Purpose:** PR review, architecture understanding, safe codebase inspection
 
 **Additional Tools:**
-- Git: `git.read.blame`, `git.read.tags`, `git.diff_snippets`
-- Code: `code.analyze.largest_files`, `code.analyze.duplicate_basenames`
-- Review: `review.diff_risk`, `review.focused_review`, `review.missing_tests`
-- Reasoning: `reasoning.evidence_matrix`, `plan.risk_register`
+- Git: `git_blame`, `git_tag_list`, `git_diff_snippets`, `git_reflog`
+- Code: `codebase_largest_files`, `codebase_duplicate_basenames`, `code_index_duplicate_symbols`
+- Review: `review_diff_risk`, `review_focused_review`, `review_missing_tests`, `review_pr_packet`
+- Reasoning: `reasoning_evidence_matrix`, `plan_risk_register`, `plan_definition_of_done`
 
 **Risk Level:** Low (read-only)
 
@@ -231,10 +271,11 @@ pb-mcp-server/
 **Purpose:** Multi-agent and subagent coordination
 
 **Tools:**
-- Bus: `agent.bus.send`, `agent.bus.inbox`, `agent.bus.thread`, `agent.bus.recent`
-- Coordination: `agent.ask`, `agent.handoff`, `agent.consensus`
-- Temp: `agent.temp.write`, `agent.temp.read`, `agent.temp.list`, `agent.temp.delete`
-- Wait: `agent.wait.sleep`, `agent.wait.for_path`, `agent.wait.until`
+- Bus: `agent_send`, `agent_inbox`, `agent_thread`, `agent_recent`, `agent_bus_status`
+- Coordination: `ask_agents`, `agent_handoff`, `consensus_propose`, `consensus_vote`, `consensus_tally`
+- Fan-out: `agent_fan_out`, `agent_send_pipeline`, `agent_multi_inbox`
+- Temp: `workspace_temp_write`, `workspace_temp_read`, `workspace_temp_list`, `workspace_temp_delete`
+- Wait: `server_sleep`, `wait_for_path`, `wait_until_timestamp`, `agent_inbox_wait`
 
 **Risk Level:** Medium
 
@@ -243,39 +284,42 @@ pb-mcp-server/
 **Purpose:** Explicitly approved local execution and validation
 
 **Tools:**
-- Terminal: `local.exec.run`, `local.exec.run_stdin`
-- Tests: `local.test.rust_test`, `local.test.rust_check`, `local.test.pytest`
-- Git write: `git.write.commit`, `git.write.push`, `git.write.checkout`
-- OCR: `local.ocr.tesseract`
-- Screenshot: `local.screenshot.capture`
+- Terminal: `terminal_run`, `terminal_run_stdin`, `terminal_which`, `terminal_program_version`
+- Tests: `project_cargo_test`, `project_cargo_check`, `project_pytest`
+- Git write: `git_add_or_commit`, `git_push`, `git_checkout`, `git_fetch`, `git_pull`
+- Audio/Image: `audio_info`, `audio_convert`, `image_info`, `image_resize`, `image_convert`
+- Network: `net_ping`, `net_port_scan`, `net_tls_inspect`, `net_ssh_exec`
+- OCR: `ocr_tesseract`, `ocr_file`, `ocr_batch`
+- Screenshot: `screenshot_capture`, `screenshot_region`, `screenshot_ocr`
 
 **Risk Level:** High (requires explicit enablement)
 
-**Security:** Only available when `MINT_NETWORK_PROFILE=local`
+**Security:** Only available when `PB_NETWORK_PROFILE=local` and `PB_TERMINAL_ENABLE=1`
 
 ### public-safe
 
 **Purpose:** Remote-safe HTTP subset for public/external access
 
 **Tools:**
-- Health: `health`, `status`, `security_status`
-- Info: `project_info`
-- Files: bounded `list_files`, bounded `read_file`
-- Search: bounded `search_code`
-- Bus: `agent.bus.recent`, `agent.bus.thread` (read-only)
+- Health: `workspace_context` (read-only fields), `agent_bus_status`
+- Files: bounded `read_file`, `list_files`, `grep_code`
+- Bus: `agent_recent`, `agent_thread`, `agent_inbox` (read-only)
+- Web: `web_dns_lookup`, `web_tls_inspect`, `web_rss_fetch`
 
 **Risk Level:** Very Low (bounded, read-only)
 
-**Security:** Only available via HTTP gateway with authentication
+**Security:** Only available via HTTP gateway with `PB_GATEWAY_TOKEN` authentication
 
 ### experimental-lab
 
 **Purpose:** Advanced OCR/ML/AI/algorithm tools
 
 **Additional Tools:**
-- OCR: `ocr.tesseract_stream`, `ocr.tesseract_batch`
-- ML: `ml.embed`, `ml.classify`, `ml.detect`
-- Algorithms: `algorithm.complexity`, `algorithm.dependencies`
+- AI/ML: `ai_few_shot_classify`, `ai_zero_shot_classify`, `ai_structured_extract`, `ai_embed_text`, `ai_semantic_search`, `ai_chain_of_thought`, `ai_self_critique`, `ai_debate`, and 14 more
+- Logging: `log_tail`, `log_search`, `log_level_summary`, `log_error_cluster`, `log_parse_json`, `log_parse_nginx`, `log_parse_syslog`, and 7 more
+- Charts: `chart_line`, `chart_bar`, `chart_pie`, `chart_histogram`, `chart_scatter`, `chart_timeseries`, `chart_dependency_graph`, `chart_gantt`
+- Neural: `neural_model_info`, `neural_inference`, `neural_tokenize`, `neural_embed_cosine`, `neural_tensor_stats`
+- Algorithms: `algo_sort`, `algo_search`, `algo_graph_bfs`, `algo_graph_shortest_path`, `algo_fft`, and more
 
 **Risk Level:** Variable
 
@@ -289,96 +333,192 @@ pb-mcp-server/
 
 | Tool | Profile | Description |
 |------|---------|-------------|
-| `fs.read_file` | core-code | Read file with line slicing |
-| `fs.read_tail` | core-code | Read last N lines |
-| `fs.list` | core-code | Directory listing |
-| `fs.tree` | core-code | Directory tree with depth limit |
-| `fs.find` | core-code | Glob-based file search |
-| `fs.info` | core-code | File/directory metadata |
-| `fs.read_json` | core-code | Parse and validate JSON file |
-| `fs.stats` | core-code | Line/word/character statistics |
+| `read_file` | core-code | Read file with optional line range |
+| `read_file_tail` | core-code | Read last N lines of a file |
+| `list_files` | core-code | Directory listing |
+| `project_tree` | core-code | Directory tree with depth limit |
+| `find_files` | core-code | Glob-based file search |
+| `find_files_by_name` | core-code | Find files by name pattern |
+| `file_info` | core-code | File/directory metadata |
+| `file_stats` | core-code | Line/word/character statistics |
+| `json_validate_file` | core-code | Parse and validate JSON file |
+| `batch_file_info` | core-code | Metadata for multiple paths |
 
 ### Git Tools (Read)
 
 | Tool | Profile | Description |
 |------|---------|-------------|
-| `git.read.status` | core-code | Working directory status |
-| `git.read.diff` | core-code | Diff with options |
-| `git.read.log` | core-code | Commit history |
-| `git.read.show` | core-code | Show commit/object |
-| `git.read.blame` | review-refactor | Line blame information |
-| `git.read.branches` | core-code | List branches |
-| `git.read.tags` | review-refactor | List tags |
-| `git.read.reflog` | review-refactor | Reference log |
+| `git_status` | core-code | Working directory status |
+| `git_diff` | core-code | Diff with options |
+| `git_log` | core-code | Commit history |
+| `git_show` | core-code | Show commit/object |
+| `git_blame` | review-refactor | Line blame information |
+| `git_branches` | core-code | List all branches |
+| `git_tag_list` | review-refactor | List tags |
+| `git_reflog` | review-refactor | Reference log |
+| `git_diff_stat` | core-code | Diff statistics summary |
+| `git_last_commit` | core-code | Most recent commit info |
+| `git_shortlog` | review-refactor | Contribution summary |
 
 ### Git Tools (Write)
 
 | Tool | Profile | Description |
 |------|---------|-------------|
-| `git.write.checkout` | local-power | Switch branches |
-| `git.write.commit` | local-power | Create commit |
-| `git.write.push` | local-power | Push to remote |
-| `git.write.fetch` | local-power | Fetch from remote |
-| `git.write.stash` | local-power | Stash changes |
+| `git_checkout` | local-power | Switch branches or restore files |
+| `git_add_or_commit` | local-power | Stage and create a commit |
+| `git_push` | local-power | Push to remote (requires `PB_GIT_PUSH_ENABLE=1`) |
+| `git_fetch` | local-power | Fetch from remote |
+| `git_pull` | local-power | Pull from remote |
+| `git_stash` | local-power | Stash changes |
+| `git_stash_push` | local-power | Push named stash |
+| `git_branch` | local-power | Create/delete/rename branches |
+| `git_worktree` | local-power | Manage worktrees |
 
 ### Code Analysis Tools
 
 | Tool | Profile | Description |
 |------|---------|-------------|
-| `code.index.build` | core-code | Build symbol index |
-| `code.index.search` | core-code | Search indexed symbols |
-| `code.index.paths_prefix` | core-code | Search paths by prefix |
-| `code.analyze.inventory` | core-code | Extension histogram |
-| `code.analyze.largest_files` | review-refactor | Size ranking |
-| `code.analyze.duplicate_basenames` | review-refactor | Find duplicate filenames |
-| `code.analyze.deps` | review-refactor | Dependency analysis |
-| `code.analyze.word_index` | review-refactor | Word frequency |
+| `code_index_build` | core-code | Build symbol index for the project |
+| `code_index_search` | core-code | Search indexed symbols |
+| `code_index_paths_prefix` | core-code | Search paths by prefix |
+| `code_index_extension_histogram` | core-code | Extension distribution |
+| `codebase_largest_files` | review-refactor | Largest files by size |
+| `codebase_duplicate_basenames` | review-refactor | Find duplicate filenames |
+| `codebase_cargo_dependency_names` | review-refactor | List Cargo dependencies |
+| `codebase_word_index` | review-refactor | Word frequency across codebase |
+| `code_complexity_score` | review-refactor | Cyclomatic complexity estimate |
+| `code_dead_code_hints` | review-refactor | Unused symbol hints |
 
 ### Text Processing Tools
 
 | Tool | Profile | Description |
 |------|---------|-------------|
-| `text.transform` | core-code | Apply transformations |
-| `text.summarize` | core-code | Generate summary |
-| `text.stats` | core-code | Text statistics |
-| `text.extract_snippets` | core-code | Extract code snippets |
-| `text.compare` | review-refactor | Compare texts |
+| `compress_context` | core-code | Compress/deduplicate context text |
+| `pack_context` | core-code | Pack multiple files into context |
+| `summarize_text` | core-code | Generate text summary |
+| `text_stats` | core-code | Word/line/char statistics |
+| `extract_snippets` | core-code | Extract code snippets |
+| `text_levenshtein_distance` | core-code | Edit distance between strings |
+| `text_token_jaccard` | review-refactor | Token similarity score |
+| `summarize_diff_file_list` | review-refactor | Files changed in a diff |
 
 ### Agent Bus Tools
 
 | Tool | Profile | Description |
 |------|---------|-------------|
-| `agent.bus.send` | agent-orchestration | Send message to bus |
-| `agent.bus.inbox` | agent-orchestration | Poll inbox for messages |
-| `agent.bus.thread` | agent-orchestration | Read topic thread |
-| `agent.bus.recent` | agent-orchestration | Recent bus messages |
-| `agent.ask` | agent-orchestration | Broadcast + wait for replies |
-| `agent.handoff` | agent-orchestration | Structured handoff message |
-| `agent.consensus` | agent-orchestration | Consensus decision making |
+| `agent_send` | agent-orchestration | Send message to the bus |
+| `agent_inbox` | agent-orchestration | Poll inbox for messages |
+| `agent_thread` | agent-orchestration | Read messages by topic |
+| `agent_recent` | agent-orchestration | Recent bus messages |
+| `ask_agents` | agent-orchestration | Broadcast question + await replies |
+| `agent_handoff` | agent-orchestration | Structured agent handoff |
+| `consensus_propose` | agent-orchestration | Propose a consensus vote |
+| `consensus_vote` | agent-orchestration | Cast a vote |
+| `consensus_tally` | agent-orchestration | Tally votes and get decision |
+| `agent_fan_out` | agent-orchestration | Parallel fan-out to multiple agents |
+| `agent_send_pipeline` | agent-orchestration | Serial pipeline between agents |
 
 ### Execution Tools
 
 | Tool | Profile | Description |
 |------|---------|-------------|
-| `local.exec.run` | local-power | Execute allowlisted command |
-| `local.exec.run_stdin` | local-power | Execute with stdin input |
-| `local.test.rust_test` | local-power | Run cargo test |
-| `local.test.rust_check` | local-power | Run cargo check |
-| `local.test.pytest` | local-power | Run pytest |
+| `terminal_run` | local-power | Execute allowlisted command |
+| `terminal_run_stdin` | local-power | Execute command with stdin input |
+| `project_cargo_test` | local-power | Run `cargo test` |
+| `project_cargo_check` | local-power | Run `cargo check` |
+| `project_pytest` | local-power | Run `pytest` |
+| `terminal_which` | local-power | Locate binary in PATH |
+| `terminal_program_version` | local-power | Get program version string |
 
 ### Planning/Reasoning Tools
 
 | Tool | Profile | Description |
 |------|---------|-------------|
-| `plan.definition_of_done` | review-refactor | DoD template |
-| `plan.execution_checklist` | review-refactor | Execution checklist |
-| `plan.risk_register` | review-refactor | Risk assessment |
-| `reasoning.evidence_matrix` | review-refactor | Evidence collection |
-| `reasoning.premortem` | review-refactor | Premortem analysis |
+| `plan_definition_of_done` | review-refactor | Definition of Done template |
+| `plan_execution_checklist` | review-refactor | Step-by-step execution checklist |
+| `plan_risk_register` | review-refactor | Risk identification and mitigation |
+| `plan_handoff_brief` | review-refactor | Agent handoff brief template |
+| `plan_work_buckets` | review-refactor | Split work into parallel buckets |
+| `reasoning_evidence_matrix` | review-refactor | Evidence collection matrix |
+| `reasoning_premortem` | review-refactor | Pre-mortem failure analysis |
+| `reasoning_five_whys` | review-refactor | Root-cause five-whys ladder |
+| `reasoning_chain` | review-refactor | Structured reasoning chain |
+| `reasoning_devils_advocate` | review-refactor | Counter-argument generation |
+
+### Audio Tools
+
+| Tool | Profile | Description |
+|------|---------|-------------|
+| `audio_info` | local-power | Get audio file metadata |
+| `audio_convert` | local-power | Convert audio formats |
+| `audio_trim` | local-power | Trim audio segments |
+| `audio_merge` | local-power | Merge audio files |
+| `audio_normalize` | local-power | Normalize audio levels |
+
+### Image Tools
+
+| Tool | Profile | Description |
+|------|---------|-------------|
+| `image_info` | local-power | Image metadata and dimensions |
+| `image_resize` | local-power | Resize images |
+| `image_convert` | local-power | Convert image formats |
+| `image_crop` | local-power | Crop images |
+| `image_rotate` | local-power | Rotate images |
+
+### AI/ML Tools (Ollama-based)
+
+| Tool | Profile | Description |
+|------|---------|-------------|
+| `ai_few_shot_classify` | experimental-lab | Few-shot text classification |
+| `ai_zero_shot_classify` | experimental-lab | Zero-shot classification |
+| `ai_structured_extract` | experimental-lab | Structured data extraction |
+| `ai_embed_text` | experimental-lab | Text embedding generation |
+| `ai_semantic_search` | experimental-lab | Semantic similarity search |
+| `ai_chain_of_thought` | experimental-lab | Chain-of-thought reasoning |
+| `ai_self_critique` | experimental-lab | Self-critique analysis |
+| `ai_debate` | experimental-lab | Multi-model debate |
+
+### Logging & Charts
+
+| Tool | Profile | Description |
+|------|---------|-------------|
+| `log_tail` | experimental-lab | Tail log files |
+| `log_search` | experimental-lab | Search log entries |
+| `log_level_summary` | experimental-lab | Log level distribution |
+| `log_error_cluster` | experimental-lab | Cluster similar errors |
+| `chart_line` | experimental-lab | Generate SVG line charts |
+| `chart_bar` | experimental-lab | Generate SVG bar charts |
+| `chart_pie` | experimental-lab | Generate SVG pie charts |
+| `chart_gantt` | experimental-lab | Generate SVG Gantt charts |
+
+### Neural Network Tools
+
+| Tool | Profile | Description |
+|------|---------|-------------|
+| `neural_model_info` | experimental-lab | ONNX model metadata inspection |
+| `neural_inference` | experimental-lab | ONNX Runtime inference |
+| `neural_tokenize` | experimental-lab | HuggingFace tokenization |
+| `neural_embed_cosine` | experimental-lab | Cosine similarity (pure math) |
+| `neural_tensor_stats` | experimental-lab | Tensor statistics |
+
+### Network & Security Tools
+
+| Tool | Profile | Description |
+|------|---------|-------------|
+| `net_ping` | local-power | Network ping |
+| `net_port_scan` | local-power | Port scanning |
+| `net_tls_inspect` | local-power | TLS certificate inspection |
+| `protect_scan_file` | local-power | Malware/vulnerability scan |
+| `protect_secret_scan` | local-power | Secret detection in files |
+| `protect_dependency_audit` | local-power | Dependency vulnerability audit |
+
+> **Note:** The tables above show representative tools from each category. The full catalog includes 484+ tools. Run `workspace_context` in an agent to see the complete list.
 
 ---
 
 ## Security Model
+
+> See [SECURITY.md](SECURITY.md) for the vulnerability reporting policy.
 
 ### Defense in Depth
 
@@ -396,23 +536,32 @@ pb-mcp-server follows defense-in-depth principles:
 ┌─────────────────────────────────────────────────────────────┐
 │                      Path Sandboxing                         │
 │  - All paths confined to project root                        │
-│  - Symlink resolution with depth limit                       │
-│  - Path traversal prevention                                 │
+│  - Symlink resolution with depth limit (max 8)               │
+│  - Component-level path traversal prevention                 │
 └──────────────────────┬──────────────────────────────────────┘
                        │
                        ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    Command Allowlist                         │
-│  - Only approved executables                                 │
-│  - Argument validation                                       │
-│  - Subcommand restrictions                                   │
+│  - Only approved executables can run                         │
+│  - Shell metacharacter blocking                              │
+│  - Per-program subcommand restrictions                       │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│                Network Message Signing                       │
+│  - HMAC-SHA256 on all fields (id, from, to, kind, nonce,     │
+│    timestamp, body)                                          │
+│  - Per-message nonce prevents replay attacks                 │
+│  - Constant-time signature verification                      │
 └──────────────────────┬──────────────────────────────────────┘
                        │
                        ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                     Rate Limiting                            │
 │  - Operation-level limits                                    │
-│  - Per-agent quotas                                          │
+│  - Per-agent bus quotas                                      │
 │  - Burst prevention                                          │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -472,15 +621,21 @@ policy.validate("git", &["status", ";", "rm", "-rf", "/"])?; // ✗ Error
 ### Environment Gates
 
 | Variable | Purpose | Default |
-|----------|---------|---------|
-| `MINT_PROJECT_ROOT` | Path confinement | Required |
-| `MINT_NETWORK_PROFILE` | `local` or `public` | `local` |
-| `MINT_BUS_READ_ONLY` | Disable bus writes | `false` |
-| `MINT_TERMINAL_ENABLE` | Enable terminal tools | `false` |
-| `MINT_TERMINAL_ALLOW` | Command allowlist | (see docs) |
-| `MINT_GIT_PUSH_ENABLE` | Enable git push | `false` |
-| `MINT_GIT_REMOTE_ENABLE` | Enable fetch/pull | `false` |
-| `MINT_PROJECT_TEST_ENABLE` | Enable test runners | `false` |
+|----------|---------|--------|
+| `PB_PROJECT_ROOT` | Path confinement root | Required |
+| `PB_MCP_PROFILE` | Tool profile selection | `core-code` |
+| `PB_NETWORK_PROFILE` | `local` or `public` | `local` |
+| `PB_BUS_READ_ONLY` | Disable all bus writes | `false` |
+| `PB_TERMINAL_ENABLE` | Enable terminal execution tools | `false` |
+| `PB_TERMINAL_ALLOW` | Comma-separated command allowlist | (none) |
+| `PB_GIT_PUSH_ENABLE` | Enable `git_push` | `false` |
+| `PB_GIT_REMOTE_ENABLE` | Enable `git_fetch` / `git_pull` | `false` |
+| `PB_PROJECT_TEST_ENABLE` | Enable test runner tools | `false` |
+| `PB_GATEWAY_TOKEN` | Bearer token for HTTP gateway auth | (none) |
+| `PB_GATEWAY_SIGNING_SECRET` | HMAC secret for request signing | (none) |
+| `PB_NODE_SECRET` | HMAC secret for inter-node signing | (none) |
+
+> **Note:** `MINT_*` variable names are supported as backward-compatible aliases (e.g. `MINT_PROJECT_ROOT` = `PB_PROJECT_ROOT`).
 
 ---
 
@@ -488,40 +643,55 @@ policy.validate("git", &["status", ";", "rm", "-rf", "/"])?; // ✗ Error
 
 ### Environment Variables
 
-Create a `.env` file or export variables:
+Create a `.env` file or export variables before running the server:
 
 ```bash
-# Required: Project root
-export MINT_PROJECT_ROOT=/path/to/your/project
+# Required: Project root (all file operations are sandboxed here)
+export PB_PROJECT_ROOT=/path/to/your/project
 
-# Profile selection (optional)
+# Profile selection (optional, default: core-code)
 export PB_MCP_PROFILE=core-code
 
-# Network profile (optional)
-export MINT_NETWORK_PROFILE=local
+# Network profile (optional, default: local)
+export PB_NETWORK_PROFILE=local
 
-# Enable terminal execution (optional)
-export MINT_TERMINAL_ENABLE=1
-export MINT_TERMINAL_ALLOW=git,cargo,npm,python
+# Enable terminal execution (optional, off by default)
+export PB_TERMINAL_ENABLE=1
+export PB_TERMINAL_ALLOW=git,cargo,npm,python
+
+# Enable git remote operations (optional)
+export PB_GIT_PUSH_ENABLE=1
+export PB_GIT_REMOTE_ENABLE=1
 
 # Rate limiting (optional)
-export MINT_BUS_MAX_SENDS_PER_WINDOW=100
-export MINT_BUS_WINDOW_SECS=60
+export PB_BUS_MAX_SENDS_PER_WINDOW=100
+export PB_BUS_WINDOW_SECS=60
+
+# Logging
+export RUST_LOG=info
 ```
+
+> **Tip:** Copy `setup.example.json` to `setup.json` and set values there — Zed reads environment variables directly from the MCP config.
 
 ### Profile Selection
 
-Select profile via environment variable:
+Select profile via `PB_MCP_PROFILE` environment variable:
 
 ```bash
-# Use default profile (core-code)
-export PB_MCP_PROFILE=default
+# Default read-only coding profile
+export PB_MCP_PROFILE=core-code
 
-# Use multiple profiles (additive)
-export PB_MCP_PROFILE=core-code,agent-orchestration
+# PR review and architecture analysis
+export PB_MCP_PROFILE=review-refactor
 
-# Use specific profile
+# Multi-agent coordination
+export PB_MCP_PROFILE=agent-orchestration
+
+# Full local execution (requires TERMINAL_ENABLE and NETWORK_PROFILE=local)
 export PB_MCP_PROFILE=local-power
+
+# Advanced ML/AI tools (requires experimental-lab feature)
+export PB_MCP_PROFILE=experimental-lab
 ```
 
 ### Feature Flags
@@ -806,25 +976,19 @@ pub fn my_tool_work(args: MyToolArgs) -> Result<String> {
 }
 ```
 
-3. **Add handler** in `src/tools/<category>.rs`:
+3. **Add handler** in `src/main.rs` (inside `impl MintMcp`):
 
 ```rust
-#[tool]
-async fn my_tool(&self, args: MyToolArgs) -> Result<String, McpError> {
-    Ok(ops::my_tool_work(args)?)
+#[tool(description = "My tool does X")]
+async fn my_tool(&self, Parameters(args): Parameters<MyToolArgs>) -> Result<CallToolResult, McpError> {
+    self.require_trusted_deployment()?;
+    let root = self.resolve_path(&args.input)?;
+    let out = tokio::task::spawn_blocking(move || {
+        ops::my_tool_work(serde_json::json!({ "path": root }))
+    }).await.unwrap_or_else(|e| format!("Error: {e}"));
+    Self::tool_text(out)
 }
-```
-
-4. **Register in profile** in `src/profiles.rs`:
-
-```rust
-ToolProfile::CoreCode => vec![
-    // ... existing tools
-    "my_tool",
-]
-```
-
-5. **Add tests** in `tests/<category>_tests.rs`:
+4. **Add tests** in the `#[cfg(test)]` mod block of the relevant `src/ops/*.rs` file:
 
 ```rust
 #[test]
@@ -887,8 +1051,16 @@ fix: resolve path validation issue
 docs: update README with examples
 test: add tests for Y
 refactor: reorganize module structure
+security: fix timing oracle in HMAC verify
 chore: update dependencies
 ```
+
+### Reporting Security Issues
+
+> **Do not open a public issue for security vulnerabilities.**
+>
+> Please follow the process described in [SECURITY.md](SECURITY.md).
+> Email **panosbiazis2003@gmail.com** with subject `[SECURITY] pb-mcp-server`.
 
 ---
 
@@ -897,18 +1069,36 @@ chore: update dependencies
 ### v0.3.0 (Planned)
 
 - [ ] WebAssembly tool support
-- [ ] Distributed bus (multi-node)
+- [ ] Distributed bus (multi-node with nonce deduplication)
 - [ ] Advanced ML model integration
 - [ ] Real-time collaboration features
 - [ ] Plugin system for custom tools
+- [ ] Rate limiting for expensive tools (neural inference, chart generation)
+- [ ] OpenTelemetry tracing for all tool invocations
 
-### v0.2.0 (Current)
+### v0.2.1 (Latest patch)
 
-- [x] Profile-based tool system
-- [x] Enhanced security model
-- [x] Comprehensive test suite
-- [x] Modular architecture
-- [x] Extended tool catalog
+- [x] Fixed HMAC timing oracle in `network/protocol.rs`
+- [x] Added nonce-based replay protection for inter-node messages
+- [x] HMAC now covers all message fields (`to_node`, `kind`, `nonce`)
+- [x] `NetworkConfig::warn_if_weak_secret()` warns on empty/short `PB_NODE_SECRET`
+- [x] Fixed 20 compilation errors (ort 2.x, image 0.25 API changes)
+- [x] Created `LICENSE` (MIT) and `SECURITY.md`
+- [x] Complete documentation refresh
+
+### v0.2.0
+
+- [x] Profile-based tool system (6 profiles)
+- [x] Enhanced security model (path guard, command policy, rate limiter)
+- [x] Comprehensive test suite (1,292+ tests)
+- [x] Modular architecture (28 operational modules)
+- [x] Extended tool catalog (484+ tools)
+- [x] AI/ML integration (22 Ollama-based tools)
+- [x] Logging & SVG chart generation (22 tools)
+- [x] Neural network tools (5 ONNX/tokenizer tools)
+- [x] Multi-agent consensus engine
+- [x] HTTP gateway with HMAC-SHA256 auth
+- [x] P2P networking via libp2p
 
 ### v0.1.0 (Initial)
 
@@ -922,7 +1112,7 @@ chore: update dependencies
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
 ---
 
