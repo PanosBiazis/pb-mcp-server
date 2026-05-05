@@ -9,6 +9,7 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::io::Read;
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::Command;
@@ -604,6 +605,19 @@ pub fn protect_dependency_audit_work(args: Value) -> Value {
 /// Args: `path` (string, default "/").
 ///
 /// Returns: `{suid_files: [{path, mode, owner}], sgid_files: [{path, mode, owner}]}`.
+#[cfg(not(unix))]
+pub fn protect_suid_find_work(_args: Value) -> Value {
+    json!({
+        "error": "SUID/SGID scanning is not supported on Windows (Unix-only concept)",
+        "tool_available": false,
+        "suid_files": [],
+        "sgid_files": [],
+        "suid_count": 0,
+        "sgid_count": 0
+    })
+}
+
+#[cfg(unix)]
 pub fn protect_suid_find_work(args: Value) -> Value {
     let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("/");
 
@@ -671,6 +685,17 @@ pub fn protect_suid_find_work(args: Value) -> Value {
 /// Args: `path` (string), `include_dirs` (bool, default false).
 ///
 /// Returns: `{files: [{path, mode}]}`.
+#[cfg(not(unix))]
+pub fn protect_world_writable_find_work(_args: Value) -> Value {
+    json!({
+        "error": "World-writable file scanning is not supported on Windows (Unix-only concept)",
+        "tool_available": false,
+        "files": [],
+        "count": 0
+    })
+}
+
+#[cfg(unix)]
 pub fn protect_world_writable_find_work(args: Value) -> Value {
     let path = match args.get("path").and_then(|v| v.as_str()) {
         Some(p) => p.to_string(),
@@ -1488,6 +1513,7 @@ pub fn protect_quarantine_file_work(params: Value) -> String {
 
     match fs::rename(&path, &quarantine_path) {
         Ok(()) => {
+            #[cfg(unix)]
             let _ = fs::set_permissions(&quarantine_path, fs::Permissions::from_mode(0o000));
             json!({
                 "quarantined": true,
@@ -1499,6 +1525,7 @@ pub fn protect_quarantine_file_work(params: Value) -> String {
         Err(_) => {
             // Try copy + delete (cross-device)
             if fs::copy(&path, &quarantine_path).is_ok() {
+                #[cfg(unix)]
                 let _ = fs::set_permissions(&quarantine_path, fs::Permissions::from_mode(0o000));
                 let _ = fs::remove_file(&path);
                 json!({
@@ -1603,6 +1630,21 @@ pub fn protect_file_reputation_work(params: Value) -> String {
 /// Returns JSON: `{ "world_writable": N, "suid_binaries": N,
 ///                   "sgid_binaries": N, "details": "..." }`.
 #[allow(dead_code)]
+#[cfg(not(unix))]
+pub fn protect_permissions_scan_work(_params: Value) -> String {
+    json!({
+        "error": "Permission scanning (world-writable/SUID/SGID) is not supported on Windows",
+        "tool_available": false,
+        "world_writable": 0,
+        "suid_binaries": 0,
+        "sgid_binaries": 0,
+        "details": "Unix file permission bits (mode) do not exist on Windows"
+    })
+    .to_string()
+}
+
+#[allow(dead_code)]
+#[cfg(unix)]
 pub fn protect_permissions_scan_work(params: Value) -> String {
     let path = params.get("path").and_then(|v| v.as_str()).unwrap_or(".");
 

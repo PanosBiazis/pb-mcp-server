@@ -1,0 +1,14 @@
+# Cross-compilation configuration for pb-mcp-server
+#
+# Windows (x86_64-pc-windows-gnu) — cross-compiled from Linux using MinGW-w64.
+#
+# Prerequisites on Ubuntu/Debian:
+#   sudo apt install gcc-mingw-w64-x86-64
+#   rustup target add x86_64-pc-windows-gnu
+#
+# Build:
+#   cargo build --release --target x86_64-pc-windows-gnu --features full-windows
+
+[target.x86_64-pc-windows-gnu]
+linker  = "x86_64-w64-mingw32-gcc"
+ar      = "x86_64-w64-mingw32-ar"
