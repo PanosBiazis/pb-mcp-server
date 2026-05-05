@@ -211,7 +211,9 @@ default = ["core-code", "agent-orchestration", "review-refactor"]
 core-code = []
 review-refactor = ["core-code"]
 agent-orchestration = ["core-code", "agent-workers"]
-local-power = ["dep:tesseract", "dep:image", "web-tools"]
+# Note: local-power uses CLI-based OCR (tesseract binary via std::process::Command).
+# The `tesseract` Rust crate is NOT needed here; use `ocr-tools` for Rust-native OCR bindings.
+local-power = ["dep:image", "web-tools"]
 public-safe = ["web-tools-safe"]
 experimental-lab = ["local-power", "dep:ort", "dep:ndarray", "dep:tokenizers", "web-tools"]
 
@@ -229,6 +231,18 @@ agent-workers = ["dep:rig-core"]
 # dashboard is included here so `--features full` builds pb-dashboard too.
 full-headless = ["default", "local-power", "experimental-lab", "agent-workers", "network-node"]
 full = ["full-headless", "dashboard"]
+
+# Windows cross-compilation target (x86_64-pc-windows-gnu from Linux).
+# Excludes native C library deps (tesseract/leptonica-sys via ocr-tools, and ONNX Runtime
+# via dep:ort) that require a Windows pkg-config sysroot or are not yet packaged for MinGW.
+# All CLI-based tools (OCR via tesseract.exe, screenshot, sandbox, …) still compile; they
+# simply require the corresponding Windows binaries at runtime.
+#
+# Build with:
+#   cargo build --release --target x86_64-pc-windows-gnu --features full-windows
+full-headless-windows = ["default", "dep:image", "web-tools", "agent-workers", "network-node"]
+full-windows = ["full-headless-windows", "dashboard"]
+
 network-node = ["dep:libp2p"]
 tor-bridge = [] # Uses subprocess torsocks/tor CLI
 
