@@ -532,7 +532,9 @@ fn filter_symbols(symbols: &str, stype: &str) -> String {
                 if parts.len() >= 2 {
                     let sym_type = parts[1];
                     sym_type == "T" || sym_type == "t" || sym_type == "W" || sym_type == "w"
-                } else { trimmed.contains("FUNC") || trimmed.contains(".text") }
+                } else {
+                    trimmed.contains("FUNC") || trimmed.contains(".text")
+                }
             })
             .collect(),
         "variables" => symbols

@@ -331,7 +331,9 @@ pub fn code_index_search_work(
                 if case_sensitive {
                     s.contains(needle)
                 } else {
-                    sym_lower.as_ref().unwrap().contains(&needle_cmp)
+                    sym_lower
+                        .as_ref()
+                        .is_some_and(|lower| lower.contains(&needle_cmp))
                 }
             };
             if matched {

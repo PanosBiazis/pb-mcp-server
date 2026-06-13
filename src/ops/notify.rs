@@ -15,6 +15,15 @@ use std::process::Command;
 
 /// Maximum characters for notification tool responses.
 const MAX_NOTIFY_RESPONSE_CHARS: usize = 20_000;
+const WEBHOOK_CONNECT_TIMEOUT_SECS: &str = "5";
+const WEBHOOK_MAX_TIME_SECS: &str = "30";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct WebhookTarget {
+    scheme: String,
+    host: String,
+    port: u16,
+}
 
 // ---------------------------------------------------------------------------
 // Internal IP helpers
@@ -25,15 +34,28 @@ const MAX_NOTIFY_RESPONSE_CHARS: usize = 20_000;
 /// Handles `http://host:port/path` and `https://host:port/path` forms.
 /// Returns `None` if the URL cannot be parsed.
 fn extract_host_from_url(url: &str) -> Option<String> {
+    extract_webhook_target(url).map(|target| target.host)
+}
+
+fn extract_webhook_target(url: &str) -> Option<WebhookTarget> {
     // Strip scheme
-    let rest = url
-        .strip_prefix("http://")
-        .or_else(|| url.strip_prefix("https://"))
-        .or_else(|| url.strip_prefix("HTTP://"))
-        .or_else(|| url.strip_prefix("HTTPS://"))?;
+    let (scheme, rest) = if let Some(rest) = url.strip_prefix("http://") {
+        ("http", rest)
+    } else if let Some(rest) = url.strip_prefix("https://") {
+        ("https", rest)
+    } else if let Some(rest) = url.strip_prefix("HTTP://") {
+        ("http", rest)
+    } else if let Some(rest) = url.strip_prefix("HTTPS://") {
+        ("https", rest)
+    } else {
+        return None;
+    };
 
     // Everything up to the first '/' or end-of-string is the authority
     let authority = rest.split('/').next().unwrap_or(rest);
+    if authority.is_empty() {
+        return None;
+    }
 
     // Strip port suffix (e.g. ":8080")
     // But be careful with IPv6 literals like [::1]:8080
@@ -41,13 +63,39 @@ fn extract_host_from_url(url: &str) -> Option<String> {
         // IPv6 literal: [host]:port
         if let Some(bracket_end) = authority.find(']') {
             let host = &authority[1..bracket_end];
-            return Some(host.to_string());
+            let port = authority[bracket_end + 1..]
+                .strip_prefix(':')
+                .and_then(|p| p.parse::<u16>().ok())
+                .unwrap_or_else(|| default_port_for_scheme(scheme));
+            return Some(WebhookTarget {
+                scheme: scheme.to_string(),
+                host: host.to_string(),
+                port,
+            });
         }
     }
 
     // IPv4 or hostname — strip trailing :port
-    let host = authority.rsplit_once(':').map_or(authority, |(h, _port)| h);
-    Some(host.to_string())
+    let (host, port) = authority
+        .rsplit_once(':')
+        .and_then(|(h, port)| port.parse::<u16>().ok().map(|p| (h, p)))
+        .unwrap_or((authority, default_port_for_scheme(scheme)));
+    if host.is_empty() {
+        return None;
+    }
+    Some(WebhookTarget {
+        scheme: scheme.to_string(),
+        host: host.to_string(),
+        port,
+    })
+}
+
+fn default_port_for_scheme(scheme: &str) -> u16 {
+    if scheme.eq_ignore_ascii_case("http") {
+        80
+    } else {
+        443
+    }
 }
 
 /// Check whether an IP address is private / internal / loopback.
@@ -110,39 +158,58 @@ fn is_internal_ipv6(v6: &Ipv6Addr) -> bool {
     false
 }
 
-/// Resolve a hostname to an IP address by trying `getent hosts <host>`.
+/// Resolve a hostname to IP addresses by trying `getent hosts <host>`.
 ///
 /// This avoids pulling in a DNS resolver dependency; we shell out to the
 /// system's `getent` which uses nsswitch.
-fn resolve_host_to_ip(host: &str) -> Option<IpAddr> {
+fn resolve_host_to_ips(host: &str) -> Vec<IpAddr> {
     // First, try parsing directly as an IP
     if let Ok(ip) = host.parse::<IpAddr>() {
-        return Some(ip);
+        return vec![ip];
     }
 
     // Try getent hosts (Linux) or host (macOS)
     if cfg!(target_os = "linux") {
-        let out = Command::new("getent").args(["hosts", host]).output().ok()?;
+        let out = Command::new("timeout")
+            .args(["3s", "getent", "hosts", host])
+            .output()
+            .or_else(|_| Command::new("getent").args(["hosts", host]).output());
+        let Ok(out) = out else {
+            return Vec::new();
+        };
+        if !out.status.success() {
+            return Vec::new();
+        }
         let stdout = String::from_utf8_lossy(&out.stdout);
-        let first_ip = stdout.lines().next()?.split_whitespace().next()?.trim();
-        first_ip.parse::<IpAddr>().ok()
+        stdout
+            .lines()
+            .filter_map(|line| line.split_whitespace().next())
+            .filter_map(|ip| ip.trim().parse::<IpAddr>().ok())
+            .collect()
     } else if cfg!(target_os = "macos") {
         let out = Command::new("dscacheutil")
             .args(["-q", "host", "-a", &format!("name={host}")])
             .output()
-            .ok()?;
+            .ok();
+        let Some(out) = out else {
+            return Vec::new();
+        };
+        if !out.status.success() {
+            return Vec::new();
+        }
         let stdout = String::from_utf8_lossy(&out.stdout);
+        let mut ips = Vec::new();
         for line in stdout.lines() {
             if let Some(ip_str) = line.strip_prefix("ip_address:") {
                 if let Ok(ip) = ip_str.trim().parse::<IpAddr>() {
-                    return Some(ip);
+                    ips.push(ip);
                 }
             }
         }
-        None
+        ips
     } else {
         // Fallback: just try parsing (won't resolve hostnames on other OSes)
-        host.parse::<IpAddr>().ok()
+        host.parse::<IpAddr>().ok().into_iter().collect()
     }
 }
 
@@ -152,15 +219,26 @@ fn resolve_host_to_ip(host: &str) -> Option<IpAddr> {
 /// `true` (block the request) so that SSRF attempts with unknown hosts
 /// are rejected.
 fn url_points_to_internal_ip(url: &str) -> bool {
-    let host = match extract_host_from_url(url) {
-        Some(h) => h,
+    let target = match extract_webhook_target(url) {
+        Some(target) => target,
         None => return true, // cannot parse → block
     };
 
-    match resolve_host_to_ip(&host) {
-        Some(ip) => is_internal_ip(&ip),
-        None => true, // cannot resolve → block
+    let ips = resolve_host_to_ips(&target.host);
+    ips.is_empty() || ips.iter().any(is_internal_ip)
+}
+
+fn checked_public_webhook_target(url: &str) -> Result<(WebhookTarget, IpAddr), String> {
+    let target = extract_webhook_target(url)
+        .ok_or_else(|| "URL must use http:// or https://".to_string())?;
+    let ips = resolve_host_to_ips(&target.host);
+    if ips.is_empty() {
+        return Err("host could not be resolved".to_string());
     }
+    if ips.iter().any(is_internal_ip) {
+        return Err("host resolves to a private/internal IP address".to_string());
+    }
+    Ok((target, ips[0]))
 }
 
 // ---------------------------------------------------------------------------
@@ -212,19 +290,23 @@ pub fn notify_webhook_work(
         return truncate_response(&out);
     }
 
-    // Internal-IP blocking
-    if block_internal && url_points_to_internal_ip(&url) {
-        out.push_str(&format!(
-            "Error: URL \"{url}\" resolves to a private/internal IP address.\n"
-        ));
-        out.push_str(
-            "Webhook requests to internal addresses are blocked to prevent SSRF.\n\
-             Set block_internal=false only if you fully trust the target.\n\
-             Blocked ranges: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, \
-             127.0.0.0/8, ::1, fc00::/7\n",
-        );
-        return truncate_response(&out);
-    }
+    let checked_target = if block_internal {
+        match checked_public_webhook_target(&url) {
+            Ok(target) => Some(target),
+            Err(reason) => {
+                out.push_str(&format!("Error: URL \"{url}\" rejected: {reason}.\n"));
+                out.push_str(
+                    "Webhook requests to internal addresses are blocked to prevent SSRF.\n\
+                     Set block_internal=false only if you fully trust the target.\n\
+                     Blocked ranges: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, \
+                     127.0.0.0/8, 0.0.0.0/8, 169.254.0.0/16, ::1, fc00::/7, fe80::/10\n",
+                );
+                return truncate_response(&out);
+            }
+        }
+    } else {
+        None
+    };
 
     // Check that curl is available
     let curl_check = Command::new("curl")
@@ -253,11 +335,26 @@ pub fn notify_webhook_work(
         "/dev/null", // discard body
         "-w",
         "%{http_code}", // only print status code to stdout
+        "--connect-timeout",
+        WEBHOOK_CONNECT_TIMEOUT_SECS,
+        "--max-time",
+        WEBHOOK_MAX_TIME_SECS,
+        "--proto",
+        "=http,https",
+        "--proto-redir",
+        "=http,https",
         "-X",
         &method_upper,
         "-H",
         "Content-Type: application/json",
     ]);
+
+    if let Some((target, ip)) = &checked_target {
+        if target.host.parse::<IpAddr>().is_err() {
+            cmd.arg("--resolve")
+                .arg(format!("{}:{}:{}", target.host, target.port, ip));
+        }
+    }
 
     // Add custom headers
     if let Some(ref hdrs) = headers {
@@ -699,6 +796,38 @@ mod tests {
         assert_eq!(extract_host_from_url("example.com/path"), None);
     }
 
+    #[test]
+    fn extract_webhook_target_default_ports() {
+        assert_eq!(
+            extract_webhook_target("http://example.com/path"),
+            Some(WebhookTarget {
+                scheme: "http".to_string(),
+                host: "example.com".to_string(),
+                port: 80,
+            })
+        );
+        assert_eq!(
+            extract_webhook_target("https://example.com/path"),
+            Some(WebhookTarget {
+                scheme: "https".to_string(),
+                host: "example.com".to_string(),
+                port: 443,
+            })
+        );
+    }
+
+    #[test]
+    fn extract_webhook_target_explicit_port() {
+        assert_eq!(
+            extract_webhook_target("https://api.example.com:8443/webhook"),
+            Some(WebhookTarget {
+                scheme: "https".to_string(),
+                host: "api.example.com".to_string(),
+                port: 8443,
+            })
+        );
+    }
+
     // --- is_internal_ip ---
 
     #[test]
@@ -800,6 +929,20 @@ mod tests {
     #[test]
     fn url_internal_ipv6_loopback() {
         assert!(url_points_to_internal_ip("http://[::1]:8080/hook"));
+    }
+
+    #[test]
+    fn checked_public_webhook_target_rejects_internal_literal() {
+        let err = checked_public_webhook_target("http://127.0.0.1:8080/hook").unwrap_err();
+        assert!(err.contains("private/internal"));
+    }
+
+    #[test]
+    fn checked_public_webhook_target_accepts_public_literal() {
+        let (target, ip) = checked_public_webhook_target("https://8.8.8.8/hook").unwrap();
+        assert_eq!(target.host, "8.8.8.8");
+        assert_eq!(target.port, 443);
+        assert_eq!(ip, "8.8.8.8".parse::<IpAddr>().unwrap());
     }
 
     #[test]

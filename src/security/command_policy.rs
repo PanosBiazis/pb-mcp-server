@@ -28,7 +28,8 @@
 //! }
 //!
 //! // Validate and get error details
-//! policy.validate("rm", &["-rf", "/"])?; // Will reject
+//! let rejected = policy.validate("rm", &["-rf", "/"]);
+//! assert!(rejected.is_err());
 //! ```
 
 use crate::error::{Error, Result};

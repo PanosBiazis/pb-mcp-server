@@ -19,14 +19,15 @@
 //!
 //! ```no_run
 //! use pb_mcp_server::metrics::{MetricsCollector, MetricsConfig, PerformanceMetrics};
+//! use std::sync::Arc;
 //!
 //! let config = MetricsConfig::default();
-//! let metrics = MetricsCollector::new(config);
+//! let metrics = Arc::new(MetricsCollector::new(config));
 //!
 //! // Record a timed operation
-//! let timer = metrics.start_timer("file_read");
+//! let timer = metrics.clone().start_timer("file_read");
 //! // ... do work ...
-//! timer.stop(); // Automatically records duration
+//! timer.succeed();
 //!
 //! // Get metrics summary
 //! let summary = metrics.summary();
@@ -302,12 +303,7 @@ impl OperationMetrics {
         self.total_requests += 1;
         self.successful_requests += 1;
         self.timing.record(duration.as_secs_f64() * 1000.0);
-        self.last_request_ts = Some(
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
-        );
+        self.last_request_ts = Some(unix_now_secs());
     }
 
     /// Record a failed request
@@ -315,12 +311,7 @@ impl OperationMetrics {
         self.total_requests += 1;
         self.failed_requests += 1;
         self.timing.record(duration.as_secs_f64() * 1000.0);
-        self.last_request_ts = Some(
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
-        );
+        self.last_request_ts = Some(unix_now_secs());
         *self.errors.entry(error_type.to_string()).or_insert(0) += 1;
     }
 
@@ -659,10 +650,7 @@ impl MetricsCollector {
             cpu_usage_percent: 0.0,  // Would need actual CPU tracking
             active_operations: ops.len(),
             operations: ops.clone(),
-            timestamp: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
+            timestamp: unix_now_secs(),
             uptime_secs: uptime,
         }
     }
@@ -759,6 +747,13 @@ impl Clone for MetricsCollector {
     }
 }
 
+fn unix_now_secs() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0)
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -780,7 +775,7 @@ mod tests {
     #[test]
     fn test_metrics_config_profiles() {
         let prod = MetricsConfig::production();
-        assert!(prod.timing_buckets.len() > 0);
+        assert!(!prod.timing_buckets.is_empty());
 
         let dev = MetricsConfig::development();
         assert!(dev.enable_profiling);

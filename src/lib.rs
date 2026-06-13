@@ -36,6 +36,17 @@
 #![warn(rust_2018_idioms)]
 #![deny(unsafe_code)]
 #![deny(unsafe_op_in_unsafe_fn)]
+#![cfg_attr(
+    test,
+    allow(
+        clippy::expect_used,
+        clippy::field_reassign_with_default,
+        clippy::io_other_error,
+        clippy::needless_borrows_for_generic_args,
+        clippy::panic,
+        clippy::unwrap_used
+    )
+)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 // ============================================================================

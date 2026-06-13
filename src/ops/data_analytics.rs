@@ -2,14 +2,13 @@
 //!
 //! CSV analysis, JSON flattening, JSONL diffing, regex extraction,
 //! time-series anomaly detection, and Parquet reading.
-
-#![allow(dead_code)]
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Command;
 
 use serde_json::{json, Value};
+
+const MAX_CSV_COLUMNS: usize = 10_000;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -45,9 +44,7 @@ pub fn data_csv_analyze_work(path: PathBuf, max_rows: usize) -> String {
 
     let content = match std::fs::read_to_string(&path) {
         Ok(c) => c,
-        Err(e) => {
-            return json!({"error": format!("failed to read {path_str}: {e}")}).to_string()
-        }
+        Err(e) => return json!({"error": format!("failed to read {path_str}: {e}")}).to_string(),
     };
 
     let mut lines = content.lines();
@@ -63,6 +60,17 @@ pub fn data_csv_analyze_work(path: PathBuf, max_rows: usize) -> String {
         .map(|h| h.trim().trim_matches('"').to_string())
         .collect();
     let col_count = headers.len();
+    if col_count > MAX_CSV_COLUMNS {
+        return json!({
+            "error": format!(
+                "too many CSV columns: {col_count}; maximum is {MAX_CSV_COLUMNS}"
+            ),
+            "path": path_str,
+            "col_count": col_count,
+            "max_columns": MAX_CSV_COLUMNS,
+        })
+        .to_string();
+    }
 
     let mut null_counts = vec![0usize; col_count];
     let mut numeric_counts = vec![0usize; col_count];
@@ -70,7 +78,7 @@ pub fn data_csv_analyze_work(path: PathBuf, max_rows: usize) -> String {
     let mut preview_rows: Vec<Vec<String>> = Vec::new();
     let mut row_count = 0usize;
 
-    for line in lines.take(max_rows.max(1).min(100_000)) {
+    for line in lines.take(max_rows.clamp(1, 100_000)) {
         if line.trim().is_empty() {
             continue;
         }
@@ -111,9 +119,7 @@ pub fn data_csv_analyze_work(path: PathBuf, max_rows: usize) -> String {
             let non_null = row_count.saturating_sub(null_counts[i]);
             let col_type = if non_null == 0 {
                 "unknown"
-            } else if non_null > 0
-                && numeric_counts[i] as f64 / non_null as f64 >= 0.90
-            {
+            } else if non_null > 0 && numeric_counts[i] as f64 / non_null as f64 >= 0.90 {
                 "numeric"
             } else {
                 "string"
@@ -199,9 +205,7 @@ pub fn data_json_flatten_work(path: PathBuf, separator: String) -> String {
 
     let content = match std::fs::read_to_string(&path) {
         Ok(c) => c,
-        Err(e) => {
-            return json!({"error": format!("failed to read {path_str}: {e}")}).to_string()
-        }
+        Err(e) => return json!({"error": format!("failed to read {path_str}: {e}")}).to_string(),
     };
 
     let value: Value = match serde_json::from_str(&content) {
@@ -289,11 +293,7 @@ fn flatten_value(
 ///   "added": [...], "removed": [...],
 ///   "modified": [{"key"|"position", "before": {...}, "after": {...}}] }
 /// ```
-pub fn data_diff_jsonl_work(
-    path_a: PathBuf,
-    path_b: PathBuf,
-    key_field: Option<String>,
-) -> String {
+pub fn data_diff_jsonl_work(path_a: PathBuf, path_b: PathBuf, key_field: Option<String>) -> String {
     let path_a_str = path_a.to_string_lossy().to_string();
     let path_b_str = path_b.to_string_lossy().to_string();
 
@@ -343,9 +343,7 @@ pub fn data_diff_jsonl_work(
 
         for (k, va) in &map_a {
             match map_b.get(k) {
-                Some(vb) if va != vb => {
-                    modified.push(json!({"key": k, "before": va, "after": vb}))
-                }
+                Some(vb) if va != vb => modified.push(json!({"key": k, "before": va, "after": vb})),
                 Some(_) => {} // unchanged
                 None => removed.push(va.clone()),
             }
@@ -409,9 +407,7 @@ pub fn data_regex_extract_work(path: PathBuf, pattern: String, max_matches: usiz
 
     let content = match std::fs::read_to_string(&path) {
         Ok(c) => c,
-        Err(e) => {
-            return json!({"error": format!("failed to read {path_str}: {e}")}).to_string()
-        }
+        Err(e) => return json!({"error": format!("failed to read {path_str}: {e}")}).to_string(),
     };
 
     let re = match regex::Regex::new(&pattern) {
@@ -488,14 +484,8 @@ pub fn data_timeseries_detect_work(values: Vec<f64>, window: usize, threshold: f
     let variance: f64 =
         values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / total_points as f64;
     let std_dev = variance.sqrt();
-    let min = values
-        .iter()
-        .cloned()
-        .fold(f64::INFINITY, f64::min);
-    let max = values
-        .iter()
-        .cloned()
-        .fold(f64::NEG_INFINITY, f64::max);
+    let min = values.iter().cloned().fold(f64::INFINITY, f64::min);
+    let max = values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
 
     // Rolling window anomaly detection
     let mut anomalies: Vec<Value> = Vec::new();
@@ -594,7 +584,10 @@ except Exception as e:
     // ── DuckDB ───────────────────────────────────────────────────────────────
     if tool_available("duckdb") {
         let query = format!("SELECT * FROM '{}' LIMIT {}", path_str, limit);
-        match Command::new("duckdb").args(["-json", "-c", &query]).output() {
+        match Command::new("duckdb")
+            .args(["-json", "-c", &query])
+            .output()
+        {
             Ok(o) => {
                 let stdout = String::from_utf8_lossy(&o.stdout).trim().to_string();
                 let stderr = String::from_utf8_lossy(&o.stderr).trim().to_string();
@@ -666,12 +659,27 @@ mod tests {
 
     #[test]
     fn test_csv_analyze_missing_file() {
-        let result = data_csv_analyze_work(
-            PathBuf::from("/tmp/pb_no_such_file_xyz.csv"),
-            100,
-        );
+        let result = data_csv_analyze_work(PathBuf::from("/tmp/pb_no_such_file_xyz.csv"), 100);
         let parsed: Value = serde_json::from_str(&result).unwrap();
         assert!(parsed.get("error").is_some());
+    }
+
+    #[test]
+    fn test_csv_analyze_rejects_too_many_columns() {
+        let mut f = tempfile::NamedTempFile::new().unwrap();
+        let header = (0..=MAX_CSV_COLUMNS)
+            .map(|i| format!("c{i}"))
+            .collect::<Vec<_>>()
+            .join(",");
+        writeln!(f, "{header}").unwrap();
+
+        let result = data_csv_analyze_work(f.path().to_path_buf(), 100);
+        let parsed: Value = serde_json::from_str(&result).unwrap();
+        assert!(parsed["error"]
+            .as_str()
+            .unwrap()
+            .contains("too many CSV columns"));
+        assert_eq!(parsed["max_columns"], MAX_CSV_COLUMNS);
     }
 
     #[test]
@@ -689,8 +697,7 @@ mod tests {
         let mut f = tempfile::NamedTempFile::new().unwrap();
         write!(f, r#"{{"a":{{"b":1}},"c":[10,20]}}"#).unwrap();
 
-        let result =
-            data_json_flatten_work(f.path().to_path_buf(), ".".to_string());
+        let result = data_json_flatten_work(f.path().to_path_buf(), ".".to_string());
         let parsed: Value = serde_json::from_str(&result).unwrap();
         let flat = &parsed["flattened"];
         assert_eq!(flat["a.b"], 1);
@@ -710,11 +717,7 @@ mod tests {
         writeln!(fb, r#"{{"id":2,"v":"changed"}}"#).unwrap();
         writeln!(fb, r#"{{"id":3,"v":"new"}}"#).unwrap();
 
-        let result = data_diff_jsonl_work(
-            fa.path().to_path_buf(),
-            fb.path().to_path_buf(),
-            None,
-        );
+        let result = data_diff_jsonl_work(fa.path().to_path_buf(), fb.path().to_path_buf(), None);
         let parsed: Value = serde_json::from_str(&result).unwrap();
         assert_eq!(parsed["modified_count"], 1);
         assert_eq!(parsed["added_count"], 1);
@@ -763,11 +766,8 @@ mod tests {
         let mut f = tempfile::NamedTempFile::new().unwrap();
         writeln!(f, "anything").unwrap();
 
-        let result = data_regex_extract_work(
-            f.path().to_path_buf(),
-            "(?P<unclosed".to_string(),
-            10,
-        );
+        let result =
+            data_regex_extract_work(f.path().to_path_buf(), "(?P<unclosed".to_string(), 10);
         let parsed: Value = serde_json::from_str(&result).unwrap();
         assert!(parsed.get("error").is_some());
     }
@@ -798,10 +798,7 @@ mod tests {
 
     #[test]
     fn test_parquet_read_missing_file() {
-        let result = data_parquet_read_work(
-            PathBuf::from("/tmp/pb_no_such_file_xyz.parquet"),
-            10,
-        );
+        let result = data_parquet_read_work(PathBuf::from("/tmp/pb_no_such_file_xyz.parquet"), 10);
         let parsed: Value = serde_json::from_str(&result).unwrap();
         assert!(parsed.get("error").is_some());
     }

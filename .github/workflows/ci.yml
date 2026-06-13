@@ -88,12 +88,10 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      - name: Clippy (root crate, default features)
-        run: cargo clippy --lib -- -D warnings
-      - name: Clippy (root crate, full-headless features)
-        run: cargo clippy --lib --features full-headless -- -D warnings
-      - name: Clippy (workspace, excluding pb-dashboard)
-        run: cargo clippy --workspace --exclude pb-dashboard -- -D warnings
+      - name: Clippy (workspace, all targets)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Clippy (root crate, full-headless features, all targets)
+        run: cargo clippy --all-targets --features full-headless -- -D warnings
 
   # ── Formatting ──────────────────────────────────────────────────────────────
   fmt:

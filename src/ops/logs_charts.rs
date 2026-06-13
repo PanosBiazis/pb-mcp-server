@@ -12,6 +12,11 @@ use std::fs;
 use std::io::BufRead;
 use std::path::Path;
 
+const MAX_HISTOGRAM_BINS: usize = 10_000;
+const MAX_LOG_RESULT_LIMIT: usize = 10_000;
+const MAX_HISTORY_COUNT: usize = 1_000;
+const MAX_TIMESERIES_WINDOW: usize = 10_000;
+
 // ---------------------------------------------------------------------------
 // Arg helpers
 // ---------------------------------------------------------------------------
@@ -25,6 +30,15 @@ fn args_str(args: &Value, key: &str, default: &str) -> String {
 
 fn args_u64(args: &Value, key: &str, default: u64) -> u64 {
     args.get(key).and_then(|v| v.as_u64()).unwrap_or(default)
+}
+
+fn args_usize_clamped(args: &Value, key: &str, default: usize, min: usize, max: usize) -> usize {
+    let raw = args
+        .get(key)
+        .and_then(|v| v.as_u64())
+        .and_then(|v| usize::try_from(v).ok())
+        .unwrap_or(default);
+    raw.clamp(min, max)
 }
 
 fn args_i64(args: &Value, key: &str, default: i64) -> i64 {
@@ -73,19 +87,24 @@ fn detect_level(line: &str) -> &'static str {
 /// Normalize variable parts in an error line for clustering.
 fn normalize_for_cluster(line: &str) -> String {
     // Replace hex patterns like 0x1a2b3c
-    let re_hex = Regex::new(r"0x[0-9a-fA-F]+").unwrap();
-    let s = re_hex.replace_all(line, "*").to_string();
+    let s = replace_regex_all(line, r"0x[0-9a-fA-F]+", "*");
     // Replace IPv4-like patterns (e.g. 10.0.0.1) before general digit replacement
     // so that connection errors to different IPs cluster together
-    let re_ipv4 = Regex::new(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b").unwrap();
-    let s = re_ipv4.replace_all(&s, "*").to_string();
+    let s = replace_regex_all(&s, r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", "*");
     // Replace numbers (sequences of digits)
-    let re_num = Regex::new(r"\b\d{2,}\b").unwrap();
-    let s = re_num.replace_all(&s, "*").to_string();
+    let s = replace_regex_all(&s, r"\b\d{2,}\b", "*");
     // Replace file paths (heuristic: /something/... or C:\...)
-    let re_path =
-        Regex::new(r#"(?:/[a-zA-Z0-9_.\-]+){2,}|(?:[A-Za-z]:\\[a-zA-Z0-9_.\-\\]+)"#).unwrap();
-    re_path.replace_all(&s, "*").to_string()
+    replace_regex_all(
+        &s,
+        r#"(?:/[a-zA-Z0-9_.\-]+){2,}|(?:[A-Za-z]:\\[a-zA-Z0-9_.\-\\]+)"#,
+        "*",
+    )
+}
+
+fn replace_regex_all(text: &str, pattern: &str, replacement: &str) -> String {
+    Regex::new(pattern)
+        .map(|re| re.replace_all(text, replacement).to_string())
+        .unwrap_or_else(|_| text.to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -95,7 +114,7 @@ fn normalize_for_cluster(line: &str) -> String {
 /// Read last N lines of a log file, optionally filtering by log level.
 pub fn log_tail_work(args: Value) -> Value {
     let path = args_str(&args, "path", "");
-    let n = args_u64(&args, "n", 100) as usize;
+    let n = args_usize_clamped(&args, "n", 100, 1, MAX_LOG_RESULT_LIMIT);
     let filter_level = args_str(&args, "filter_level", "");
 
     if path.is_empty() {
@@ -152,7 +171,7 @@ pub fn log_tail_work(args: Value) -> Value {
 pub fn log_search_work(args: Value) -> Value {
     let path = args_str(&args, "path", "");
     let pattern = args_str(&args, "pattern", "");
-    let max_results = args_u64(&args, "max_results", 50) as usize;
+    let max_results = args_usize_clamped(&args, "max_results", 50, 1, MAX_LOG_RESULT_LIMIT);
 
     if path.is_empty() {
         return json!({"error": "path is required"});
@@ -198,7 +217,7 @@ pub fn log_search_work(args: Value) -> Value {
 /// Parse JSON Lines log file with optional field-value filters.
 pub fn log_parse_json_work(args: Value) -> Value {
     let path = args_str(&args, "path", "");
-    let limit = args_u64(&args, "limit", 100) as usize;
+    let limit = args_usize_clamped(&args, "limit", 100, 1, MAX_LOG_RESULT_LIMIT);
     let filter = args.get("filter").and_then(|v| v.as_object()).cloned();
 
     if path.is_empty() {
@@ -263,7 +282,7 @@ pub fn log_parse_json_work(args: Value) -> Value {
 /// Parse Nginx access log into structured JSON.
 pub fn log_parse_nginx_work(args: Value) -> Value {
     let path = args_str(&args, "path", "");
-    let limit = args_u64(&args, "limit", 100) as usize;
+    let limit = args_usize_clamped(&args, "limit", 100, 1, MAX_LOG_RESULT_LIMIT);
 
     if path.is_empty() {
         return json!({"error": "path is required"});
@@ -306,7 +325,7 @@ pub fn log_parse_nginx_work(args: Value) -> Value {
 /// Parse syslog format into structured JSON.
 pub fn log_parse_syslog_work(args: Value) -> Value {
     let path = args_str(&args, "path", "");
-    let limit = args_u64(&args, "limit", 100) as usize;
+    let limit = args_usize_clamped(&args, "limit", 100, 1, MAX_LOG_RESULT_LIMIT);
 
     if path.is_empty() {
         return json!({"error": "path is required"});
@@ -391,7 +410,7 @@ pub fn log_level_summary_work(args: Value) -> Value {
 /// Group repeated errors by normalized pattern.
 pub fn log_error_cluster_work(args: Value) -> Value {
     let path = args_str(&args, "path", "");
-    let max_clusters = args_u64(&args, "max_clusters", 10) as usize;
+    let max_clusters = args_usize_clamped(&args, "max_clusters", 10, 1, MAX_LOG_RESULT_LIMIT);
 
     if path.is_empty() {
         return json!({"error": "path is required"});
@@ -447,7 +466,7 @@ pub fn log_time_range_filter_work(args: Value) -> Value {
     let path = args_str(&args, "path", "");
     let since = args_str(&args, "since", "");
     let until = args_str(&args, "until", "");
-    let limit = args_u64(&args, "limit", 1000) as usize;
+    let limit = args_usize_clamped(&args, "limit", 1000, 1, MAX_LOG_RESULT_LIMIT);
 
     if path.is_empty() {
         return json!({"error": "path is required"});
@@ -459,14 +478,14 @@ pub fn log_time_range_filter_work(args: Value) -> Value {
     };
 
     // Regex to find ISO-ish timestamps in lines: e.g. 2024-01-15T10:30:00 or 2024-01-15 10:30:00
-    let ts_re = Regex::new(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}").unwrap();
+    let ts_re = Regex::new(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}").ok();
 
     let mut entries = Vec::new();
     for (i, line) in lines.iter().enumerate() {
         if entries.len() >= limit {
             break;
         }
-        let ts = match ts_re.find(line) {
+        let ts = match ts_re.as_ref().and_then(|re| re.find(line)) {
             Some(m) => m.as_str().to_string(),
             None => continue,
         };
@@ -511,10 +530,7 @@ pub fn log_export_work(args: Value) -> Value {
 
     let entry_count = entries.len();
     let content = match format.as_str() {
-        "json" => {
-            
-            serde_json::to_string_pretty(&entries).unwrap_or_else(|_| "[]".to_string())
-        }
+        "json" => serde_json::to_string_pretty(&entries).unwrap_or_else(|_| "[]".to_string()),
         "csv" => {
             let mut wtr = String::new();
             // Collect all unique keys preserving order
@@ -621,7 +637,7 @@ pub fn log_audit_query_work(args: Value) -> Value {
     } else {
         None
     };
-    let limit = args_u64(&args, "limit", 100) as usize;
+    let limit = args_usize_clamped(&args, "limit", 100, 1, MAX_LOG_RESULT_LIMIT);
 
     // Try to find the project root from env or common paths
     let project_root = std::env::var("PB_PROJECT_ROOT")
@@ -653,18 +669,19 @@ pub fn log_audit_query_work(args: Value) -> Value {
 
         // Apply filters
         if !agent_id.is_empty()
-            && entry.get("agent_id").and_then(|v| v.as_str()).unwrap_or("") != agent_id {
-                continue;
-            }
+            && entry.get("agent_id").and_then(|v| v.as_str()).unwrap_or("") != agent_id
+        {
+            continue;
+        }
         if !tool_name.is_empty()
             && entry
                 .get("tool_name")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 != tool_name
-            {
-                continue;
-            }
+        {
+            continue;
+        }
         if let Some(since) = since_ms {
             if entry
                 .get("timestamp_ms")
@@ -692,7 +709,7 @@ pub fn log_audit_query_work(args: Value) -> Value {
 /// Get recent tool calls from the audit log.
 pub fn history_tool_calls_work(args: Value) -> Value {
     let agent_id = args_str(&args, "agent_id", "");
-    let limit = args_u64(&args, "limit", 50) as usize;
+    let limit = args_usize_clamped(&args, "limit", 50, 1, MAX_LOG_RESULT_LIMIT);
 
     let project_root = std::env::var("PB_PROJECT_ROOT")
         .or_else(|_| std::env::var("MINT_PROJECT_ROOT"))
@@ -722,9 +739,10 @@ pub fn history_tool_calls_work(args: Value) -> Value {
         };
 
         if !agent_id.is_empty()
-            && entry.get("agent_id").and_then(|v| v.as_str()).unwrap_or("") != agent_id {
-                continue;
-            }
+            && entry.get("agent_id").and_then(|v| v.as_str()).unwrap_or("") != agent_id
+        {
+            continue;
+        }
 
         calls.push(json!({
             "timestamp": entry.get("timestamp_iso").and_then(|v| v.as_str()).unwrap_or(""),
@@ -748,7 +766,7 @@ pub fn history_bus_replay_work(args: Value) -> Value {
     let path = args_str(&args, "path", "");
     let since = args_str(&args, "since", "");
     let agent = args_str(&args, "agent", "");
-    let limit = args_u64(&args, "limit", 100) as usize;
+    let limit = args_usize_clamped(&args, "limit", 100, 1, MAX_LOG_RESULT_LIMIT);
 
     if path.is_empty() {
         return json!({"error": "path is required"});
@@ -813,7 +831,7 @@ pub fn history_bus_replay_work(args: Value) -> Value {
 /// Show how a file changed over N commits.
 pub fn history_diff_timeline_work(args: Value) -> Value {
     let path = args_str(&args, "path", "");
-    let count = args_u64(&args, "count", 5) as usize;
+    let count = args_usize_clamped(&args, "count", 5, 1, MAX_HISTORY_COUNT);
 
     if path.is_empty() {
         return json!({"error": "path is required"});
@@ -895,7 +913,7 @@ pub fn history_diff_timeline_work(args: Value) -> Value {
 /// Full-text search across audit log entries.
 pub fn history_search_past_calls_work(args: Value) -> Value {
     let query = args_str(&args, "query", "");
-    let limit = args_u64(&args, "limit", 20) as usize;
+    let limit = args_usize_clamped(&args, "limit", 20, 1, MAX_LOG_RESULT_LIMIT);
 
     if query.is_empty() {
         return json!({"error": "query is required"});
@@ -1414,7 +1432,7 @@ pub fn chart_histogram_work(args: Value) -> Value {
         Some(a) => a.clone(),
         None => return json!({"error": "values array is required"}),
     };
-    let bins = args_u64(&args, "bins", 10) as usize;
+    let bins = args_usize_clamped(&args, "bins", 10, 1, MAX_HISTOGRAM_BINS);
     let title = args_str(&args, "title", "Histogram");
 
     let nums: Vec<f64> = values.iter().filter_map(|v| v.as_f64()).collect();
@@ -1468,7 +1486,7 @@ pub fn chart_histogram_work(args: Value) -> Value {
         let x = plot_x + (i as f64 * bw) as u32;
         let y = plot_y + plot_h - bar_h;
 
-        let bar_w_val = bw as u32 - 1;
+        let bar_w_val = (bw as u32).saturating_sub(1).max(1);
         svg.push_str(&format!(
             "<rect x=\"{x}\" y=\"{y}\" width=\"{bar_w_val}\" height=\"{bar_h}\" fill=\"#3366cc\" rx=\"1\"/>"
         ));
@@ -1564,7 +1582,7 @@ pub fn chart_timeseries_work(args: Value) -> Value {
         Some(a) => a.clone(),
         None => return json!({"error": "values array is required"}),
     };
-    let window = args_u64(&args, "window", 5) as usize;
+    let window = args_usize_clamped(&args, "window", 5, 1, MAX_TIMESERIES_WINDOW);
     let title = args_str(&args, "title", "Time Series");
 
     if values.is_empty() {
@@ -1866,6 +1884,28 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    #[test]
+    fn test_count_args_are_clamped() {
+        assert_eq!(
+            args_usize_clamped(
+                &json!({"limit": u64::MAX}),
+                "limit",
+                100,
+                1,
+                MAX_LOG_RESULT_LIMIT
+            ),
+            MAX_LOG_RESULT_LIMIT
+        );
+        assert_eq!(
+            args_usize_clamped(&json!({"limit": 0}), "limit", 100, 1, MAX_LOG_RESULT_LIMIT),
+            1
+        );
+        assert_eq!(
+            args_usize_clamped(&json!({}), "limit", 100, 1, MAX_LOG_RESULT_LIMIT),
+            100
+        );
+    }
+
     // --- log_tail_work ---
 
     #[test]
@@ -1930,6 +1970,21 @@ mod tests {
         let path = dir.join("test.log");
         std::fs::write(&path, "hello world\nfoo bar\nhello again\n").unwrap();
         let result = log_search_work(json!({"path": path.to_str().unwrap(), "pattern": "hello"}));
+        assert_eq!(result["total_matches"], 2);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_log_search_huge_max_results_is_clamped() {
+        let dir = std::env::temp_dir().join("pb_mcp_logs_charts_test_search_clamp");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("test.log");
+        std::fs::write(&path, "hello world\nhello again\n").unwrap();
+        let result = log_search_work(json!({
+            "path": path.to_str().unwrap(),
+            "pattern": "hello",
+            "max_results": u64::MAX
+        }));
         assert_eq!(result["total_matches"], 2);
         std::fs::remove_dir_all(&dir).ok();
     }
@@ -2281,6 +2336,26 @@ mod tests {
         assert!(result["svg"].as_str().unwrap().contains("<svg"));
         assert_eq!(result["bin_edges"].as_array().unwrap().len(), 5); // bins + 1 edges
         assert_eq!(result["bin_counts"].as_array().unwrap().len(), 4);
+    }
+
+    #[test]
+    fn test_chart_histogram_clamps_bins() {
+        let result = chart_histogram_work(json!({
+            "values": [1, 2, 3],
+            "bins": 0,
+            "title": "Hist",
+        }));
+        assert_eq!(result["bin_counts"].as_array().unwrap().len(), 1);
+
+        let result = chart_histogram_work(json!({
+            "values": [1, 2, 3],
+            "bins": 99999999999u64,
+            "title": "Hist",
+        }));
+        assert_eq!(
+            result["bin_counts"].as_array().unwrap().len(),
+            MAX_HISTOGRAM_BINS
+        );
     }
 
     // --- chart_scatter_work ---

@@ -2,9 +2,6 @@
 //!
 //! USB inventory, serial I/O, I2C scanning, GPIO control, CAN bus reading,
 //! and SMS sending via gammu or AT commands.
-
-#![allow(dead_code)]
-
 use std::path::Path;
 use std::process::Command;
 
@@ -70,7 +67,10 @@ pub fn iot_device_inventory_work() -> String {
     let mut serial_ports: Vec<serde_json::Value> = Vec::new();
 
     if let Ok(o) = Command::new("sh")
-        .args(["-c", "ls -la /dev/ttyUSB* /dev/ttyACM* /dev/ttyS* 2>/dev/null"])
+        .args([
+            "-c",
+            "ls -la /dev/ttyUSB* /dev/ttyACM* /dev/ttyS* 2>/dev/null",
+        ])
         .output()
     {
         let stdout = String::from_utf8_lossy(&o.stdout).to_string();
@@ -100,7 +100,10 @@ pub fn iot_device_inventory_work() -> String {
 
     // Supplement with sysfs ttyUSB / ttyACM names that ls may have missed
     if let Ok(o) = Command::new("sh")
-        .args(["-c", "ls /sys/class/tty/ 2>/dev/null | grep -E 'ttyUSB|ttyACM'"])
+        .args([
+            "-c",
+            "ls /sys/class/tty/ 2>/dev/null | grep -E 'ttyUSB|ttyACM'",
+        ])
         .output()
     {
         let stdout = String::from_utf8_lossy(&o.stdout).to_string();
@@ -108,7 +111,10 @@ pub fn iot_device_inventory_work() -> String {
             let name = name.trim();
             if !name.is_empty() {
                 let path = format!("/dev/{name}");
-                if !serial_ports.iter().any(|p| p["path"].as_str() == Some(&path)) {
+                if !serial_ports
+                    .iter()
+                    .any(|p| p["path"].as_str() == Some(&path))
+                {
                     serial_ports.push(json!({ "path": path }));
                 }
             }
@@ -147,9 +153,14 @@ pub fn iot_serial_read_work(port: String, baud: u32, timeout_ms: u64, bytes: usi
     if tool_available("stty") {
         let _ = Command::new("stty")
             .args([
-                "-F", &port,
+                "-F",
+                &port,
                 &baud.to_string(),
-                "raw", "-echo", "cs8", "-cstopb", "-parenb",
+                "raw",
+                "-echo",
+                "cs8",
+                "-cstopb",
+                "-parenb",
             ])
             .output();
     }
@@ -389,7 +400,10 @@ pub fn iot_gpio_read_work(pin: u8) -> String {
 
     // ── WiringPi fallback ────────────────────────────────────────────────────
     if tool_available("gpio") {
-        match Command::new("gpio").args(["read", &pin.to_string()]).output() {
+        match Command::new("gpio")
+            .args(["read", &pin.to_string()])
+            .output()
+        {
             Ok(o) => {
                 let stdout = String::from_utf8_lossy(&o.stdout);
                 let value: u8 = stdout.trim().parse().unwrap_or(0);
@@ -541,7 +555,7 @@ pub fn iot_can_bus_read_work(interface: String, count: usize, timeout_ms: u64) -
                 }
                 let parts: Vec<&str> = trimmed.split_whitespace().collect();
                 // Optionally skip leading timestamp "(1234567890.123456)"
-                let start = if parts.first().map_or(false, |p| p.starts_with('(')) {
+                let start = if parts.first().is_some_and(|p| p.starts_with('(')) {
                     1
                 } else {
                     0
@@ -594,33 +608,32 @@ pub fn iot_can_bus_read_work(interface: String, count: usize, timeout_ms: u64) -
 pub fn iot_sms_send_work(port: String, number: String, message: String) -> String {
     // ── gammu first ──────────────────────────────────────────────────────────
     if tool_available("gammu") {
-        match Command::new("gammu")
-            .args(["--port", &port, "sendsms", "TEXT", &number, "-text", &message])
+        if let Ok(o) = Command::new("gammu")
+            .args([
+                "--port", &port, "sendsms", "TEXT", &number, "-text", &message,
+            ])
             .output()
         {
-            Ok(o) => {
-                if o.status.success() {
-                    let stdout = String::from_utf8_lossy(&o.stdout).trim().to_string();
-                    return json!({
-                        "sent":   true,
-                        "method": "gammu",
-                        "output": stdout,
-                    })
-                    .to_string();
-                }
-                let stderr = String::from_utf8_lossy(&o.stderr).trim().to_string();
-                // If gammu is installed but the port failed, fall through to AT commands
-                if stderr.contains("Permission denied") || stderr.contains("No such file") {
-                    return json!({
-                        "sent":   false,
-                        "method": "gammu",
-                        "error":  stderr,
-                    })
-                    .to_string();
-                }
-                // Otherwise fall through to AT
+            if o.status.success() {
+                let stdout = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                return json!({
+                    "sent":   true,
+                    "method": "gammu",
+                    "output": stdout,
+                })
+                .to_string();
             }
-            Err(_) => {} // fall through
+            let stderr = String::from_utf8_lossy(&o.stderr).trim().to_string();
+            // If gammu is installed but the port failed, fall through to AT commands
+            if stderr.contains("Permission denied") || stderr.contains("No such file") {
+                return json!({
+                    "sent":   false,
+                    "method": "gammu",
+                    "error":  stderr,
+                })
+                .to_string();
+            }
+            // Otherwise fall through to AT
         }
     }
 
@@ -684,14 +697,12 @@ mod tests {
 
     #[test]
     fn test_iot_serial_read_nonexistent_port() {
-        let result = iot_serial_read_work(
-            "/dev/ttyNONEXISTENT_PB999".to_string(),
-            9600,
-            500,
-            64,
-        );
+        let result = iot_serial_read_work("/dev/ttyNONEXISTENT_PB999".to_string(), 9600, 500, 64);
         let parsed: serde_json::Value = serde_json::from_str(&result).expect("valid JSON");
-        assert!(parsed.get("error").is_some(), "should error on missing port");
+        assert!(
+            parsed.get("error").is_some(),
+            "should error on missing port"
+        );
     }
 
     #[test]

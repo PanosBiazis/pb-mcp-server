@@ -724,12 +724,13 @@ pub fn debug_root_cause_report_work(root: PathBuf, trace_id: String) -> String {
 
             // Heuristic 4: If all failures have the same command
             if cmd_fail_counts.len() == 1 && all_failures.len() > 1 {
-                let cmd = cmd_fail_counts.keys().next().unwrap();
-                out.push_str(&format!(
-                    "  7. REPEATED COMMAND FAILURE: All {} failures are from the same command '{cmd}'.\n\
-                     The command itself may have a systematic bug or missing prerequisite.\n",
-                    all_failures.len()
-                ));
+                if let Some(cmd) = cmd_fail_counts.keys().next() {
+                    out.push_str(&format!(
+                        "  7. REPEATED COMMAND FAILURE: All {} failures are from the same command '{cmd}'.\n\
+                         The command itself may have a systematic bug or missing prerequisite.\n",
+                        all_failures.len()
+                    ));
+                }
             }
 
             // Heuristic 5: Fallback if no specific hypotheses matched

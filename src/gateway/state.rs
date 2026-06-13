@@ -4,7 +4,7 @@
 //! for authentication, request signing, and project root confinement.
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 // ---------------------------------------------------------------------------
@@ -75,11 +75,13 @@ impl AppState {
             .map(|s| s == "1" || s.eq_ignore_ascii_case("true"))
             .unwrap_or(false);
 
-        let project_root = std::env::var("PB_PROJECT_ROOT")
-            .or_else(|_| std::env::var("MINT_PROJECT_ROOT"))
-            .or_else(|_| std::env::var("PROJECT_ROOT"))
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+        let project_root = sanitize_project_root(
+            std::env::var("PB_PROJECT_ROOT")
+                .or_else(|_| std::env::var("MINT_PROJECT_ROOT"))
+                .or_else(|_| std::env::var("PROJECT_ROOT"))
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))),
+        );
 
         Self {
             token,
@@ -108,4 +110,17 @@ impl AppState {
             project_root,
         }
     }
+}
+
+fn sanitize_project_root(root: PathBuf) -> PathBuf {
+    let canonical = root.canonicalize().unwrap_or_else(|_| root.clone());
+    if canonical == Path::new("/")
+        && std::env::var("PB_ALLOW_ROOT_WORKSPACE").ok().as_deref() != Some("1")
+    {
+        return std::env::current_dir()
+            .ok()
+            .filter(|p| p.canonicalize().unwrap_or_else(|_| p.clone()) != Path::new("/"))
+            .unwrap_or_else(|| PathBuf::from("."));
+    }
+    root
 }

@@ -19,7 +19,7 @@ For the full tool catalogue and build instructions, see [info.md](info.md).
 6. [Multi-Agent Message Flow](#multi-agent-message-flow)
 7. [Security Design](#security-design)
 8. [Netlify Control Plane](#netlify-control-plane)
-9. [pb-gateway (Asus Laptop)](#pb-gateway-asus-laptop)
+9. [pb-gateway (Local Host)](#pb-gateway-local-host)
 10. [Environment Variables](#environment-variables)
 11. [Build Phases](#build-phases)
 
@@ -28,7 +28,7 @@ For the full tool catalogue and build instructions, see [info.md](info.md).
 ## System Overview
 
 `pb-mcp-server` is a Rust-native MCP (Model Context Protocol) server that
-exposes **484+ tools** to AI agents running inside Zed, Cursor, and other
+exposes **500+ tools** to AI agents running inside Zed, Cursor, and other
 MCP-capable editors. The system is composed of:
 
 - A **local stdio MCP server** (`pb-mcp-server`) for full-trust in-editor use
@@ -60,8 +60,14 @@ to the internet.
 │  │       (Claude)      (GPT-4)       (Ollama)               │  │  │
 │  │                                                          │  │  │
 │  │  ┌──────────────────────────────────────────────────────┘  │  │
-│  │  │  28 ops modules — src/ops/*.rs  (484+ MCP tools)        │  │
-│  │  └──────────────────────────────────────────────────────┘  │  │
+│  │  │  Tool layer — src/tools/ args, handlers, catalog,       │  │
+│  │  │  registry/profile gates                                 │  │
+│  │  └────────────────────────────────────────────────────┬─┘  │  │
+│  │          │                                             │    │
+│  │          ▼                                             │    │
+│  │  ┌──────────────────────────────────────────────────────┐  │
+│  │  │  28 ops modules — src/ops/*.rs  (work functions)     │  │
+│  │  └──────────────────────────────────────────────────────┘  │
 │  └────────────────────────────────────────────────────────────┘  │
 │                                                                  │
 │  ┌──────────────┐  ┌───────────────┐  ┌─────────────────────┐   │
@@ -79,7 +85,7 @@ to the internet.
 
 | Crate | Path | Purpose |
 |---|---|---|
-| **pb-mcp-server** | `/` (root) | Main MCP server — hosts all 484+ tools |
+| **pb-mcp-server** | `/` (root) | Main MCP server — hosts all 500+ tools |
 | **pb-gateway** | `crates/pb-gateway/` | HTTP gateway: token auth, rate limiting, proxying |
 | **pb-lsp-bridge** | `crates/pb-lsp-bridge/` | Bridges language-server protocols into MCP surface |
 | **pb-network-node** | `crates/pb-network-node/` | libp2p swarm: Kademlia DHT, Gossipsub, peer discovery |
@@ -94,7 +100,7 @@ should ever be promoted to a higher-trust zone without review.
 
 | Zone | Who | Tools / Surface | Auth |
 |---|---|---|---|
-| **Local / LAN** | Developer, local Zed session | Full 484+ tool set | None (stdio, implicit) |
+| **Local / LAN** | Developer, local Zed session | Full 500+ tool set | None (stdio, implicit) |
 | **Remote-Agent** | Approved AI agents over internet | ~14 allowlisted read tools | Bearer token + HMAC |
 | **Admin / Secrets** | Machine owner only | `pb-dashboard`, secrets, keys | Local access only |
 
@@ -138,7 +144,7 @@ should ever be promoted to a higher-trust zone without review.
                    │ (PB_GATEWAY_BASE_URL)      │
                    ▼                            │
  ┌─────────────────────────────┐                │
- │  pb-gateway (Asus laptop)   │  127.0.0.1:8080 │
+ │  pb-gateway (local host)    │  127.0.0.1:8080 │
  │                             │                │
  │  GET  /health               │                │
  │  GET  /status               │                │
@@ -148,7 +154,7 @@ should ever be promoted to a higher-trust zone without review.
                    │                            │
                    ▼                            │
  ┌─────────────────────────────┐                │
- │  pb-mcp-server (Asus)       │  stdio          │
+ │  pb-mcp-server (local)      │  stdio          │
  │  (full tool set)            │  (Zed/Cursor)   │
  └─────────────────────────────┘                │
                    │                            │
@@ -158,7 +164,7 @@ should ever be promoted to a higher-trust zone without review.
 
 The pattern is:
 - **Netlify** = public edge (auth, allowlist enforcement, rate limiting)
-- **pb-gateway** = trusted execution gateway on the Asus laptop
+- **pb-gateway** = trusted execution gateway on the local host or private server
 - **pb-mcp-server** = local stdio server for your own editor sessions
 
 ---
@@ -172,9 +178,10 @@ Developer in Zed
     │
     │  MCP protocol (stdio)
     ▼
-pb-mcp-server process (full 484+ tools available)
+pb-mcp-server process (full 500+ tools available)
     │
-    ├─ src/ops/*.rs  (tool implementations)
+    ├─ src/tools/*.rs  (MCP args, handlers, catalog, registry/profile gates)
+    ├─ src/ops/*.rs    (tool work functions)
     └─ src/agent/    (bus, consensus, live workers)
 ```
 
@@ -194,7 +201,7 @@ Netlify Function (agent-request.ts)
     │  2. Check op is in allowlist
     │  3. Sign request with PB_GATEWAY_SIGNING_SECRET
     ▼
-pb-gateway  (127.0.0.1:8080 on Asus)
+pb-gateway  (127.0.0.1:8080 on local host)
     │  1. Verify HMAC signature on incoming request
     │  2. Rate-limit by agent-id
     │  3. Dispatch to appropriate handler
@@ -357,7 +364,7 @@ gateway.
 
 | Variable | Purpose |
 |---|---|
-| `PB_GATEWAY_BASE_URL` | Full base URL of the pb-gateway on the Asus laptop |
+| `PB_GATEWAY_BASE_URL` | Full base URL of the pb-gateway on the local host or private server |
 | `PB_GATEWAY_URL` | Optional: full URL ending in `/status` for `status.ts` |
 | `PB_GATEWAY_TOKEN` | Bearer token for gateway auth (keep secret) |
 | `PB_GATEWAY_SIGNING_SECRET` | HMAC secret for signing Netlify→gateway requests |
@@ -375,10 +382,10 @@ gateway.
 
 ---
 
-## pb-gateway (Asus Laptop)
+## pb-gateway (Local Host)
 
 `pb-gateway` is a small Rust HTTP service that runs alongside the MCP server
-on the Asus laptop (or any local server). It provides the network-facing
+on the local host or another private server. It provides the network-facing
 endpoint that Netlify forwards to.
 
 ### Endpoints
@@ -494,7 +501,7 @@ what remains in the roadmap.
 
 ### ✅ Complete (v0.2.1)
 
-- [x] Full MCP server with 484+ tools across 28 ops modules
+- [x] Full MCP server with 500+ tools across `src/tools/` handlers/catalog metadata and 28 `src/ops/` work modules
 - [x] 5-crate workspace (`pb-mcp-server`, `pb-gateway`, `pb-lsp-bridge`,
       `pb-network-node`, `pb-dashboard`)
 - [x] Zero compilation errors, zero code warnings

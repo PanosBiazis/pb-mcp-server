@@ -5,13 +5,16 @@ CARGO_FLAGS_ALL_FEATURES := --all-features
 BIN_SERVER := --bin pb-mcp-server
 BIN_GATEWAY := --bin pb-gateway
 
-.PHONY: build build-release test test-all check check-all check-workspace test-workspace clippy clippy-workspace fmt fmt-check run run-gateway audit doc bench bench-bus bench-index clean help
+.PHONY: build build-release release-matrix test test-all check check-all check-workspace test-workspace clippy clippy-workspace fmt fmt-check run run-gateway audit doc bench bench-bus bench-index clean help
 
 build: ## Build the library
 	$(CARGO) build $(CARGO_FLAGS_LIB)
 
 build-release: ## Build the library in release mode
 	$(CARGO) build $(CARGO_FLAGS_RELEASE) $(CARGO_FLAGS_LIB)
+
+release-matrix: ## Build release binaries for available Linux/Windows/macOS targets into dist/
+	scripts/build-release-matrix.sh
 
 test: ## Run tests with default features
 	$(CARGO) test $(CARGO_FLAGS_LIB)

@@ -2,9 +2,6 @@
 //!
 //! Quantum circuit simulation (builtin + qasmsim), Grover's search,
 //! Shor's factoring, and arXiv paper search/download.
-
-#![allow(dead_code)]
-
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -58,7 +55,7 @@ fn zero_state(n_qubits: usize) -> Vec<Cplx> {
 }
 
 /// Apply Hadamard to qubit `target` in-place.
-fn apply_h(sv: &mut Vec<Cplx>, target: usize) {
+fn apply_h(sv: &mut [Cplx], target: usize) {
     let f = std::f64::consts::FRAC_1_SQRT_2;
     let stride = 1 << target;
     let size = sv.len();
@@ -75,7 +72,7 @@ fn apply_h(sv: &mut Vec<Cplx>, target: usize) {
 }
 
 /// Apply Pauli-X (NOT) to qubit `target` in-place.
-fn apply_x(sv: &mut Vec<Cplx>, target: usize) {
+fn apply_x(sv: &mut [Cplx], target: usize) {
     let stride = 1 << target;
     let size = sv.len();
     let mut i = 0;
@@ -88,7 +85,7 @@ fn apply_x(sv: &mut Vec<Cplx>, target: usize) {
 }
 
 /// Apply Pauli-Z to qubit `target` in-place.
-fn apply_z(sv: &mut Vec<Cplx>, target: usize) {
+fn apply_z(sv: &mut [Cplx], target: usize) {
     let stride = 1 << target;
     let size = sv.len();
     let mut i = 0;
@@ -102,7 +99,7 @@ fn apply_z(sv: &mut Vec<Cplx>, target: usize) {
 }
 
 /// Apply CNOT (control=`ctrl`, target=`tgt`) in-place.
-fn apply_cnot(sv: &mut Vec<Cplx>, ctrl: usize, tgt: usize) {
+fn apply_cnot(sv: &mut [Cplx], ctrl: usize, tgt: usize) {
     for i in 0..sv.len() {
         if (i >> ctrl) & 1 == 1 {
             let j = i ^ (1 << tgt);
@@ -142,8 +139,8 @@ fn lcg_next(state: &mut u64) -> f64 {
 // ---------------------------------------------------------------------------
 
 struct GateOp {
-    gate:    String,
-    target:  usize,
+    gate: String,
+    target: usize,
     control: Option<usize>,
 }
 
@@ -194,14 +191,18 @@ fn parse_simple_qasm(qasm: &str) -> (usize, Vec<GateOp>) {
         match gate.as_str() {
             "h" | "x" | "y" | "z" | "s" | "t" => {
                 if let Some(&tgt) = qubits.first() {
-                    ops.push(GateOp { gate, target: tgt, control: None });
+                    ops.push(GateOp {
+                        gate,
+                        target: tgt,
+                        control: None,
+                    });
                 }
             }
             "cx" | "cnot" => {
                 if qubits.len() >= 2 {
                     ops.push(GateOp {
-                        gate:    "cnot".into(),
-                        target:  qubits[1],
+                        gate: "cnot".into(),
+                        target: qubits[1],
                         control: Some(qubits[0]),
                     });
                 }
@@ -287,18 +288,16 @@ pub fn quantum_circuit_simulate_work(circuit_qasm: String, shots: usize) -> Stri
     // Filter out-of-range qubit references
     let ops: Vec<&GateOp> = raw_ops
         .iter()
-        .filter(|op| {
-            op.target < n_qubits && op.control.map_or(true, |c| c < n_qubits)
-        })
+        .filter(|op| op.target < n_qubits && op.control.is_none_or(|c| c < n_qubits))
         .collect();
 
     // Build final state vector
     let mut sv = zero_state(n_qubits);
     for op in &ops {
         match op.gate.as_str() {
-            "h"           => apply_h(&mut sv, op.target),
-            "x" | "y"     => apply_x(&mut sv, op.target),
-            "z"           => apply_z(&mut sv, op.target),
+            "h" => apply_h(&mut sv, op.target),
+            "x" | "y" => apply_x(&mut sv, op.target),
+            "z" => apply_z(&mut sv, op.target),
             "cnot" | "cx" => {
                 if let Some(ctrl) = op.control {
                     apply_cnot(&mut sv, ctrl, op.target);
@@ -312,8 +311,7 @@ pub fn quantum_circuit_simulate_work(circuit_qasm: String, shots: usize) -> Stri
 
     // Sample `shots` measurement outcomes using the LCG PRNG
     let mut rng = 0xDEAD_BEEF_CAFE_BABE_u64 ^ shots as u64;
-    let mut counts: std::collections::HashMap<String, usize> =
-        std::collections::HashMap::new();
+    let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
 
     for _ in 0..shots {
         let r = lcg_next(&mut rng);
@@ -406,7 +404,11 @@ pub fn quantum_grover_search_work(space_size: usize, target_value: usize) -> Str
     let show = space_size.min(8);
     let amplitudes: Vec<serde_json::Value> = (0..show)
         .map(|i| {
-            let amp = if i == target_value { target_amp } else { other_amp };
+            let amp = if i == target_value {
+                target_amp
+            } else {
+                other_amp
+            };
             json!({
                 "state":       i,
                 "amplitude":   (amp      * 1e6).round() / 1e6,
@@ -468,7 +470,7 @@ pub fn quantum_shor_factor_work(n: u64) -> String {
         .to_string();
     }
 
-    if n % 2 == 0 {
+    if n.is_multiple_of(2) {
         return json!({
             "n":          n,
             "factors":    [2, n / 2],
@@ -506,7 +508,7 @@ pub fn quantum_shor_factor_work(n: u64) -> String {
             continue 'outer;
         }
 
-        if r % 2 != 0 {
+        if !r.is_multiple_of(2) {
             continue 'outer;
         }
 
@@ -534,7 +536,7 @@ pub fn quantum_shor_factor_work(n: u64) -> String {
     // Fallback: trial division
     let mut f = 3u64;
     while f * f <= n {
-        if n % f == 0 {
+        if n.is_multiple_of(f) {
             return json!({
                 "n":          n,
                 "factors":    [f, n / f],
@@ -575,12 +577,12 @@ fn is_prime_u64(n: u64) -> bool {
     if n == 2 {
         return true;
     }
-    if n % 2 == 0 {
+    if n.is_multiple_of(2) {
         return false;
     }
     let mut i = 3u64;
     while i * i <= n {
-        if n % i == 0 {
+        if n.is_multiple_of(i) {
             return false;
         }
         i += 2;
@@ -692,9 +694,7 @@ pub fn research_arxiv_search_work(
             let stderr = String::from_utf8_lossy(&o.stderr).trim().to_string();
             json!({"error": format!("curl failed: {stderr}"), "query": query}).to_string()
         }
-        Err(e) => {
-            json!({"error": format!("failed to run curl: {e}"), "query": query}).to_string()
-        }
+        Err(e) => json!({"error": format!("failed to run curl: {e}"), "query": query}).to_string(),
     }
 }
 
@@ -832,9 +832,7 @@ pub fn research_arxiv_download_work(arxiv_id: String, dest_dir: PathBuf) -> Stri
     }
 
     // Sanitise ID for use as a filename
-    let clean_id = arxiv_id
-        .trim()
-        .replace(['/', '\\', ':'], "_");
+    let clean_id = arxiv_id.trim().replace(['/', '\\', ':'], "_");
     let pdf_path = dest_dir.join(format!("{clean_id}.pdf"));
     let pdf_path_str = pdf_path.to_string_lossy().to_string();
     let pdf_url = format!("https://arxiv.org/pdf/{}.pdf", arxiv_id.trim());
@@ -842,18 +840,19 @@ pub fn research_arxiv_download_work(arxiv_id: String, dest_dir: PathBuf) -> Stri
     // ── Download PDF ──────────────────────────────────────────────────────────
     let dl_ok = Command::new("curl")
         .args([
-            "-s", "-L",
-            "--max-time", "120",
-            "-o", &pdf_path_str,
+            "-s",
+            "-L",
+            "--max-time",
+            "120",
+            "-o",
+            &pdf_path_str,
             &pdf_url,
         ])
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false);
 
-    let file_size_bytes = std::fs::metadata(&pdf_path)
-        .map(|m| m.len())
-        .unwrap_or(0);
+    let file_size_bytes = std::fs::metadata(&pdf_path).map(|m| m.len()).unwrap_or(0);
 
     if !dl_ok || file_size_bytes == 0 {
         return json!({
@@ -884,12 +883,8 @@ pub fn research_arxiv_download_work(arxiv_id: String, dest_dir: PathBuf) -> Stri
                 .collect::<Vec<_>>()
                 .join(" ");
 
-            let abs_raw = extract_between(
-                &html,
-                "class=\"abstract mathjax\">",
-                "</blockquote>",
-            )
-            .unwrap_or_default();
+            let abs_raw = extract_between(&html, "class=\"abstract mathjax\">", "</blockquote>")
+                .unwrap_or_default();
             let abs_clean = abs_raw
                 .replace("Abstract:", "")
                 .replace('\n', " ")
@@ -965,7 +960,10 @@ mod tests {
         // Expect "00" and "11" only (no "01" or "10")
         assert!(results.get("00").is_some(), "Bell state should yield |00>");
         assert!(results.get("11").is_some(), "Bell state should yield |11>");
-        assert!(results.get("01").is_none(), "Bell state should NOT yield |01>");
+        assert!(
+            results.get("01").is_none(),
+            "Bell state should NOT yield |01>"
+        );
     }
 
     // ── Grover search ─────────────────────────────────────────────────────────
@@ -1044,10 +1042,7 @@ mod tests {
 
     #[test]
     fn test_arxiv_download_empty_id() {
-        let result = research_arxiv_download_work(
-            String::new(),
-            PathBuf::from("/tmp"),
-        );
+        let result = research_arxiv_download_work(String::new(), PathBuf::from("/tmp"));
         let v: serde_json::Value = serde_json::from_str(&result).unwrap();
         assert!(v.get("error").is_some());
     }
@@ -1065,7 +1060,7 @@ mod tests {
     #[test]
     fn test_mod_pow() {
         assert_eq!(mod_pow(2, 10, 1000), 24); // 2^10 = 1024 ≡ 24 (mod 1000)
-        assert_eq!(mod_pow(3, 4, 7), 4);       // 81 mod 7 = 4
+        assert_eq!(mod_pow(3, 4, 7), 4); // 81 mod 7 = 4
     }
 
     #[test]

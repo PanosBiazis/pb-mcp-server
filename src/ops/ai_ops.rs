@@ -5,7 +5,7 @@
 //! analysis that maps diff hunks to logical code units (functions,
 //! classes, structs, etc.).
 
-use globset::{Glob, GlobSetBuilder};
+use globset::{Glob, GlobSet, GlobSetBuilder};
 use regex::Regex;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -57,9 +57,7 @@ fn build_globset(patterns: &[String]) -> globset::GlobSet {
             builder.add(glob);
         }
     }
-    builder
-        .build()
-        .unwrap_or_else(|_| GlobSetBuilder::new().build().unwrap())
+    builder.build().unwrap_or_else(|_| GlobSet::empty())
 }
 
 /// Tokenize text into lowercase alphanumeric words with length > 1.
@@ -126,9 +124,11 @@ fn detect_header_kind(line: &str) -> &'static str {
 fn find_logical_headers(content: &str) -> Vec<(usize, String)> {
     // Matches common function/class/struct/etc. declarations across Rust, Python,
     // JavaScript/TypeScript, Go, Java, C#, Ruby, and similar languages.
-    let re = Regex::new(
-        r"(?im)^\s*(?:(?:pub|public|private|protected|export|async|static|virtual|override|final|abstract|internal|open|inline|synchronized)\s+)*(?:fn|def|function|func|class|struct|enum|impl|trait|interface|module|mod|type)\s+([a-zA-Z_]\w*)"
-    ).expect("hardcoded regex for logical headers is valid");
+    let Ok(re) = Regex::new(
+        r"(?im)^\s*(?:(?:pub|public|private|protected|export|async|static|virtual|override|final|abstract|internal|open|inline|synchronized)\s+)*(?:fn|def|function|func|class|struct|enum|impl|trait|interface|module|mod|type)\s+([a-zA-Z_]\w*)",
+    ) else {
+        return Vec::new();
+    };
 
     let mut headers = Vec::new();
     for (i, line) in content.lines().enumerate() {
@@ -225,7 +225,8 @@ pub fn ai_ollama_generate_work(
                      macOS:  brew install ollama\n  \
                      Linux:  curl -fsSL https://ollama.com/install.sh | sh\n  \
                      Windows: winget install Ollama.Ollama\n\n\
-                     See https://ollama.com/download for details.".to_string()
+                     See https://ollama.com/download for details."
+                    .to_string()
             } else {
                 format!("Error spawning ollama: {e}")
             };
@@ -724,8 +725,10 @@ pub fn ai_semantic_diff_work(
     }
 
     // Parse hunk headers: @@ -old_start[,old_count] +new_start[,new_count] @@
-    let hunk_re =
-        Regex::new(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@").expect("valid hunk regex");
+    let hunk_re = match Regex::new(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@") {
+        Ok(re) => re,
+        Err(e) => return format!("Error: internal hunk regex failed: {e}"),
+    };
 
     // Read both files for logical-unit header mapping
     let content_a = read_text_capped(&file_a, MAX_DIFF_HEADER_FILE_BYTES).unwrap_or_default();

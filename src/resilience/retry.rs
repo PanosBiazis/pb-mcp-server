@@ -373,8 +373,8 @@ fn rand_simple() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos() as u64
+        .map(|duration| duration.as_nanos() as u64)
+        .unwrap_or(0)
 }
 
 // ============================================================================

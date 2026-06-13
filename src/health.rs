@@ -19,16 +19,18 @@
 //! ```no_run
 //! use pb_mcp_server::health::{HealthMonitor, HealthConfig, HealthStatus};
 //!
+//! # async fn example() {
 //! let config = HealthConfig::default();
 //! let monitor = HealthMonitor::new(config);
 //!
 //! // Check overall health
-//! let status = monitor.check_health().await;
+//! let status = monitor.check_health();
 //! println!("System health: {:?}", status);
 //!
 //! // Get detailed diagnostics
 //! let diagnostics = monitor.diagnostics();
 //! println!("{}", diagnostics);
+//! # }
 //! ```
 
 use serde::{Deserialize, Serialize};
@@ -100,10 +102,7 @@ impl HealthCheckResult {
             component: component.to_string(),
             status,
             message: None,
-            timestamp: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
+            timestamp: unix_now_secs(),
             duration_ms: 0,
             metrics: HashMap::new(),
         }
@@ -393,10 +392,7 @@ impl HealthMonitor {
         let load_avg = System::load_average();
         let load_average = load_avg.one;
 
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+        let timestamp = unix_now_secs();
 
         SystemMetrics {
             cpu_usage,
@@ -537,10 +533,7 @@ impl HealthMonitor {
             metrics,
             checks,
             config: self.config.clone(),
-            generated_at: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
+            generated_at: unix_now_secs(),
         }
     }
 
@@ -646,6 +639,13 @@ impl std::fmt::Display for DiagnosticsReport {
         }
         Ok(())
     }
+}
+
+fn unix_now_secs() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0)
 }
 
 // ============================================================================

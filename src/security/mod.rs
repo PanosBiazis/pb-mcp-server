@@ -19,9 +19,11 @@
 //! # Example
 //!
 //! ```no_run
-//! use pb_mcp_server::security::{SecurityContext, RateLimiterConfig};
+//! use pb_mcp_server::security::{AuditResultStatus, SecurityContext};
 //! use pb_mcp_server::profiles::ToolProfile;
+//! use std::collections::HashMap;
 //!
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create security context for a project
 //! let ctx = SecurityContext::with_profile("/project/root", ToolProfile::CoreCode)?;
 //!
@@ -37,7 +39,16 @@
 //! ctx.check_rate_limit("tool:read_file")?;
 //!
 //! // Record an audit entry
-//! ctx.audit_record("agent_1", "read_file", b"input", b"output", AuditResultStatus::Success)?;
+//! ctx.audit_record(
+//!     "agent_1",
+//!     "read_file",
+//!     b"input",
+//!     b"output",
+//!     AuditResultStatus::Success,
+//!     HashMap::new(),
+//! )?;
+//! # Ok(())
+//! # }
 //! ```
 
 // ============================================================================
@@ -764,6 +775,27 @@ mod tests {
         let json = ctx.audit_export_json();
         assert!(!json.is_empty());
         assert!(json.contains("agent_x"));
+    }
+
+    #[test]
+    fn test_audit_export_does_not_include_raw_inputs() {
+        let temp = TempDir::new().unwrap();
+        let ctx = SecurityContext::new(temp.path()).unwrap();
+
+        ctx.audit_record(
+            "agent_x",
+            "file_encrypt",
+            br#"{"path":"/tmp/a","passphrase":"super-secret-passphrase"}"#,
+            b"output",
+            AuditResultStatus::Success,
+            HashMap::new(),
+        )
+        .unwrap();
+
+        let json = ctx.audit_export_json();
+        assert!(json.contains("input_hash"));
+        assert!(!json.contains("super-secret-passphrase"));
+        assert!(!json.contains("passphrase"));
     }
 
     #[test]

@@ -403,7 +403,10 @@ impl Error {
         if errors.is_empty() {
             Error::Generic("No errors to combine".to_string())
         } else if errors.len() == 1 {
-            errors.into_iter().next().unwrap()
+            errors
+                .into_iter()
+                .next()
+                .unwrap_or_else(|| Error::Generic("No errors to combine".to_string()))
         } else {
             let messages: Vec<String> = errors.iter().map(|e| format!("  - {}", e)).collect();
             Error::Multiple(messages.join("\n"))
@@ -557,15 +560,6 @@ impl From<String> for Error {
 impl From<&str> for Error {
     fn from(s: &str) -> Self {
         Error::Generic(s.to_string())
-    }
-}
-
-#[cfg(feature = "ocr-tools")]
-impl From<tesseract::TesseractError> for Error {
-    fn from(err: tesseract::TesseractError) -> Self {
-        Error::Ocr {
-            reason: err.to_string(),
-        }
     }
 }
 

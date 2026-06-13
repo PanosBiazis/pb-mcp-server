@@ -419,6 +419,14 @@ pub fn net_whois_work(args: serde_json::Value) -> serde_json::Value {
             return json!({"error": format!("failed to run whois: {e}"), "tool_available": true})
         }
     };
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return json!({
+            "error": format!("whois exited with status {}", output.status),
+            "stderr": stderr.chars().take(500).collect::<String>(),
+            "tool_available": true,
+        });
+    }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let raw_snippet: String = stdout.chars().take(500).collect();
@@ -505,11 +513,13 @@ pub fn net_tls_inspect_work(args: serde_json::Value) -> serde_json::Value {
 
     for line in stdout.lines() {
         let trimmed = line.trim();
-        if trimmed.starts_with("Issuer:") {
-            issuer = trimmed["Issuer:".len()..].trim().to_string();
+        if let Some(stripped) = trimmed.strip_prefix("Issuer:") {
+            issuer = stripped.trim().to_string();
         }
-        if trimmed.starts_with("Subject:") && !trimmed.contains("Subject Alternative") {
-            subject = trimmed["Subject:".len()..].trim().to_string();
+        if let Some(stripped) = trimmed.strip_prefix("Subject:") {
+            if !trimmed.contains("Subject Alternative") {
+                subject = stripped.trim().to_string();
+            }
         }
         if trimmed.contains("Not After") {
             if let Some(colon) = trimmed.find(':') {
@@ -548,14 +558,7 @@ pub fn net_tls_inspect_work(args: serde_json::Value) -> serde_json::Value {
         let now = chrono::Utc::now();
         chrono::DateTime::parse_from_str(&not_after, "%b %e %H:%M:%S %Y GMT")
             .or_else(|_| chrono::DateTime::parse_from_str(&not_after, "%Y-%m-%d %H:%M:%S %Z"))
-            .or_else(|_| {
-                chrono::NaiveDateTime::parse_from_str(&not_after, "%Y-%m-%dT%H:%M:%SZ").map(|ndt| {
-                    chrono::DateTime::<chrono::FixedOffset>::from_naive_utc_and_offset(
-                        ndt,
-                        chrono::FixedOffset::east_opt(0).unwrap(),
-                    )
-                })
-            })
+            .or_else(|_| chrono::DateTime::parse_from_rfc3339(&not_after))
             .map(|dt| (dt.with_timezone(&chrono::Utc) - now).num_days())
             .ok()
     } else {
@@ -710,6 +713,14 @@ pub fn net_arp_scan_work(_args: serde_json::Value) -> serde_json::Value {
                 return json!({"error": format!("failed to run ip neigh: {e}"), "tool_available": true})
             }
         };
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return json!({
+                "error": format!("ip neigh exited with status {}", output.status),
+                "stderr": stderr.chars().take(500).collect::<String>(),
+                "tool_available": true,
+            });
+        }
         let stdout = String::from_utf8_lossy(&output.stdout);
         let mut hosts = Vec::new();
         for line in stdout.lines() {
@@ -760,12 +771,20 @@ pub fn net_arp_scan_work(_args: serde_json::Value) -> serde_json::Value {
                 return json!({"error": format!("failed to run arp: {e}"), "tool_available": true})
             }
         };
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return json!({
+                "error": format!("arp exited with status {}", output.status),
+                "stderr": stderr.chars().take(500).collect::<String>(),
+                "tool_available": true,
+            });
+        }
         let stdout = String::from_utf8_lossy(&output.stdout);
         let mut hosts = Vec::new();
         for line in stdout.lines() {
             // Format: "? (192.168.1.1) at aa:bb:cc:dd:ee:ff [ether] on eth0"
             let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() >= 6 {
+            if parts.len() >= 7 {
                 let ip = parts[1].trim_matches('(').trim_matches(')').to_string();
                 let mac = parts[3].to_string();
                 let interface = parts[6].to_string();
@@ -1829,11 +1848,11 @@ pub fn net_ssl_grade_work(args: serde_json::Value) -> serde_json::Value {
 
                 for line in stdout.lines() {
                     let trimmed = line.trim();
-                    if trimmed.starts_with("TLS") || trimmed.starts_with("SSL") {
-                        if trimmed.contains("enabled") || trimmed.contains("Supported") {
-                            if let Some(version) = trimmed.split_whitespace().next() {
-                                tls_versions.push(version.to_string());
-                            }
+                    if (trimmed.starts_with("TLS") || trimmed.starts_with("SSL"))
+                        && (trimmed.contains("enabled") || trimmed.contains("Supported"))
+                    {
+                        if let Some(version) = trimmed.split_whitespace().next() {
+                            tls_versions.push(version.to_string());
                         }
                     }
                     if trimmed.contains("Weak") {

@@ -1,6 +1,6 @@
 # pb-mcp-server — Project Overview
 
-> A Rust-native MCP (Model Context Protocol) server that exposes **484+ tools**
+> A Rust-native MCP (Model Context Protocol) server that exposes **500+ tools**
 > to AI agents running inside Zed, Cursor, VSCode, and other MCP-capable editors.
 > Designed for multi-agent orchestration, local-first AI workflows, and
 > comprehensive developer tooling — all from a single binary.
@@ -12,7 +12,7 @@
 1. [Architecture](#architecture)
 2. [Workspace Members](#workspace-members)
 3. [Build & Test Status](#build--test-status)
-4. [Tool Catalogue (28 Modules, 484+ Tools)](#tool-catalogue-28-modules-484-tools)
+4. [Tool Catalogue (28 Modules, 500+ Tools)](#tool-catalogue-28-modules-500-tools)
 5. [Feature Flags](#feature-flags)
 6. [Security Model](#security-model)
 7. [Tool Expansion History](#tool-expansion-history)
@@ -37,7 +37,7 @@ Zed / Cursor / VSCode
 │  (Claude) (GPT-4) (Ollama)           │
 │                                      │
 │  ┌────────────────────────────────┐  │
-│  │  28 ops modules (484+ tools)   │  │
+│  │  tools layer + 28 ops modules  │  │
 │  └────────────────────────────────┘  │
 │                                      │
 │  pb-gateway ──── auth / routing      │
@@ -62,7 +62,7 @@ The Cargo workspace contains **5 crates**:
 
 | Crate | Path | Purpose |
 |---|---|---|
-| **pb-mcp-server** | `/` (root) | Main MCP server binary — hosts all 484+ tools |
+| **pb-mcp-server** | `/` (root) | Main MCP server binary — hosts all 500+ tools |
 | **pb-gateway** | `crates/pb-gateway/` | HTTP gateway with token auth, rate limiting, route proxying |
 | **pb-lsp-bridge** | `crates/pb-lsp-bridge/` | Bridges language-server protocols into the MCP tool surface |
 | **pb-network-node** | `crates/pb-network-node/` | libp2p swarm node — Kademlia DHT, Gossipsub, peer discovery |
@@ -74,7 +74,7 @@ The Cargo workspace contains **5 crates**:
 
 | Metric | Value |
 |---|---|
-| **Exposed MCP Tools** | **484+** |
+| **Exposed MCP Tools** | **500+** |
 | **Operational Modules** | **28** (`src/ops/`) |
 | **Unit Tests Passing** | **1,220+** |
 | **Compiler Errors** | **0** |
@@ -83,12 +83,20 @@ The Cargo workspace contains **5 crates**:
 
 ---
 
-## Tool Catalogue (28 Modules, 484+ Tools)
+## Tool Catalogue (28 Modules, 500+ Tools)
 
-Every tool is implemented as an `async fn` handler in `src/main.rs` that
-delegates to a `*_work` function in the corresponding `src/ops/*.rs` module.
-Tool arguments are defined as `#[derive(Deserialize, JsonSchema)]` structs
-in `src/tool_args_wired.rs`.
+The current tool surface is split between the MCP wiring layer and the work
+modules:
+
+- `src/tools/*_args.rs` defines typed arguments for newer extracted handlers.
+- `src/tools/*_handlers.rs` contains extracted handler glue for expanded tool
+  families.
+- `src/tools/catalog.rs` and `src/tools/registry.rs` expose metadata,
+  stub markers, and profile gates.
+- `src/tool_args_wired.rs` and `src/main.rs` still host older wired argument
+  structs and handlers.
+- `src/ops/*.rs` contains the underlying `*_work` functions for the 28 ops
+  modules.
 
 ### 1. `ai_ops.rs` — Ollama AI Generation & Embedding
 
@@ -379,9 +387,10 @@ The tool count has grown across three major phases:
 |---|---|---|
 | **v0.1** (initial) | ~253 | First release with core tool set |
 | **Phase 2** | 435 | +182 tools — new modules (neural, protection, debug, review, etc.) |
-| **Phase 3** (latest) | **484+** | +49 tools — wired existing work functions (AI/ML Extended, Logs/Charts, Neural) |
+| **Phase 3** | 484+ | +49 tools — wired existing work functions (AI/ML Extended, Logs/Charts, Neural) |
+| **Phase 4** (latest) | **501** | +17 tools — algorithm/math expansion: number theory, base conversion, frequency tables, set ops, percentiles, and histograms |
 
-### Phase 3 Expansion Details (435 → 484)
+### Phase 3 Expansion Details (435 → 484+)
 
 49 previously-implemented work functions were wired as live MCP tools
 with **zero new work-function code** — only wiring in `main.rs` and
@@ -390,6 +399,15 @@ argument structs in `tool_args_wired.rs`:
 - **AI/ML Extended:** 22 tools from `ai_ml_extended.rs`
 - **Logs & Charts:** 22 tools from `logs_charts.rs`
 - **Neural:** 5 tools from `neural.rs`
+
+### Phase 4 Expansion Details (484+ → 501)
+
+17 pure Rust algorithm/math tools were added as live MCP handlers with bounded
+inputs and focused regression coverage:
+
+- **Number theory:** GCD/LCM, prime factors, primality, prime sieve, Fibonacci
+- **Conversion/counting:** base conversion, Roman numerals, combinations, permutations
+- **Text/data math:** entropy, frequency table, run-length encoding, binary-search bounds, set ops, moving average, percentile, numeric histogram
 
 **Files changed:**
 
@@ -459,4 +477,4 @@ Add to Zed's `settings.json`:
 ```
 
 The server communicates via **stdio** using the MCP protocol. On startup
-it registers all 484+ tools, which appear in the editor's AI tool panel.
+it registers all 500+ tools, which appear in the editor's AI tool panel.

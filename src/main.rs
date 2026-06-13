@@ -1,18 +1,43 @@
+#![cfg_attr(
+    test,
+    allow(
+        clippy::expect_used,
+        clippy::field_reassign_with_default,
+        clippy::io_other_error,
+        clippy::needless_borrows_for_generic_args,
+        clippy::panic,
+        clippy::unwrap_used
+    )
+)]
+
 mod agent;
 mod bus;
 mod bus_rate;
 mod code_index;
 mod network_profile;
 mod ops;
+#[allow(dead_code)]
+mod profiles;
 mod thinking;
+#[allow(dead_code)]
+mod tools;
 
 use crate::ops::{
-    agent_coordination_playbook_work, ai_inference_integration_guide_work, ai_stack_probe_work,
-    batch_file_info_work, code_ast_dump_work, code_complexity_score_work,
-    code_dead_code_hints_work, code_detect_language_work, code_extract_imports_work,
-    codebase_cargo_dependency_names_work, codebase_duplicate_basenames_work, codebase_index_work,
-    codebase_largest_files_work, codebase_manifest_write_work, codebase_path_list_work,
-    codebase_shallow_hash_work, codebase_word_index_work, coding_agent_toolchains_catalog_work,
+    agent_coordination_playbook_work, agent_patch_plan_work, agent_prompt_pack_work,
+    agent_session_summary_work, agent_task_packet_work, ai_inference_integration_guide_work,
+    ai_stack_probe_work, app_agent_mode_plan_work, app_capability_catalog_work,
+    app_capability_search_work, app_command_palette_work, app_command_registry_generate_work,
+    app_context_budget_plan_work, app_eval_prompt_pack_work, app_hooks_policy_validate_work,
+    app_model_profile_select_work, app_node_suggest_work, app_permission_policy_evaluate_work,
+    app_plugin_capability_matrix_work, app_plugin_manifest_validate_work,
+    app_plugin_route_plan_work, app_skill_manifest_validate_work, app_skill_route_match_work,
+    app_skill_template_generate_work, app_slash_command_expand_work, app_task_queue_plan_work,
+    app_tool_recipe_work, app_worktree_session_plan_work, batch_file_info_work, code_ast_dump_work,
+    code_complexity_score_work, code_dead_code_hints_work, code_detect_language_work,
+    code_extract_imports_work, codebase_cargo_dependency_names_work,
+    codebase_duplicate_basenames_work, codebase_index_work, codebase_largest_files_work,
+    codebase_manifest_write_work, codebase_path_list_work, codebase_shallow_hash_work,
+    codebase_word_index_work, coding_agent_toolchains_catalog_work,
     compress_collapse_blank_lines_work, compress_context_work, compress_dedent_work,
     compress_double_slash_line_comments_work, compress_drop_lines_matching_regex_work,
     compress_fenced_code_blocks_work, compress_file_work, compress_gzip_base64_work,
@@ -55,43 +80,57 @@ use crate::ops::{
     ai_ollama_embed_work, ai_ollama_generate_work, convert_archive_extract_work,
     convert_archive_list_work, convert_binary_hexdump_work, convert_document_work,
     convert_pdf_extract_work, convert_qr_generate_work, db_json_query_work, db_sqlite_exec_work,
-    db_sqlite_query_work, db_sqlite_schema_work, notify_desktop_work, notify_email_send_work,
-    notify_webhook_work, system_disk_usage_work, system_env_get_work,
+    db_sqlite_query_work, db_sqlite_schema_work, mcp_manifest_validate_work,
+    mcp_prompt_template_validate_work, mcp_resource_template_validate_work,
+    mcp_sampling_request_plan_work, mcp_server_config_generate_work, mcp_tool_spec_generate_work,
+    notify_desktop_work, notify_email_send_work, notify_webhook_work, shell_command_catalog_work,
+    shell_command_safety_check_work, shell_command_translate_work,
+    shell_script_template_generate_work, system_disk_usage_work, system_env_get_work,
     system_network_interfaces_work, system_process_list_work, web_api_call_work,
     web_dns_lookup_work, web_download_file_work, web_rss_fetch_work, web_screenshot_work,
-    web_search_work, web_tls_inspect_work,
+    web_search_work, web_tls_inspect_work, workflow_execution_plan_work,
+    workflow_template_generate_work, workflow_validate_work,
 };
 // Audio, image, speech, reverse-engineering, screenshot, OCR, sandbox, algorithm,
 // IDE-integration, and file-crypto work functions (wired via include!() handlers below).
 use crate::ops::{
-    algo_bloom_filter_work, algo_edit_distance_work, algo_fft_work, algo_graph_bfs_work,
-    algo_graph_dfs_work, algo_graph_shortest_path_work, algo_graph_topo_sort_work,
-    algo_hash_text_work, algo_matrix_ops_work, algo_ngram_similarity_work, algo_search_work,
-    algo_sort_work, algo_stats_correlation_work, algo_stats_describe_work,
-    algo_stats_regression_work, audio_convert_work, audio_extract_from_video_work,
-    audio_extract_segment_work, audio_info_work, audio_merge_work, audio_mix_work,
-    audio_normalize_work, audio_reverse_work, audio_silence_detect_work, audio_speed_work,
-    audio_split_work, audio_trim_work, audio_volume_work, audio_waveform_work,
-    cursor_composer_send_work, cursor_open_file_work, file_decrypt_work, file_deduplicate_work,
-    file_encrypt_work, file_sign_work, file_verify_signature_work, file_watch_work,
-    ide_detect_work, ide_find_references_work, ide_format_document_work, ide_goto_definition_work,
-    ide_run_test_work, image_compare_work, image_convert_work, image_crop_work,
-    image_extract_exif_work, image_flip_work, image_grayscale_work, image_histogram_work,
-    image_info_work, image_resize_work, image_rotate_work, image_thumbnail_work,
-    image_watermark_work, jetbrains_adb_shell_work, jetbrains_device_list_work,
-    jetbrains_logcat_tail_work, jetbrains_lsp_code_action_work, jetbrains_open_file_work,
-    jetbrains_run_configuration_work, ocr_batch_work, ocr_detect_text_regions_work, ocr_file_work,
-    ocr_from_clipboard_work, ocr_list_languages_work, ocr_pdf_work, ocr_preprocess_work,
-    ocr_screen_region_work, ocr_table_work, ocr_with_confidence_work, re_binary_info_work,
-    re_binwalk_scan_work, re_carve_work, re_dependencies_work, re_diff_binary_work,
-    re_disassemble_work, re_entropy_work, re_hexdump_work, re_pattern_search_work,
-    re_sections_work, re_strace_work, re_strings_work, re_struct_parse_work, re_symbols_work,
-    sandbox_checksum_work, sandbox_diff_work, sandbox_docker_run_work, sandbox_eval_code_work,
-    sandbox_exec_work, sandbox_file_watch_work, sandbox_network_request_work, sandbox_script_work,
-    screenshot_annotate_work, screenshot_color_pick_work, screenshot_compare_work,
-    screenshot_monitor_info_work, screenshot_ocr_work, screenshot_record_work,
-    screenshot_region_work, screenshot_timelapse_work, screenshot_window_work,
-    speech_detect_language_work, speech_diarize_work, speech_enhance_work,
+    algo_base_convert_work, algo_binary_search_bounds_work, algo_bloom_filter_work,
+    algo_bootstrap_mean_ci_work, algo_combinations_count_work, algo_confusion_matrix_work,
+    algo_cosine_similarity_work, algo_dataset_quality_work, algo_edit_distance_work,
+    algo_entropy_work, algo_fft_work, algo_fibonacci_work, algo_frequency_table_work,
+    algo_gcd_lcm_work, algo_graph_bfs_work, algo_graph_dfs_work, algo_graph_shortest_path_work,
+    algo_graph_topo_sort_work, algo_hash_text_work, algo_is_prime_work, algo_kmeans_work,
+    algo_label_distribution_work, algo_matrix_ops_work, algo_minhash_signature_work,
+    algo_minhash_similarity_work, algo_moving_average_work, algo_ngram_similarity_work,
+    algo_normalize_scores_work, algo_numeric_histogram_work, algo_outliers_iqr_work,
+    algo_percentile_work, algo_permutations_count_work, algo_prime_factors_work, algo_roc_auc_work,
+    algo_rolling_stats_work, algo_roman_numeral_work, algo_run_length_encode_work,
+    algo_search_work, algo_set_ops_work, algo_sieve_primes_work, algo_sort_work,
+    algo_stats_correlation_work, algo_stats_describe_work, algo_stats_regression_work,
+    algo_stratified_split_work, algo_task_schedule_work, algo_text_chunks_work, algo_top_k_work,
+    audio_convert_work, audio_extract_from_video_work, audio_extract_segment_work, audio_info_work,
+    audio_merge_work, audio_mix_work, audio_normalize_work, audio_reverse_work,
+    audio_silence_detect_work, audio_speed_work, audio_split_work, audio_trim_work,
+    audio_volume_work, audio_waveform_work, cursor_composer_send_work, cursor_open_file_work,
+    file_decrypt_work, file_deduplicate_work, file_encrypt_work, file_sign_work,
+    file_verify_signature_work, file_watch_work, ide_detect_work, ide_find_references_work,
+    ide_format_document_work, ide_goto_definition_work, ide_run_test_work, image_compare_work,
+    image_convert_work, image_crop_work, image_extract_exif_work, image_flip_work,
+    image_grayscale_work, image_histogram_work, image_info_work, image_resize_work,
+    image_rotate_work, image_thumbnail_work, image_watermark_work, jetbrains_adb_shell_work,
+    jetbrains_device_list_work, jetbrains_logcat_tail_work, jetbrains_lsp_code_action_work,
+    jetbrains_open_file_work, jetbrains_run_configuration_work, ocr_batch_work,
+    ocr_detect_text_regions_work, ocr_file_work, ocr_from_clipboard_work, ocr_list_languages_work,
+    ocr_pdf_work, ocr_preprocess_work, ocr_screen_region_work, ocr_table_work,
+    ocr_with_confidence_work, re_binary_info_work, re_binwalk_scan_work, re_carve_work,
+    re_dependencies_work, re_diff_binary_work, re_disassemble_work, re_entropy_work,
+    re_hexdump_work, re_pattern_search_work, re_sections_work, re_strace_work, re_strings_work,
+    re_struct_parse_work, re_symbols_work, sandbox_checksum_work, sandbox_diff_work,
+    sandbox_docker_run_work, sandbox_eval_code_work, sandbox_exec_work, sandbox_file_watch_work,
+    sandbox_network_request_work, sandbox_script_work, screenshot_annotate_work,
+    screenshot_color_pick_work, screenshot_compare_work, screenshot_monitor_info_work,
+    screenshot_ocr_work, screenshot_record_work, screenshot_region_work, screenshot_timelapse_work,
+    screenshot_window_work, speech_detect_language_work, speech_diarize_work, speech_enhance_work,
     speech_extract_words_work, speech_list_models_work, speech_list_voices_work,
     speech_text_to_speech_ssml_work, speech_text_to_speech_work, speech_transcribe_file_work,
     speech_transcribe_microphone_work, speech_transcribe_stream_work, speech_translate_work,
@@ -255,6 +294,8 @@ use rmcp::{
 };
 use schemars::JsonSchema;
 use serde::Deserialize;
+use std::collections::BTreeMap;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -274,12 +315,26 @@ struct MintMcp {
 include!("mcp_args.rs");
 
 impl MintMcp {
-    fn new() -> Self {
+    fn project_root_from_env() -> io::Result<PathBuf> {
         let root = std::env::var("PB_PROJECT_ROOT")
             .or_else(|_| std::env::var("MINT_PROJECT_ROOT"))
             .or_else(|_| std::env::var("PROJECT_ROOT"))
             .map(PathBuf::from)
             .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+        let canonical = root.canonicalize().unwrap_or_else(|_| root.clone());
+        if canonical == Path::new("/")
+            && std::env::var("PB_ALLOW_ROOT_WORKSPACE").ok().as_deref() != Some("1")
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "workspace root '/' refused; set PB_PROJECT_ROOT to a project directory or PB_ALLOW_ROOT_WORKSPACE=1 for an explicit trusted override",
+            ));
+        }
+        Ok(root)
+    }
+
+    fn new() -> io::Result<Self> {
+        let root = Self::project_root_from_env()?;
         let bus_read_only = std::env::var("PB_BUS_READ_ONLY")
             .or_else(|_| std::env::var("MINT_BUS_READ_ONLY"))
             .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "yes" | "YES"))
@@ -287,14 +342,14 @@ impl MintMcp {
 
         let network_profile = network_profile::NetworkProfile::from_env();
 
-        Self {
+        Ok(Self {
             root,
             tool_router: Self::tool_router(),
             bus_rate: Arc::new(bus_rate::BusSendRateLimiter::from_env()),
             bus_read_only,
             network_profile,
             consensus_engine: Arc::new(std::sync::Mutex::new(crate::agent::ConsensusEngine::new())),
-        }
+        })
     }
 
     /// Internet / `PB_NETWORK_PROFILE` / `MINT_NETWORK_PROFILE=public` blocks bus mutations, terminal, risky git, and file writes from converters.
@@ -307,6 +362,128 @@ impl MintMcp {
         } else {
             Ok(())
         }
+    }
+
+    fn active_tool_profile() -> profiles::ToolProfile {
+        std::env::var("PB_MCP_PROFILE")
+            .or_else(|_| std::env::var("MINT_MCP_PROFILE"))
+            .ok()
+            .and_then(|value| profiles::ToolProfile::from_str(&value))
+            .unwrap_or_default()
+    }
+
+    fn command_available(program: &str) -> bool {
+        let path = Path::new(program);
+        if path.components().count() > 1 {
+            return path.is_file();
+        }
+        std::env::var_os("PATH")
+            .map(|paths| std::env::split_paths(&paths).any(|dir| dir.join(program).is_file()))
+            .unwrap_or(false)
+    }
+
+    fn runtime_prerequisite_hints() -> Vec<serde_json::Value> {
+        [
+            ("git", "git tools"),
+            ("rg", "fast search/find tools"),
+            ("ffmpeg", "audio/video tools"),
+            ("tesseract", "OCR tools"),
+            ("whisper", "speech transcription tools"),
+            ("ollama", "local AI/Ollama tools"),
+            ("python3", "pytest and script helper tools"),
+            ("cargo", "Rust project test/check tools"),
+            ("gh", "GitHub PR helper tools"),
+            ("glab", "GitLab MR helper tools"),
+        ]
+        .into_iter()
+        .map(|(program, affects)| {
+            serde_json::json!({
+                "program": program,
+                "available": Self::command_available(program),
+                "affects": affects
+            })
+        })
+        .collect()
+    }
+
+    fn tools_runtime_status_report(&self) -> serde_json::Value {
+        let catalog = tools::ToolCatalog::new();
+        let active_profile = Self::active_tool_profile();
+        let registry = tools::ToolRegistry::with_catalog(catalog.clone(), active_profile);
+        let enabled = registry.enabled_tools();
+        let main_handlers = include_str!("main.rs").matches("#[tool(").count();
+        let extracted_handler_annotations = [
+            include_str!("tools/audio_handlers.rs")
+                .matches("#[tool(")
+                .count(),
+            include_str!("tools/file_crypto_handlers.rs")
+                .matches("#[tool(")
+                .count(),
+            include_str!("tools/image_handlers.rs")
+                .matches("#[tool(")
+                .count(),
+            include_str!("tools/ocr_handlers.rs")
+                .matches("#[tool(")
+                .count(),
+            include_str!("tools/reverse_eng_handlers.rs")
+                .matches("#[tool(")
+                .count(),
+            include_str!("tools/sandbox_handlers.rs")
+                .matches("#[tool(")
+                .count(),
+            include_str!("tools/speech_handlers.rs")
+                .matches("#[tool(")
+                .count(),
+        ]
+        .into_iter()
+        .sum::<usize>();
+        let mut categories = BTreeMap::<String, usize>::new();
+        for tool in enabled.iter() {
+            *categories.entry(tool.category.clone()).or_default() += 1;
+        }
+        let sample_disabled = catalog
+            .all()
+            .iter()
+            .filter(|tool| !registry.is_enabled(&tool.name))
+            .take(25)
+            .map(|tool| {
+                serde_json::json!({
+                    "name": tool.name,
+                    "category": tool.category,
+                    "profile": tool.profile,
+                    "risk_level": tool.risk_level,
+                    "requires_write": tool.requires_write,
+                    "requires_exec": tool.requires_exec
+                })
+            })
+            .collect::<Vec<_>>();
+        serde_json::json!({
+            "format": "pb-mcp-server.tools.runtime_status.v1",
+            "network_profile": self.network_profile.label(),
+            "mcp_profile": active_profile.as_str(),
+            "mcp_profile_description": active_profile.description(),
+            "profile_allows_writes": active_profile.allows_writes(),
+            "profile_allows_execution": active_profile.allows_execution(),
+            "bus_read_only": self.bus_read_only,
+            "handler_annotations": {
+                "main_rs_active_handlers": main_handlers,
+                "extracted_handler_annotations": extracted_handler_annotations,
+                "total_handler_annotations": main_handlers + extracted_handler_annotations
+            },
+            "catalog": {
+                "entries": catalog.count(),
+                "profile_enabled_entries": enabled.len(),
+                "stub_marked_entries": catalog.stubs().len(),
+                "enabled_by_category": categories
+            },
+            "runtime_prerequisites": Self::runtime_prerequisite_hints(),
+            "sample_profile_disabled_catalog_entries": sample_disabled,
+            "notes": [
+                "main_rs_active_handlers is the best count of callable handlers exposed by this binary.",
+                "catalog profile_enabled_entries are metadata entries allowed by PB_MCP_PROFILE; handler names may differ from catalog dotted names.",
+                "runtime_prerequisites are hints; each handler still performs its own validation and security gates."
+            ]
+        })
     }
 
     fn sync_wait_timeout_cap_ms(&self) -> u64 {
@@ -470,6 +647,626 @@ include!("tools/file_crypto_args.rs");
 
 #[tool_router]
 impl MintMcp {
+    #[tool(
+        description = "Runtime report for MCP tool availability: active handler counts, catalog/profile-enabled counts, network/profile gates, category breakdown, and common external-binary/env prerequisite hints. Use this to understand what is actually exposed now.",
+        annotations(title = "Tools: runtime status", read_only_hint = true)
+    )]
+    async fn tools_runtime_status(
+        &self,
+        Parameters(_args): Parameters<EmptyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let out = self.tools_runtime_status_report();
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Catalog of local pb-mcp equivalents inspired by n8n/workflow MCP servers and agent apps such as Claude Code, Codex, OpenCode, OpenClaw, and Hermes. No external app control.",
+        annotations(title = "App: capability catalog", read_only_hint = true)
+    )]
+    async fn app_capability_catalog(
+        &self,
+        Parameters(_args): Parameters<EmptyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let out = tokio::task::spawn_blocking(app_capability_catalog_work)
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Search the local app-inspired capability catalog. Input: {\"query\":\"n8n\"} or {\"query\":\"codex\"}. No network or external app calls.",
+        annotations(title = "App: capability search", read_only_hint = true)
+    )]
+    async fn app_capability_search(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || app_capability_search_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Validate an n8n-style workflow graph with nodes and connections. Input: {\"workflow\":{\"nodes\":[{\"id\":\"a\",\"type\":\"manual\"}],\"connections\":[{\"from\":\"a\",\"to\":\"b\"}]}}.",
+        annotations(title = "Workflow: validate", read_only_hint = true)
+    )]
+    async fn workflow_validate(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || workflow_validate_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Build a deterministic execution plan for a valid n8n-style workflow DAG. Returns ordered nodes and parallelizable levels.",
+        annotations(title = "Workflow: execution plan", read_only_hint = true)
+    )]
+    async fn workflow_execution_plan(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || workflow_execution_plan_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Suggest n8n/MCP/coding-agent style nodes or commands for an intent. Input: {\"query\":\"webhook approval\"}. Local deterministic suggestions only.",
+        annotations(title = "App: node suggest", read_only_hint = true)
+    )]
+    async fn app_node_suggest(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || app_node_suggest_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Generate a safe starter workflow graph for common n8n-style patterns: webhook-approval, schedule-report, coding-ci, data-pipeline, or manual-code-review.",
+        annotations(title = "Workflow: template generate", read_only_hint = true)
+    )]
+    async fn workflow_template_generate(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || workflow_template_generate_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Create a structured task packet compatible with coding-agent apps: goal, context, files, constraints, steps, and verification. Input: {\"goal\":\"fix bug\",\"files\":[\"src/main.rs\"]}.",
+        annotations(title = "Agent app: task packet", read_only_hint = true)
+    )]
+    async fn agent_task_packet(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || agent_task_packet_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Pack a coding-agent prompt from goal, context, files, constraints, and verification steps. Inspired by Codex/Claude Code/OpenCode prompt handoff flows.",
+        annotations(title = "Agent app: prompt pack", read_only_hint = true)
+    )]
+    async fn agent_prompt_pack(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || agent_prompt_pack_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Summarize agent-app session logs into decisions, actions, risks, and verification notes. Input: {\"messages\":[{\"text\":\"...\"}]} or {\"events\":[...]}",
+        annotations(title = "Agent app: session summary", read_only_hint = true)
+    )]
+    async fn agent_session_summary(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || agent_session_summary_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Validate a planned patch/change set before an agent edits files. Input: {\"goal\":\"...\",\"files\":[...],\"changes\":[...],\"verification\":[...]}",
+        annotations(title = "Agent app: patch plan", read_only_hint = true)
+    )]
+    async fn agent_patch_plan(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || agent_patch_plan_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Command-palette suggestions mapped to pb-mcp tool sequences, inspired by Codex, Claude Code, OpenCode, OpenClaw, and Hermes app workflows.",
+        annotations(title = "App: command palette", read_only_hint = true)
+    )]
+    async fn app_command_palette(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || app_command_palette_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Validate a local MCP-style server/tool manifest for names, schemas, annotations, and duplicates. Does not call external MCP servers.",
+        annotations(title = "MCP: manifest validate", read_only_hint = true)
+    )]
+    async fn mcp_manifest_validate(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || mcp_manifest_validate_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Generate a deterministic MCP-style tool spec skeleton from name, description, schema properties, required fields, and read-only metadata.",
+        annotations(title = "MCP: tool spec generate", read_only_hint = true)
+    )]
+    async fn mcp_tool_spec_generate(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || mcp_tool_spec_generate_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Validate a local skill manifest or instruction block for name, description, instructions/body, and declared tools. Does not install or execute skills.",
+        annotations(title = "App: skill manifest validate", read_only_hint = true)
+    )]
+    async fn app_skill_manifest_validate(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || app_skill_manifest_validate_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Generate a deterministic local skill skeleton for coding, security, workflow, or plugin tasks. Inspired by app skill systems.",
+        annotations(title = "App: skill template generate", read_only_hint = true)
+    )]
+    async fn app_skill_template_generate(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || app_skill_template_generate_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Validate local plugin metadata containing tools, skills, and commands. Does not load external plugins.",
+        annotations(title = "App: plugin manifest validate", read_only_hint = true)
+    )]
+    async fn app_plugin_manifest_validate(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || app_plugin_manifest_validate_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Plan how a plugin-like surface should route an intent through skills, commands, and pb-mcp tools. Local routing plan only.",
+        annotations(title = "App: plugin route plan", read_only_hint = true)
+    )]
+    async fn app_plugin_route_plan(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || app_plugin_route_plan_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Expand slash-style app commands such as /review, /fix, /test, /workflow, /mcp, /skill, or /plugin into pb-mcp tool sequences.",
+        annotations(title = "App: slash command expand", read_only_hint = true)
+    )]
+    async fn app_slash_command_expand(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || app_slash_command_expand_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Validate hook definitions before use. Flags missing events/actions and risky command-shaped actions.",
+        annotations(title = "App: hooks policy validate", read_only_hint = true)
+    )]
+    async fn app_hooks_policy_validate(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || app_hooks_policy_validate_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Evaluate a proposed action against a local permission profile. Returns allow/approval-needed without executing anything.",
+        annotations(title = "App: permission policy evaluate", read_only_hint = true)
+    )]
+    async fn app_permission_policy_evaluate(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || app_permission_policy_evaluate_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Select an advisory model/runtime profile from task, privacy, and latency constraints. Does not call any model provider.",
+        annotations(title = "App: model profile select", read_only_hint = true)
+    )]
+    async fn app_model_profile_select(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || app_model_profile_select_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Rank and pack context items into a bounded token budget using priority and rough token estimates.",
+        annotations(title = "App: context budget plan", read_only_hint = true)
+    )]
+    async fn app_context_budget_plan(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || app_context_budget_plan_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Plan dependent agent/app tasks into executable levels from task ids and deps/depends_on arrays.",
+        annotations(title = "App: task queue plan", read_only_hint = true)
+    )]
+    async fn app_task_queue_plan(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || app_task_queue_plan_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Generate an MCP server config skeleton for stdio/http/sse. Does not write files or start a server.",
+        annotations(title = "MCP: server config generate", read_only_hint = true)
+    )]
+    async fn mcp_server_config_generate(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || mcp_server_config_generate_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Validate an MCP-style prompt template with {variable} placeholders and declared variables.",
+        annotations(title = "MCP: prompt template validate", read_only_hint = true)
+    )]
+    async fn mcp_prompt_template_validate(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || mcp_prompt_template_validate_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Validate an MCP-style resource URI template with {variable} placeholders.",
+        annotations(title = "MCP: resource template validate", read_only_hint = true)
+    )]
+    async fn mcp_resource_template_validate(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || mcp_resource_template_validate_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Plan an MCP sampling-style request from prompt, max_tokens, and temperature. Does not call a model.",
+        annotations(title = "MCP: sampling request plan", read_only_hint = true)
+    )]
+    async fn mcp_sampling_request_plan(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || mcp_sampling_request_plan_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Generate a slash-command registry from local app command palette entries.",
+        annotations(title = "App: command registry generate", read_only_hint = true)
+    )]
+    async fn app_command_registry_generate(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || app_command_registry_generate_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Match a request to local skill manifests by name, description, and triggers.",
+        annotations(title = "App: skill route match", read_only_hint = true)
+    )]
+    async fn app_skill_route_match(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || app_skill_route_match_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Summarize plugin-like bundles into a capability matrix of tools, skills, commands, hooks, and permissions.",
+        annotations(title = "App: plugin capability matrix", read_only_hint = true)
+    )]
+    async fn app_plugin_capability_matrix(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || app_plugin_capability_matrix_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Plan a coding-agent app mode such as ask, edit, review, or workflow.",
+        annotations(title = "App: agent mode plan", read_only_hint = true)
+    )]
+    async fn app_agent_mode_plan(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || app_agent_mode_plan_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Plan an isolated branch/worktree-style coding session. Does not create git branches or worktrees.",
+        annotations(title = "App: worktree session plan", read_only_hint = true)
+    )]
+    async fn app_worktree_session_plan(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || app_worktree_session_plan_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Pack app/agent regression prompts with ids, expected signals, and token estimates.",
+        annotations(title = "App: eval prompt pack", read_only_hint = true)
+    )]
+    async fn app_eval_prompt_pack(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || app_eval_prompt_pack_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Catalog common bash, PowerShell, batch/cmd, and macOS zsh terminal commands. Does not execute commands.",
+        annotations(title = "Shell: command catalog", read_only_hint = true)
+    )]
+    async fn shell_command_catalog(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || shell_command_catalog_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Translate common command intents across bash, PowerShell, batch/cmd, and macOS zsh. Does not execute commands.",
+        annotations(title = "Shell: command translate", read_only_hint = true)
+    )]
+    async fn shell_command_translate(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || shell_command_translate_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Generate safe starter script templates for bash, PowerShell, batch/cmd, or macOS zsh. Does not write or execute scripts.",
+        annotations(title = "Shell: script template generate", read_only_hint = true)
+    )]
+    async fn shell_script_template_generate(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || shell_script_template_generate_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Classify shell command risk before terminal execution. Checks common bash, PowerShell, batch, and macOS terminal danger patterns.",
+        annotations(title = "Shell: command safety check", read_only_hint = true)
+    )]
+    async fn shell_command_safety_check(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || shell_command_safety_check_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Map a high-level intent to a practical pb-mcp tool sequence, inspired by agent-app command palettes and workflow assistants. Input: {\"intent\":\"review bugs\"}.",
+        annotations(title = "App: tool recipe", read_only_hint = true)
+    )]
+    async fn app_tool_recipe(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || app_tool_recipe_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
     #[tool(
         description = "Call first when orienting in a repo: canonical project root, git branch, sorted top-level names, whether the multi-agent bus file exists, hard limits for read/grep/tree/diff, and a concise index of multi-agent bus tools/limits. Cheap single round-trip for planning later tool calls.",
         annotations(title = "Workspace context", read_only_hint = true)
@@ -716,7 +1513,7 @@ impl MintMcp {
             } else {
                 0
             };
-            let sleep_ms = poll.saturating_add(extra).min(5000).max(1);
+            let sleep_ms = poll.saturating_add(extra).clamp(1, 5000);
             tokio::time::sleep(std::time::Duration::from_millis(sleep_ms)).await;
         }
     }
@@ -4031,8 +4828,8 @@ impl MintMcp {
     }
 
     #[tool(
-        description = "Safe format helpers: JSON pretty/minify; YAML→JSON (yaml_to_json, yaml_to_json_minify) and JSON→YAML; TOML→JSON (toml_to_json, toml_to_json_minify) and JSON→TOML (null-free); yaml_top_level_keys / toml_top_level_keys for quick config skims; base64/hex; sha256_hex; utf8_bom_strip; line endings; tabs/spaces; strip_ansi; blank line ops; slugify; sort/reverse/trim lines; percent_encode/decode; html_escape. Max 256 KiB/file. output_path disallowed when MINT_NETWORK_PROFILE=public.",
-        annotations(title = "Convert format", read_only_hint = true)
+        description = "Safe format helpers: JSON pretty/minify/top-level keys; TOML→JSON and JSON→TOML (null-free); yaml_top_level_keys heuristic for quick config skims; base64/hex encode/decode; sha256_hex; utf8_bom_strip; line endings; tabs/spaces; strip_ansi; blank line ops; slugify; sort/reverse/trim lines; percent_encode/decode; html_escape. Max 256 KiB/file. output_path disallowed when MINT_NETWORK_PROFILE=public.",
+        annotations(title = "Convert format", read_only_hint = false)
     )]
     async fn convert_format(
         &self,
@@ -4626,7 +5423,8 @@ impl MintMcp {
 
         let root = self.project_root_for_bus();
         let from = args.from_agent.clone();
-        let steps: Vec<(String, Option<String>, Option<String>, Option<String>)> = args
+        type PipelineStep = (String, Option<String>, Option<String>, Option<String>);
+        let steps: Vec<PipelineStep> = args
             .steps
             .into_iter()
             .map(|s| (s.message, s.to_agent, s.topic, s.kind))
@@ -5589,7 +6387,7 @@ impl MintMcp {
         let desc = args.description.clone();
         let deadline = args.deadline_ms;
         let out = tokio::task::spawn_blocking(move ||  -> String {{
-            let mut eng = engine.lock().unwrap();
+            let mut eng = engine.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             let p = eng.create_proposal(from, topic, desc, options, deadline, strategy);
             format!(
                 "CONSENSUS_PROPOSE\nid: {}\nproposer: {}\ntopic: {}\nstrategy: {:?}\ndeadline_ms: {}\nstatus: {:?}\noptions: {}\ncreated_at: {}",
@@ -5620,7 +6418,7 @@ impl MintMcp {
         let conf = args.confidence.clamp(0.0, 1.0);
         let rationale = args.rationale.clone();
         let out = tokio::task::spawn_blocking(move ||  -> String {{
-            let mut eng = engine.lock().unwrap();
+            let mut eng = engine.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             match eng.cast_vote(&pid, voter.clone(), choice.clone(), conf, rationale) {
                 Ok(()) => format!("CONSENSUS_VOTE\nproposal: {}\nvoter: {}\nchoice: {}\nconfidence: {:.2}\nstatus: recorded", pid, voter, choice, conf),
                 Err(e) => format!("Error: {e}"),
@@ -5645,7 +6443,7 @@ impl MintMcp {
         let engine = self.consensus_engine.clone();
         let pid = args.proposal_id.clone();
         let out = tokio::task::spawn_blocking(move ||  -> String {{
-            let eng = engine.lock().unwrap();
+            let eng = engine.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             match eng.tally(&pid) {
                 Ok(r) => {
                     let mut tally_lines: Vec<String> = r.tally.iter().map(|(k, v)| format!("  {k}: {v}")).collect();
@@ -5681,7 +6479,7 @@ impl MintMcp {
         }
         let engine = self.consensus_engine.clone();
         let out = tokio::task::spawn_blocking(move ||  -> String {{
-            let eng = engine.lock().unwrap();
+            let eng = engine.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             let open = eng.list_open();
             if open.is_empty() {
                 return "CONSENSUS_LIST\nNo open proposals.".to_string();
@@ -5714,7 +6512,7 @@ impl MintMcp {
         let engine = self.consensus_engine.clone();
         let pid = args.proposal_id.clone();
         let out = tokio::task::spawn_blocking(move ||  -> String {{
-            let mut eng = engine.lock().unwrap();
+            let mut eng = engine.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             match eng.close_proposal(&pid) {
                 Ok(r) => {
                     let mut tally_lines: Vec<String> = r.tally.iter().map(|(k, v)| format!("  {k}: {v}")).collect();
@@ -7412,7 +8210,7 @@ impl MintMcp {
         let text = args.text.clone();
         let voice = args.voice.clone();
         let speed = args.speed;
-        let output = args.output.as_deref().map(|s| PathBuf::from(s));
+        let output = args.output.as_deref().map(PathBuf::from);
         let out = tokio::task::spawn_blocking(move || {
             speech_text_to_speech_work(text, voice, speed, output)
         })
@@ -7434,7 +8232,7 @@ impl MintMcp {
         }
         let ssml = args.ssml.clone();
         let voice = args.voice.clone();
-        let output = args.output.as_deref().map(|s| PathBuf::from(s));
+        let output = args.output.as_deref().map(PathBuf::from);
         let out = tokio::task::spawn_blocking(move || {
             speech_text_to_speech_ssml_work(ssml, voice, output)
         })
@@ -7558,7 +8356,7 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let noise_reduction = args.noise_reduction;
-        let output = args.output.as_deref().map(|s| PathBuf::from(s));
+        let output = args.output.as_deref().map(PathBuf::from);
         let out =
             tokio::task::spawn_blocking(move || speech_enhance_work(path, noise_reduction, output))
                 .await
@@ -7788,7 +8586,7 @@ impl MintMcp {
         };
         let offset = args.offset;
         let length = args.length;
-        let output = args.output.as_deref().map(|s| PathBuf::from(s));
+        let output = args.output.as_deref().map(PathBuf::from);
         let out = tokio::task::spawn_blocking(move || re_carve_work(path, offset, length, output))
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -7929,7 +8727,7 @@ impl MintMcp {
         let y = args.y;
         let width = args.width;
         let height = args.height;
-        let output = args.output.as_deref().map(|s| PathBuf::from(s));
+        let output = args.output.as_deref().map(PathBuf::from);
         let display = args.display.clone();
         let out = tokio::task::spawn_blocking(move || {
             screenshot_region_work(x, y, width, height, output, display)
@@ -7951,7 +8749,7 @@ impl MintMcp {
             return Self::tool_text(e);
         }
         let window_name = args.window_name.clone();
-        let output = args.output.as_deref().map(|s| PathBuf::from(s));
+        let output = args.output.as_deref().map(PathBuf::from);
         let out = tokio::task::spawn_blocking(move || screenshot_window_work(window_name, output))
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -7960,7 +8758,7 @@ impl MintMcp {
 
     #[tool(
         description = "Take a full-screen screenshot and OCR it with Tesseract in a single step. Optionally saves the screenshot. Requires a trusted (local-power) deployment. Blocked on public profile.",
-        annotations(title = "Screenshot + OCR", read_only_hint = true)
+        annotations(title = "Screenshot + OCR", read_only_hint = false)
     )]
     async fn screenshot_ocr(
         &self,
@@ -7969,7 +8767,7 @@ impl MintMcp {
         if let Err(e) = self.require_trusted_deployment() {
             return Self::tool_text(e);
         }
-        let output = args.output.as_deref().map(|s| PathBuf::from(s));
+        let output = args.output.as_deref().map(PathBuf::from);
         let language = args.language.clone();
         let out = tokio::task::spawn_blocking(move || screenshot_ocr_work(output, language))
             .await
@@ -7989,7 +8787,7 @@ impl MintMcp {
             return Self::tool_text(e);
         }
         let duration_secs = args.duration_secs;
-        let output = args.output.as_deref().map(|s| PathBuf::from(s));
+        let output = args.output.as_deref().map(PathBuf::from);
         let fps = args.fps;
         let out =
             tokio::task::spawn_blocking(move || screenshot_record_work(duration_secs, output, fps))
@@ -8029,7 +8827,7 @@ impl MintMcp {
                         .collect()
                 })
                 .unwrap_or_default();
-        let output = args.output.as_deref().map(|s| PathBuf::from(s));
+        let output = args.output.as_deref().map(PathBuf::from);
         let out = tokio::task::spawn_blocking(move || {
             screenshot_annotate_work(path, annotations, output)
         })
@@ -8115,7 +8913,7 @@ impl MintMcp {
         }
         let interval_secs = args.interval_secs;
         let count = args.count;
-        let output_dir = args.output_dir.as_deref().map(|s| PathBuf::from(s));
+        let output_dir = args.output_dir.as_deref().map(PathBuf::from);
         let out = tokio::task::spawn_blocking(move || {
             screenshot_timelapse_work(interval_secs, count, output_dir)
         })
@@ -8213,7 +9011,7 @@ impl MintMcp {
 
     #[tool(
         description = "Capture a screen region with `scrot` or ImageMagick `import` and OCR it immediately with Tesseract. Requires a trusted (local-power) deployment. Blocked on public profile.",
-        annotations(title = "OCR screen region", read_only_hint = true)
+        annotations(title = "OCR screen region", read_only_hint = false)
     )]
     async fn ocr_screen_region(
         &self,
@@ -8281,7 +9079,7 @@ impl MintMcp {
 
     #[tool(
         description = "Preprocess an image with ImageMagick before OCR. Operations: grayscale | threshold | despeckle | sharpen | resize2x. Requires a trusted (local-power) deployment. Blocked on public profile.",
-        annotations(title = "OCR preprocess image", read_only_hint = true)
+        annotations(title = "OCR preprocess image", read_only_hint = false)
     )]
     async fn ocr_preprocess(
         &self,
@@ -8295,7 +9093,7 @@ impl MintMcp {
             Err(e) => return Self::tool_text(format!("Error: {e}")),
         };
         let operation = args.operation.clone();
-        let output = args.output.as_deref().map(|s| PathBuf::from(s));
+        let output = args.output.as_deref().map(PathBuf::from);
         let out = tokio::task::spawn_blocking(move || ocr_preprocess_work(path, operation, output))
             .await
             .unwrap_or_else(|e| format!("Error: task failed: {e}"));
@@ -8827,6 +9625,633 @@ impl MintMcp {
         Self::tool_text(text)
     }
 
+    #[tool(
+        description = "Compute GCD and LCM for two integers. Input: {\"a\": 48, \"b\": 18}. Pure bounded math. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: GCD / LCM", read_only_hint = true)
+    )]
+    async fn algo_gcd_lcm(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_gcd_lcm_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Prime factorization for an integer n >= 2. Input: {\"n\": 360}. Pure bounded math. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: prime factors", read_only_hint = true)
+    )]
+    async fn algo_prime_factors(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_prime_factors_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Check whether an integer n is prime. Input: {\"n\": 97}. Pure bounded math. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: is prime", read_only_hint = true)
+    )]
+    async fn algo_is_prime(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_is_prime_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Generate primes up to limit with a capped Sieve of Eratosthenes. Input: {\"limit\": 1000}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: prime sieve", read_only_hint = true)
+    )]
+    async fn algo_sieve_primes(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_sieve_primes_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Compute the nth Fibonacci number, capped at n=186 for u128 safety. Input: {\"n\": 50}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: Fibonacci", read_only_hint = true)
+    )]
+    async fn algo_fibonacci(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_fibonacci_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Convert an integer string between bases 2..36. Input: {\"value\":\"ff\", \"from_base\":16, \"to_base\":2}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: base convert", read_only_hint = true)
+    )]
+    async fn algo_base_convert(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_base_convert_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Convert a number in 1..3999 to a Roman numeral. Input: {\"number\": 1994}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: Roman numeral", read_only_hint = true)
+    )]
+    async fn algo_roman_numeral(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_roman_numeral_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Count n choose k with saturating u128 arithmetic. Input: {\"n\": 52, \"k\": 5}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: combinations count", read_only_hint = true)
+    )]
+    async fn algo_combinations_count(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_combinations_count_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Count nPk permutations with saturating u128 arithmetic. Input: {\"n\": 10, \"k\": 3}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: permutations count", read_only_hint = true)
+    )]
+    async fn algo_permutations_count(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_permutations_count_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Compute Shannon entropy in bits per byte for text. Input: {\"text\":\"hello\"}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: entropy", read_only_hint = true)
+    )]
+    async fn algo_entropy(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_entropy_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Build a bounded frequency table over words or characters. Input: {\"text\":\"a a b\", \"mode\":\"word\", \"limit\":50}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: frequency table", read_only_hint = true)
+    )]
+    async fn algo_frequency_table(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_frequency_table_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Run-length encode text into [{value,count}] runs. Input: {\"text\":\"aaabb\"}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: run-length encode", read_only_hint = true)
+    )]
+    async fn algo_run_length_encode(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_run_length_encode_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Find lower/upper binary-search bounds for a target in a sorted numeric array. Input: {\"items\":[1,2,2,3], \"target\":2}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: binary-search bounds", read_only_hint = true)
+    )]
+    async fn algo_binary_search_bounds(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_binary_search_bounds_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Compute union, intersection, and differences over two string arrays. Input: {\"a\":[\"x\"], \"b\":[\"x\",\"y\"]}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: set operations", read_only_hint = true)
+    )]
+    async fn algo_set_ops(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_set_ops_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Compute a simple moving average over numeric values. Input: {\"values\":[1,2,3], \"window\":2}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: moving average", read_only_hint = true)
+    )]
+    async fn algo_moving_average(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_moving_average_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Compute one percentile from a numeric array with linear interpolation. Input: {\"values\":[1,2,3], \"percentile\":95}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: percentile", read_only_hint = true)
+    )]
+    async fn algo_percentile(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_percentile_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Build a bounded numeric histogram from numeric values. Input: {\"values\":[1,2,3], \"bins\":10}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: numeric histogram", read_only_hint = true)
+    )]
+    async fn algo_numeric_histogram(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_numeric_histogram_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Return top-k frequent items or largest/smallest numeric values. Input: {\"mode\":\"frequency\",\"items\":[\"a\",\"b\",\"a\"],\"k\":5} or {\"mode\":\"largest\",\"values\":[1,9,3],\"k\":2}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: top k", read_only_hint = true)
+    )]
+    async fn algo_top_k(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_top_k_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Detect numeric outliers using Tukey IQR fences. Input: {\"values\":[1,2,3,100],\"multiplier\":1.5}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: outliers IQR", read_only_hint = true)
+    )]
+    async fn algo_outliers_iqr(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_outliers_iqr_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Build a confusion matrix and classification metrics. Input: {\"expected\":[\"cat\",\"dog\"],\"predicted\":[\"cat\",\"cat\"]}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: confusion matrix", read_only_hint = true)
+    )]
+    async fn algo_confusion_matrix(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_confusion_matrix_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Compute cosine similarity for numeric vectors or text bag-of-words. Input: {\"a\":[1,0],\"b\":[0.5,0.5]} or {\"text_a\":\"hello world\",\"text_b\":\"hello\"}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: cosine similarity", read_only_hint = true)
+    )]
+    async fn algo_cosine_similarity(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_cosine_similarity_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Create a deterministic MinHash-style text signature from character shingles for duplicate/near-duplicate detection. Input: {\"text\":\"hello world\",\"ngram\":3,\"hashes\":64}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: minhash signature", read_only_hint = true)
+    )]
+    async fn algo_minhash_signature(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_minhash_signature_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Schedule tasks with dependencies using earliest-start times. Input: {\"tasks\":[{\"id\":\"build\",\"duration\":2},{\"id\":\"test\",\"duration\":1,\"depends_on\":[\"build\"]}]}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: task schedule", read_only_hint = true)
+    )]
+    async fn algo_task_schedule(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_task_schedule_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Normalize numeric scores using minmax, zscore, or robust median/IQR scaling. Input: {\"values\":[10,20,30],\"method\":\"minmax\"}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: normalize scores", read_only_hint = true)
+    )]
+    async fn algo_normalize_scores(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_normalize_scores_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Compute rolling window mean/min/max/std-dev over numeric arrays. Input: {\"values\":[1,2,3,4],\"window\":3}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: rolling stats", read_only_hint = true)
+    )]
+    async fn algo_rolling_stats(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_rolling_stats_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Create a deterministic stratified train/validation split from labels. Input: {\"labels\":[\"a\",\"a\",\"b\",\"b\"],\"validation_ratio\":0.25,\"seed\":1}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: stratified split", read_only_hint = true)
+    )]
+    async fn algo_stratified_split(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_stratified_split_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Estimate similarity from MinHash signatures or exact text shingles. Input: {\"signature_a\":[1,2],\"signature_b\":[1,3]} or {\"text_a\":\"abc\",\"text_b\":\"abd\",\"ngram\":2}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: minhash similarity", read_only_hint = true)
+    )]
+    async fn algo_minhash_similarity(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_minhash_similarity_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Compute binary ROC-AUC from labels and numeric scores, plus threshold metrics. Input: {\"labels\":[0,1,1],\"scores\":[0.1,0.8,0.6],\"threshold\":0.5}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: ROC AUC", read_only_hint = true)
+    )]
+    async fn algo_roc_auc(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_roc_auc_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Cluster numeric vectors with deterministic bounded k-means. Input: {\"points\":[[0,0],[1,1],[9,9]],\"k\":2,\"max_iter\":50}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: k-means", read_only_hint = true)
+    )]
+    async fn algo_kmeans(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_kmeans_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Chunk text into deterministic overlapping character windows for dataset preparation. Input: {\"text\":\"abcdef\",\"chunk_size\":3,\"overlap\":1}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: text chunks", read_only_hint = true)
+    )]
+    async fn algo_text_chunks(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_text_chunks_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Summarize text-record dataset quality: empty records, exact duplicates, length stats, and secret-like records without echoing duplicate text. Input: {\"records\":[\"a\",\"a\",\"\"]}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: dataset quality", read_only_hint = true)
+    )]
+    async fn algo_dataset_quality(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_dataset_quality_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Summarize class/label distribution with counts, proportions, entropy, majority/minority labels, and imbalance ratio. Input: {\"labels\":[\"bug\",\"ok\",\"bug\"]}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: label distribution", read_only_hint = true)
+    )]
+    async fn algo_label_distribution(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_label_distribution_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
+    #[tool(
+        description = "Estimate a deterministic bootstrap confidence interval for a numeric mean. Input: {\"values\":[1,2,3],\"samples\":1000,\"confidence\":0.95,\"seed\":1}. Requires an experimental-lab deployment.",
+        annotations(title = "Algorithm: bootstrap mean CI", read_only_hint = true)
+    )]
+    async fn algo_bootstrap_mean_ci(
+        &self,
+        Parameters(args): Parameters<AlgoJsonArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Err(e) = self.require_trusted_deployment() {
+            return Self::tool_text(e);
+        }
+        let input = args.input.clone();
+        let out = tokio::task::spawn_blocking(move || algo_bootstrap_mean_ci_work(input))
+            .await
+            .unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}));
+        let text = serde_json::to_string_pretty(&out).unwrap_or_else(|_| out.to_string());
+        Self::tool_text(text)
+    }
+
     // --- IDE ---
 
     #[tool(
@@ -9314,7 +10739,7 @@ impl MintMcp {
     // --- FILE CRYPTO ---
 
     #[tool(
-        description = "Encrypt a file using AES-256-GCM (XOR+base64 implementation). Writes an .enc output file next to the original. Requires trusted profile.",
+        description = "Encrypt a file using AES-256-GCM with a PBKDF2-HMAC-SHA256 passphrase key. Writes an .enc output file next to the original. Requires trusted profile.",
         annotations(title = "File encrypt", read_only_hint = false)
     )]
     async fn file_encrypt(
@@ -9335,7 +10760,7 @@ impl MintMcp {
     }
 
     #[tool(
-        description = "Decrypt a file previously encrypted with file_encrypt. Reads an .enc file and writes the plaintext back (stripping the .enc suffix). Requires trusted profile.",
+        description = "Decrypt a file previously encrypted with file_encrypt. Supports current ENCV2 AES-GCM files and legacy ENCV1 XOR-obfuscated files. Reads an .enc file and writes the plaintext back. Requires trusted profile.",
         annotations(title = "File decrypt", read_only_hint = false)
     )]
     async fn file_decrypt(
@@ -12232,7 +13657,7 @@ impl ServerHandler for MintMcp {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let transport = (stdin(), stdout());
-    let server = MintMcp::new().serve(transport).await?;
+    let server = MintMcp::new()?.serve(transport).await?;
     server.waiting().await?;
     Ok(())
 }

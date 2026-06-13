@@ -15,11 +15,13 @@
 //!
 //! ```no_run
 //! use pb_mcp_server::security::PathGuard;
-//! use std::path::PathBuf;
 //!
-//! let guard = PathGuard::new("/project/root");
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let guard = PathGuard::new("/project/root")?;
 //! let safe_path = guard.resolve("src/main.rs")?;
 //! let safe_path = guard.resolve_and_validate("src/main.rs", false)?;
+//! # Ok(())
+//! # }
 //! ```
 
 use crate::error::{Error, Result};

@@ -60,7 +60,7 @@ async fn screenshot_window(
 
 #[tool(
     description = "Take a full-screen screenshot and OCR it with Tesseract in a single step. Optionally saves the screenshot. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "Screenshot + OCR", read_only_hint = true)
+    annotations(title = "Screenshot + OCR", read_only_hint = false)
 )]
 async fn screenshot_ocr(
     &self,

@@ -36,6 +36,7 @@
 //! | context     | —                | Context packing for AI agents            |
 //! | testing     | `local.test.`    | Test runners (cargo test, pytest, etc.)  |
 //! | algorithm   | `algorithm.`     | Algorithmic analysis (complexity, graphs)|
+//! | app         | `app.`/`workflow.`| App/workflow/agent-app local equivalents |
 
 use std::collections::HashSet;
 
@@ -60,6 +61,14 @@ pub struct ToolInfo {
     pub requires_write: bool,
     /// Whether the tool executes arbitrary commands.
     pub requires_exec: bool,
+}
+
+impl ToolInfo {
+    /// Whether this catalog entry is currently backed by a placeholder/stub
+    /// implementation instead of a full tool implementation.
+    pub fn is_stub(&self) -> bool {
+        self.name.ends_with(".stub") || self.name.ends_with("_stub")
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -105,6 +114,7 @@ impl ToolCatalog {
         cat.add_ai_tools();
         cat.add_db_tools();
         cat.add_health_tools();
+        cat.add_app_tools();
         cat.add_context_tools();
         cat.add_testing_tools();
 
@@ -157,6 +167,11 @@ impl ToolCatalog {
     /// Reference to the underlying tool slice.
     pub fn all(&self) -> &[ToolInfo] {
         &self.tools
+    }
+
+    /// Return tools that are currently backed by placeholder/stub implementations.
+    pub fn stubs(&self) -> Vec<&ToolInfo> {
+        self.tools.iter().filter(|tool| tool.is_stub()).collect()
     }
 
     // -----------------------------------------------------------------------
@@ -2230,11 +2245,12 @@ impl ToolCatalog {
         let cat = "convert";
         self.add(ToolInfo {
             name: "convert.format".into(),
-            description: "Convert between data formats (JSON/YAML/TOML/CSV/etc.)".into(),
+            description:
+                "Convert between data formats; may write output_path for decode operations".into(),
             category: cat.into(),
             profile: profile.into(),
             risk_level: "low".into(),
-            requires_write: false,
+            requires_write: true,
             requires_exec: false,
         });
         self.add(ToolInfo {
@@ -2397,10 +2413,12 @@ impl ToolCatalog {
         });
         self.add(ToolInfo {
             name: "system.env_get".into(),
-            description: "Get the value of an environment variable".into(),
+            description:
+                "Get an environment variable with sensitive names and secret-like values redacted"
+                    .into(),
             category: cat.into(),
             profile: "local-power".into(),
-            risk_level: "low".into(),
+            risk_level: "medium".into(),
             requires_write: false,
             requires_exec: false,
         });
@@ -2677,6 +2695,15 @@ impl ToolCatalog {
         let profile = "public-safe";
         let cat = "health";
         self.add(ToolInfo {
+            name: "tools.runtime_status".into(),
+            description: "Runtime tool availability report with handler counts, profile gates, and prerequisite hints".into(),
+            category: cat.into(),
+            profile: profile.into(),
+            risk_level: "low".into(),
+            requires_write: false,
+            requires_exec: false,
+        });
+        self.add(ToolInfo {
             name: "health".into(),
             description: "Health check endpoint".into(),
             category: cat.into(),
@@ -2721,6 +2748,211 @@ impl ToolCatalog {
             requires_write: false,
             requires_exec: false,
         });
+    }
+
+    fn add_app_tools(&mut self) {
+        for (name, description, profile) in [
+            (
+                "app.capability_catalog",
+                "Local equivalents inspired by n8n, Claude Code, Codex, OpenCode, OpenClaw, and Hermes",
+                "core-code",
+            ),
+            (
+                "app.capability_search",
+                "Search local app-inspired capability catalog",
+                "core-code",
+            ),
+            (
+                "workflow.validate",
+                "Validate n8n-style workflow graph nodes and connections",
+                "core-code",
+            ),
+            (
+                "workflow.execution_plan",
+                "Build topological execution levels for workflow DAGs",
+                "core-code",
+            ),
+            (
+                "workflow.template_generate",
+                "Generate safe starter workflow graphs for common n8n-style patterns",
+                "core-code",
+            ),
+            (
+                "app.node_suggest",
+                "Suggest n8n/MCP/coding-agent style nodes or commands by intent",
+                "core-code",
+            ),
+            (
+                "agent.task_packet",
+                "Build a structured task packet for coding-agent apps",
+                "agent-orchestration",
+            ),
+            (
+                "agent.prompt_pack",
+                "Pack prompt/context/constraints into a coding-agent handoff",
+                "agent-orchestration",
+            ),
+            (
+                "agent.session_summary",
+                "Summarize agent-session logs into decisions/actions/risks",
+                "agent-orchestration",
+            ),
+            (
+                "agent.patch_plan",
+                "Validate a planned patch/change set before agent edits",
+                "agent-orchestration",
+            ),
+            (
+                "app.command_palette",
+                "Command-palette suggestions mapped to pb-mcp tool sequences",
+                "agent-orchestration",
+            ),
+            (
+                "mcp.manifest_validate",
+                "Validate a local MCP-style server/tool manifest",
+                "core-code",
+            ),
+            (
+                "mcp.tool_spec_generate",
+                "Generate an MCP-style tool spec skeleton",
+                "core-code",
+            ),
+            (
+                "mcp.server_config_generate",
+                "Generate stdio/http MCP server config skeletons",
+                "core-code",
+            ),
+            (
+                "mcp.prompt_template_validate",
+                "Validate MCP-style prompt template variables",
+                "core-code",
+            ),
+            (
+                "mcp.resource_template_validate",
+                "Validate MCP-style resource template placeholders",
+                "core-code",
+            ),
+            (
+                "mcp.sampling_request_plan",
+                "Plan an MCP sampling-style request without calling a model",
+                "core-code",
+            ),
+            (
+                "app.skill_manifest_validate",
+                "Validate a local skill manifest or instruction block",
+                "core-code",
+            ),
+            (
+                "app.skill_template_generate",
+                "Generate a deterministic local skill skeleton",
+                "core-code",
+            ),
+            (
+                "app.plugin_manifest_validate",
+                "Validate local plugin metadata for tools, skills, and commands",
+                "core-code",
+            ),
+            (
+                "app.plugin_route_plan",
+                "Route an intent through plugin-like skills, commands, and tools",
+                "agent-orchestration",
+            ),
+            (
+                "app.slash_command_expand",
+                "Expand slash-style app commands into pb-mcp tool sequences",
+                "agent-orchestration",
+            ),
+            (
+                "app.hooks_policy_validate",
+                "Validate hook definitions and risky command-shaped actions",
+                "agent-orchestration",
+            ),
+            (
+                "app.permission_policy_evaluate",
+                "Evaluate a proposed action against a local permission profile",
+                "core-code",
+            ),
+            (
+                "app.model_profile_select",
+                "Select an advisory model/runtime profile from task constraints",
+                "core-code",
+            ),
+            (
+                "app.context_budget_plan",
+                "Rank and pack context items into a token budget",
+                "core-code",
+            ),
+            (
+                "app.task_queue_plan",
+                "Plan dependent agent/app tasks into executable levels",
+                "agent-orchestration",
+            ),
+            (
+                "app.command_registry_generate",
+                "Generate a slash-command registry from local app commands",
+                "agent-orchestration",
+            ),
+            (
+                "app.skill_route_match",
+                "Match requests to local skill manifests",
+                "agent-orchestration",
+            ),
+            (
+                "app.plugin_capability_matrix",
+                "Summarize plugin-like bundles into a capability matrix",
+                "agent-orchestration",
+            ),
+            (
+                "app.agent_mode_plan",
+                "Plan ask/edit/review/workflow coding-agent modes",
+                "agent-orchestration",
+            ),
+            (
+                "app.worktree_session_plan",
+                "Plan isolated branch/worktree-style coding sessions",
+                "agent-orchestration",
+            ),
+            (
+                "app.eval_prompt_pack",
+                "Pack regression/evaluation prompts for app or agent testing",
+                "agent-orchestration",
+            ),
+            (
+                "shell.command_catalog",
+                "Catalog common bash, PowerShell, batch/cmd, and macOS terminal commands",
+                "core-code",
+            ),
+            (
+                "shell.command_translate",
+                "Translate common command intents across shell families",
+                "core-code",
+            ),
+            (
+                "shell.script_template_generate",
+                "Generate safe starter shell script templates",
+                "core-code",
+            ),
+            (
+                "shell.command_safety_check",
+                "Classify shell command risk before terminal execution",
+                "core-code",
+            ),
+            (
+                "app.tool_recipe",
+                "Map an intent to a practical pb-mcp tool sequence",
+                "agent-orchestration",
+            ),
+        ] {
+            self.add(ToolInfo {
+                name: name.into(),
+                description: description.into(),
+                category: "app".into(),
+                profile: profile.into(),
+                risk_level: "low".into(),
+                requires_write: false,
+                requires_exec: false,
+            });
+        }
     }
 
     fn add_context_tools(&mut self) {
@@ -2812,6 +3044,189 @@ impl ToolCatalog {
             requires_write: false,
             requires_exec: false,
         });
+        for (name, description) in [
+            (
+                "algorithm.sort",
+                "Sort JSON arrays with optional object key",
+            ),
+            (
+                "algorithm.search",
+                "Search JSON arrays linearly or by binary search",
+            ),
+            (
+                "algorithm.graph_bfs",
+                "Breadth-first traversal of an adjacency graph",
+            ),
+            (
+                "algorithm.graph_dfs",
+                "Depth-first traversal of an adjacency graph",
+            ),
+            (
+                "algorithm.graph_shortest_path",
+                "Dijkstra shortest path over weighted graphs",
+            ),
+            (
+                "algorithm.graph_topo_sort",
+                "Topological sort for directed acyclic graphs",
+            ),
+            (
+                "algorithm.matrix_ops",
+                "Matrix multiply, transpose, determinant, and inverse",
+            ),
+            (
+                "algorithm.stats_describe",
+                "Descriptive statistics for numeric arrays",
+            ),
+            (
+                "algorithm.stats_correlation",
+                "Pearson or Spearman correlation",
+            ),
+            ("algorithm.stats_regression", "Simple linear regression"),
+            (
+                "algorithm.fft",
+                "Discrete Fourier Transform over real-valued signals",
+            ),
+            (
+                "algorithm.hash_text",
+                "Hash text with SHA-256, SHA-512, MD5, or fallback BLAKE3",
+            ),
+            (
+                "algorithm.edit_distance",
+                "Levenshtein edit distance between strings",
+            ),
+            (
+                "algorithm.ngram_similarity",
+                "N-gram Jaccard similarity between strings",
+            ),
+            ("algorithm.bloom_filter", "Build or query a Bloom filter"),
+            ("algorithm.gcd_lcm", "Compute GCD and LCM for two integers"),
+            (
+                "algorithm.prime_factors",
+                "Prime factorization for positive integers",
+            ),
+            ("algorithm.is_prime", "Check whether an integer is prime"),
+            (
+                "algorithm.sieve_primes",
+                "Generate primes with a bounded sieve",
+            ),
+            (
+                "algorithm.fibonacci",
+                "Compute Fibonacci numbers in bounded u128 range",
+            ),
+            (
+                "algorithm.base_convert",
+                "Convert integer strings between bases 2..36",
+            ),
+            (
+                "algorithm.roman_numeral",
+                "Convert numbers in 1..3999 to Roman numerals",
+            ),
+            (
+                "algorithm.combinations_count",
+                "Count n choose k with saturating arithmetic",
+            ),
+            (
+                "algorithm.permutations_count",
+                "Count nPk with saturating arithmetic",
+            ),
+            ("algorithm.entropy", "Compute Shannon entropy for text"),
+            (
+                "algorithm.frequency_table",
+                "Build bounded word or character frequency tables",
+            ),
+            ("algorithm.run_length_encode", "Run-length encode text"),
+            (
+                "algorithm.binary_search_bounds",
+                "Find lower and upper binary-search bounds",
+            ),
+            (
+                "algorithm.set_ops",
+                "Union, intersection, and differences over string sets",
+            ),
+            (
+                "algorithm.moving_average",
+                "Simple moving average for numeric arrays",
+            ),
+            ("algorithm.percentile", "Percentile over numeric arrays"),
+            (
+                "algorithm.numeric_histogram",
+                "Bounded numeric histogram over numeric arrays",
+            ),
+            (
+                "algorithm.top_k",
+                "Top-k frequent items or largest/smallest numeric values",
+            ),
+            (
+                "algorithm.outliers_iqr",
+                "Detect numeric outliers with Tukey IQR fences",
+            ),
+            (
+                "algorithm.confusion_matrix",
+                "Build classification confusion matrix and metrics",
+            ),
+            (
+                "algorithm.cosine_similarity",
+                "Cosine similarity for vectors or text bag-of-words",
+            ),
+            (
+                "algorithm.minhash_signature",
+                "Deterministic MinHash-style signature for text",
+            ),
+            (
+                "algorithm.task_schedule",
+                "Earliest-start schedule for dependent tasks",
+            ),
+            (
+                "algorithm.normalize_scores",
+                "Normalize numeric scores with minmax, z-score, or robust scaling",
+            ),
+            (
+                "algorithm.rolling_stats",
+                "Rolling window mean/min/max/std-dev over numeric arrays",
+            ),
+            (
+                "algorithm.stratified_split",
+                "Deterministic stratified train/validation split by labels",
+            ),
+            (
+                "algorithm.minhash_similarity",
+                "Estimate similarity from MinHash signatures or text shingles",
+            ),
+            (
+                "algorithm.roc_auc",
+                "Binary ROC-AUC and threshold metrics for classifier scores",
+            ),
+            (
+                "algorithm.kmeans",
+                "Deterministic bounded k-means clustering for numeric vectors",
+            ),
+            (
+                "algorithm.text_chunks",
+                "Overlapping character chunks for dataset preparation",
+            ),
+            (
+                "algorithm.dataset_quality",
+                "Dataset quality report for text records",
+            ),
+            (
+                "algorithm.label_distribution",
+                "Class/label distribution summary with imbalance metrics",
+            ),
+            (
+                "algorithm.bootstrap_mean_ci",
+                "Deterministic bootstrap confidence interval for a numeric mean",
+            ),
+        ] {
+            self.add(ToolInfo {
+                name: name.into(),
+                description: description.into(),
+                category: "algorithm".into(),
+                profile: "experimental-lab".into(),
+                risk_level: "low".into(),
+                requires_write: false,
+                requires_exec: false,
+            });
+        }
     }
 }
 
@@ -2836,6 +3251,16 @@ mod tests {
             cat.count() > 100,
             "catalog should have 100+ tools, got {}",
             cat.count()
+        );
+    }
+
+    #[test]
+    fn mcp_handler_surface_exceeds_500_tools() {
+        let handler_count = include_str!("../main.rs").matches("#[tool(").count();
+        assert!(
+            handler_count > 500,
+            "MCP handler surface should expose 500+ tools after algorithm expansion, got {}",
+            handler_count
         );
     }
 
@@ -2918,6 +3343,218 @@ mod tests {
                 t.name,
                 t.risk_level
             );
+        }
+    }
+
+    #[test]
+    fn stub_backed_tools_are_marked() {
+        let cat = ToolCatalog::new();
+        let stubs = cat.stubs();
+        let names: Vec<_> = stubs.iter().map(|t| t.name.as_str()).collect();
+        assert!(
+            !names.contains(&"ai.stack_probe"),
+            "ai.stack_probe returns live local probe data and should not be cataloged as a stub"
+        );
+        assert!(
+            !names.contains(&"plan.risk_register")
+                && !names.contains(&"reasoning.evidence_matrix")
+                && !names.contains(&"summarize.top_terms"),
+            "deterministic plan/reasoning/summarize tools should not be cataloged as stubs"
+        );
+    }
+
+    #[test]
+    fn system_env_get_is_not_low_risk() {
+        let cat = ToolCatalog::new();
+        let env_get = cat
+            .all()
+            .iter()
+            .find(|tool| tool.name == "system.env_get")
+            .expect("system.env_get catalog entry");
+        assert_eq!(env_get.profile, "local-power");
+        assert_eq!(env_get.risk_level, "medium");
+    }
+
+    #[test]
+    fn tools_runtime_status_is_public_safe() {
+        let cat = ToolCatalog::new();
+        let status = cat
+            .all()
+            .iter()
+            .find(|tool| tool.name == "tools.runtime_status")
+            .expect("tools.runtime_status catalog entry");
+        assert_eq!(status.category, "health");
+        assert_eq!(status.profile, "public-safe");
+        assert_eq!(status.risk_level, "low");
+        assert!(!status.requires_write);
+        assert!(!status.requires_exec);
+    }
+
+    #[test]
+    fn app_inspired_tools_are_cataloged() {
+        let cat = ToolCatalog::new();
+        for (name, profile) in [
+            ("app.capability_catalog", "core-code"),
+            ("app.capability_search", "core-code"),
+            ("workflow.validate", "core-code"),
+            ("workflow.execution_plan", "core-code"),
+            ("workflow.template_generate", "core-code"),
+            ("app.node_suggest", "core-code"),
+            ("agent.task_packet", "agent-orchestration"),
+            ("agent.prompt_pack", "agent-orchestration"),
+            ("agent.session_summary", "agent-orchestration"),
+            ("agent.patch_plan", "agent-orchestration"),
+            ("app.command_palette", "agent-orchestration"),
+            ("mcp.manifest_validate", "core-code"),
+            ("mcp.tool_spec_generate", "core-code"),
+            ("mcp.server_config_generate", "core-code"),
+            ("mcp.prompt_template_validate", "core-code"),
+            ("mcp.resource_template_validate", "core-code"),
+            ("mcp.sampling_request_plan", "core-code"),
+            ("app.skill_manifest_validate", "core-code"),
+            ("app.skill_template_generate", "core-code"),
+            ("app.plugin_manifest_validate", "core-code"),
+            ("app.plugin_route_plan", "agent-orchestration"),
+            ("app.slash_command_expand", "agent-orchestration"),
+            ("app.hooks_policy_validate", "agent-orchestration"),
+            ("app.permission_policy_evaluate", "core-code"),
+            ("app.model_profile_select", "core-code"),
+            ("app.context_budget_plan", "core-code"),
+            ("app.task_queue_plan", "agent-orchestration"),
+            ("app.command_registry_generate", "agent-orchestration"),
+            ("app.skill_route_match", "agent-orchestration"),
+            ("app.plugin_capability_matrix", "agent-orchestration"),
+            ("app.agent_mode_plan", "agent-orchestration"),
+            ("app.worktree_session_plan", "agent-orchestration"),
+            ("app.eval_prompt_pack", "agent-orchestration"),
+            ("shell.command_catalog", "core-code"),
+            ("shell.command_translate", "core-code"),
+            ("shell.script_template_generate", "core-code"),
+            ("shell.command_safety_check", "core-code"),
+            ("app.tool_recipe", "agent-orchestration"),
+        ] {
+            let tool = cat
+                .all()
+                .iter()
+                .find(|tool| tool.name == name)
+                .unwrap_or_else(|| panic!("{name} must be cataloged"));
+            assert_eq!(tool.category, "app");
+            assert_eq!(tool.profile, profile);
+            assert_eq!(tool.risk_level, "low");
+            assert!(!tool.requires_write);
+            assert!(!tool.requires_exec);
+        }
+    }
+
+    #[test]
+    fn side_effecting_tools_are_not_marked_read_only() {
+        let main_rs = include_str!("../main.rs");
+        let ocr_handlers = include_str!("ocr_handlers.rs");
+        let screenshot_handlers = include_str!("screenshot_handlers.rs");
+
+        assert!(
+            main_rs.contains("annotations(title = \"Convert format\", read_only_hint = false)"),
+            "convert_format can write output_path and must not be read-only"
+        );
+        assert!(
+            main_rs.contains("annotations(title = \"Screenshot + OCR\", read_only_hint = false)")
+                && !main_rs
+                    .contains("annotations(title = \"Screenshot + OCR\", read_only_hint = true)"),
+            "inline screenshot_ocr captures and can save a screenshot and must not be read-only"
+        );
+        assert!(
+            main_rs.contains("annotations(title = \"OCR screen region\", read_only_hint = false)")
+                && !main_rs
+                    .contains("annotations(title = \"OCR screen region\", read_only_hint = true)"),
+            "inline ocr_screen_region captures a screen region and must not be read-only"
+        );
+        assert!(
+            main_rs
+                .contains("annotations(title = \"OCR preprocess image\", read_only_hint = false)")
+                && !main_rs.contains(
+                    "annotations(title = \"OCR preprocess image\", read_only_hint = true)"
+                ),
+            "inline ocr_preprocess writes an output image and must not be read-only"
+        );
+        assert!(
+            ocr_handlers
+                .contains("annotations(title = \"OCR screen region\", read_only_hint = false)"),
+            "ocr_screen_region captures a screen region and must not be read-only"
+        );
+        assert!(
+            ocr_handlers
+                .contains("annotations(title = \"OCR preprocess image\", read_only_hint = false)"),
+            "ocr_preprocess writes an output image and must not be read-only"
+        );
+        assert!(
+            screenshot_handlers
+                .contains("annotations(title = \"Screenshot + OCR\", read_only_hint = false)"),
+            "screenshot_ocr captures and can save a screenshot and must not be read-only"
+        );
+    }
+
+    #[test]
+    fn convert_format_is_write_capable() {
+        let cat = ToolCatalog::new();
+        let convert = cat
+            .all()
+            .iter()
+            .find(|tool| tool.name == "convert.format")
+            .expect("convert.format catalog entry");
+        assert!(
+            convert.requires_write,
+            "convert.format supports output_path and must require write capability"
+        );
+        assert!(!convert.requires_exec);
+    }
+
+    #[test]
+    fn algorithm_expansion_tools_are_cataloged() {
+        let cat = ToolCatalog::new();
+        for name in [
+            "algorithm.gcd_lcm",
+            "algorithm.prime_factors",
+            "algorithm.is_prime",
+            "algorithm.sieve_primes",
+            "algorithm.fibonacci",
+            "algorithm.base_convert",
+            "algorithm.roman_numeral",
+            "algorithm.combinations_count",
+            "algorithm.permutations_count",
+            "algorithm.entropy",
+            "algorithm.frequency_table",
+            "algorithm.run_length_encode",
+            "algorithm.binary_search_bounds",
+            "algorithm.set_ops",
+            "algorithm.moving_average",
+            "algorithm.percentile",
+            "algorithm.numeric_histogram",
+            "algorithm.top_k",
+            "algorithm.outliers_iqr",
+            "algorithm.confusion_matrix",
+            "algorithm.cosine_similarity",
+            "algorithm.minhash_signature",
+            "algorithm.task_schedule",
+            "algorithm.normalize_scores",
+            "algorithm.rolling_stats",
+            "algorithm.stratified_split",
+            "algorithm.minhash_similarity",
+            "algorithm.roc_auc",
+            "algorithm.kmeans",
+            "algorithm.text_chunks",
+            "algorithm.dataset_quality",
+            "algorithm.label_distribution",
+            "algorithm.bootstrap_mean_ci",
+        ] {
+            let tool = cat
+                .all()
+                .iter()
+                .find(|tool| tool.name == name)
+                .unwrap_or_else(|| panic!("{name} must be cataloged"));
+            assert_eq!(tool.category, "algorithm");
+            assert_eq!(tool.profile, "experimental-lab");
+            assert!(!tool.requires_write);
+            assert!(!tool.requires_exec);
         }
     }
 

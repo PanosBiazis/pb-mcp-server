@@ -7,6 +7,16 @@
 //! - Rate limiting
 //! - Security context behavior
 
+#![allow(
+    clippy::assertions_on_constants,
+    clippy::expect_used,
+    clippy::field_reassign_with_default,
+    clippy::io_other_error,
+    clippy::needless_borrows_for_generic_args,
+    clippy::panic,
+    clippy::unwrap_used
+)]
+
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;

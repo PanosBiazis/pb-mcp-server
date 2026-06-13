@@ -10,3 +10,5 @@ setup.json
 .finetune_data.jsonl
 screenshot*
 asus-server.md
+PrjAnalysis.md
+/dist

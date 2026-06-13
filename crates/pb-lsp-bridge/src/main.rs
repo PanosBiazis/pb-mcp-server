@@ -741,10 +741,7 @@ fn build_code_lenses_from_review(review_text: &str) -> Vec<CodeLens> {
 
         let after_colon = &rest[colon_pos + 1..];
         let (file_part, finding_part): (&str, &str) = if let Some(arrow) = after_colon.find("→") {
-            (
-                &after_colon[..arrow].trim(),
-                after_colon[arrow + 3..].trim(),
-            )
+            (after_colon[..arrow].trim(), after_colon[arrow + 3..].trim())
         } else {
             (after_colon.trim(), "")
         };
@@ -880,7 +877,9 @@ fn parse_symbol_search_results(search_text: &str) -> Vec<SymbolInformation> {
         // Symbol lines look like:  symbols: Foo, Bar, Baz
         if let Some(sym_list) = trimmed.strip_prefix("symbols:") {
             if let Some(ref path) = current_path {
-                let uri = path_to_uri(path);
+                let Some(uri) = path_to_uri(path) else {
+                    continue;
+                };
                 for name in sym_list.split(',') {
                     let name = name.trim();
                     if name.is_empty() {
@@ -910,14 +909,13 @@ fn parse_symbol_search_results(search_text: &str) -> Vec<SymbolInformation> {
 }
 
 /// Convert a relative file path to a `file://` URI.
-fn path_to_uri(path: &str) -> lsp_types::Url {
+fn path_to_uri(path: &str) -> Option<lsp_types::Url> {
     let absolute = if Path::new(path).is_absolute() {
         path.to_string()
     } else {
         format!("/{path}")
     };
-    lsp_types::Url::parse(&format!("file://{absolute}"))
-        .unwrap_or_else(|_| lsp_types::Url::parse("file:///unknown").unwrap())
+    lsp_types::Url::parse(&format!("file://{absolute}")).ok()
 }
 
 /// Infer `SymbolKind` from a symbol name using heuristics.
@@ -1134,7 +1132,8 @@ Total findings: 1
 
     #[test]
     fn path_to_uri_absolute() {
-        let url = path_to_uri("/home/user/project/src/main.rs");
+        let url = path_to_uri("/home/user/project/src/main.rs")
+            .expect("absolute path converts to file URI");
         assert_eq!(url.as_str(), "file:///home/user/project/src/main.rs");
     }
 

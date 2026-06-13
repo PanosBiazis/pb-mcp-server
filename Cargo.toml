@@ -10,7 +10,7 @@ resolver = "2"
 
 [package]
 name = "pb-mcp-server"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["PanosBiazis <panosbiazis2003@gmail.com>"]
 description = "Profile-based IDE agent MCP server for Zed/Cursor with multi-agent bus, code intelligence, and execution tools"
@@ -93,6 +93,8 @@ hyper = "1"
 subtle = "2"
 hmac = "0.12"
 sha2 = "0.10"
+aes-gcm = "0.10"
+rand_core = { version = "0.6", features = ["getrandom"] }
 base64 = { version = "0.22", default-features = false, features = ["std"] }
 
 # Compression
@@ -128,14 +130,11 @@ egui_plot = { version = "0.29", optional = true }
 # AI Agent Framework (rig-based agent workers)
 rig-core = { version = "0.10", default-features = false, features = ["reqwest-rustls"], optional = true }
 
-# ML/AI Integration (optional, behind feature flags)
-[dependencies.tesseract]
-version = "0.15"
-optional = true
-
 [dependencies.ort]
 version = "2.0.0-rc.12"
 optional = true
+default-features = false
+features = ["load-dynamic", "ndarray", "tracing", "api-24"]
 
 [dependencies.ndarray]
 version = "0.15"
@@ -144,6 +143,8 @@ optional = true
 [dependencies.tokenizers]
 version = "0.19"
 optional = true
+default-features = false
+features = ["onig"]
 
 # Image Processing (for OCR/Screenshots)
 [dependencies.image]
@@ -211,8 +212,10 @@ default = ["core-code", "agent-orchestration", "review-refactor"]
 core-code = []
 review-refactor = ["core-code"]
 agent-orchestration = ["core-code", "agent-workers"]
-# Note: local-power uses CLI-based OCR (tesseract binary via std::process::Command).
-# The `tesseract` Rust crate is NOT needed here; use `ocr-tools` for Rust-native OCR bindings.
+# Note: OCR tools use CLI-based OCR (`tesseract` / `tesseract.exe` via
+# std::process::Command) instead of linking platform-specific Rust bindings.
+# This keeps the MCP tool surface available across Linux, Windows, and macOS;
+# runtime availability depends on the corresponding CLI being installed.
 local-power = ["dep:image", "web-tools"]
 public-safe = ["web-tools-safe"]
 experimental-lab = ["local-power", "dep:ort", "dep:ndarray", "dep:tokenizers", "web-tools"]
@@ -232,11 +235,11 @@ agent-workers = ["dep:rig-core"]
 full-headless = ["default", "local-power", "experimental-lab", "agent-workers", "network-node"]
 full = ["full-headless", "dashboard"]
 
-# Windows cross-compilation target (x86_64-pc-windows-gnu from Linux).
-# Excludes native C library deps (tesseract/leptonica-sys via ocr-tools, and ONNX Runtime
-# via dep:ort) that require a Windows pkg-config sysroot or are not yet packaged for MinGW.
-# All CLI-based tools (OCR via tesseract.exe, screenshot, sandbox, …) still compile; they
-# simply require the corresponding Windows binaries at runtime.
+# Lighter Windows cross-compilation profile (x86_64-pc-windows-gnu from Linux).
+# Exact `--all-features` is supported when the MinGW target is installed; this
+# profile exists for smaller Windows binaries that skip optional heavy ML deps.
+# All CLI-based tools (OCR via tesseract.exe, screenshot, sandbox, ...) still
+# compile; they simply require the corresponding Windows binaries at runtime.
 #
 # Build with:
 #   cargo build --release --target x86_64-pc-windows-gnu --features full-windows
@@ -249,7 +252,7 @@ tor-bridge = [] # Uses subprocess torsocks/tor CLI
 # Individual tool categories
 git-write = []
 terminal-exec = []
-ocr-tools = ["dep:tesseract", "dep:image"]
+ocr-tools = ["dep:image"]
 ml-tools = ["dep:ort", "dep:ndarray", "dep:tokenizers"]
 screenshot-tools = ["dep:image"]
 web-fetch = ["web-tools"]

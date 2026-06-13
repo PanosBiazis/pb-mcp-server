@@ -571,10 +571,12 @@ impl P2PNode {
         }
 
         // Pick the peer with lowest latency.
-        let best = candidates
+        let Some(best) = candidates
             .iter()
             .min_by_key(|p| p.latency_ms.unwrap_or(u64::MAX))
-            .unwrap();
+        else {
+            return Err(format!("No peers with capability '{capability}' available"));
+        };
 
         let msg = NodeMessage::new(
             self.config.node_id.clone(),

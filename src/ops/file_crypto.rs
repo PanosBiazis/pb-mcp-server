@@ -1,16 +1,20 @@
 //! # File Cryptography & Integrity Tools
 //!
-//! Encryption / decryption (AES-256-GCM simulated via XOR + base64 for
-//! environments where the `aes-gcm` crate is not available), file signing
-//! and verification (HMAC-SHA256 using a passphrase), duplicate-file
-//! detection by SHA-256 content hash, and file-watch snapshot helpers.
+//! File encryption (AES-256-GCM + PBKDF2-HMAC-SHA256), file signing and
+//! verification (HMAC-SHA256 using a passphrase), duplicate-file detection by
+//! SHA-256 content hash, and file-watch snapshot helpers.
 //!
 //! Every public work function takes a `serde_json::Value` and returns a
 //! JSON string of the form `{"ok": true, "data": {...}}` or
 //! `{"ok": false, "error": "..."}`.
 
+use aes_gcm::{
+    aead::{Aead, KeyInit},
+    Aes256Gcm, Nonce,
+};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use hmac::{Hmac, Mac};
+use rand_core::{OsRng, RngCore};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -21,6 +25,15 @@ use std::time::UNIX_EPOCH;
 
 /// HMAC-SHA256 type alias.
 type HmacSha256 = Hmac<Sha256>;
+
+const OBFUSCATION_WARNING: &str =
+    "XOR+base64 obfuscation only; not AES-GCM, not authenticated encryption.";
+const ENCRYPTION_ALGORITHM: &str = "aes-256-gcm+pbkdf2-sha256";
+const ENCV2_PREFIX: &str = "ENCV2:";
+const ENCV1_PREFIX: &str = "ENCV1:";
+const SALT_LEN: usize = 16;
+const NONCE_LEN: usize = 12;
+const PBKDF2_ITERATIONS: u32 = 210_000;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -82,8 +95,75 @@ fn derive_key(passphrase: &str) -> [u8; 32] {
     key
 }
 
-/// XOR bytes with a cycling key. Used as a stand-in for AES-256-GCM when
-/// the `aes-gcm` crate is not in `Cargo.toml`.
+fn derive_aead_key(passphrase: &str, salt: &[u8]) -> Result<[u8; 32], String> {
+    let mut key = [0u8; 32];
+    pbkdf2_hmac_sha256(passphrase.as_bytes(), salt, PBKDF2_ITERATIONS, &mut key)?;
+    Ok(key)
+}
+
+fn pbkdf2_hmac_sha256(
+    password: &[u8],
+    salt: &[u8],
+    iterations: u32,
+    out: &mut [u8; 32],
+) -> Result<(), String> {
+    let mut mac = <HmacSha256 as Mac>::new_from_slice(password)
+        .map_err(|e| format!("PBKDF2 key setup failed: {e}"))?;
+    mac.update(salt);
+    mac.update(&1u32.to_be_bytes());
+    let mut u = mac.finalize().into_bytes();
+    let mut t = u;
+
+    for _ in 1..iterations {
+        let mut mac = <HmacSha256 as Mac>::new_from_slice(password)
+            .map_err(|e| format!("PBKDF2 key setup failed: {e}"))?;
+        mac.update(&u);
+        u = mac.finalize().into_bytes();
+        for (dst, src) in t.iter_mut().zip(u.iter()) {
+            *dst ^= *src;
+        }
+    }
+
+    out.copy_from_slice(&t);
+    Ok(())
+}
+
+fn encrypt_aead(passphrase: &str, plaintext: &[u8]) -> Result<Vec<u8>, String> {
+    let mut salt = [0u8; SALT_LEN];
+    let mut nonce_bytes = [0u8; NONCE_LEN];
+    OsRng.fill_bytes(&mut salt);
+    OsRng.fill_bytes(&mut nonce_bytes);
+
+    let key = derive_aead_key(passphrase, &salt)?;
+    let cipher =
+        Aes256Gcm::new_from_slice(&key).map_err(|e| format!("AES-GCM key setup failed: {e}"))?;
+    let ciphertext = cipher
+        .encrypt(Nonce::from_slice(&nonce_bytes), plaintext)
+        .map_err(|e| format!("AES-GCM encrypt failed: {e}"))?;
+
+    let mut out = Vec::with_capacity(SALT_LEN + NONCE_LEN + ciphertext.len());
+    out.extend_from_slice(&salt);
+    out.extend_from_slice(&nonce_bytes);
+    out.extend_from_slice(&ciphertext);
+    Ok(out)
+}
+
+fn decrypt_aead(passphrase: &str, payload: &[u8]) -> Result<Vec<u8>, String> {
+    if payload.len() < SALT_LEN + NONCE_LEN + 16 {
+        return Err("encrypted payload is too short".to_string());
+    }
+    let salt = &payload[..SALT_LEN];
+    let nonce_bytes = &payload[SALT_LEN..SALT_LEN + NONCE_LEN];
+    let ciphertext = &payload[SALT_LEN + NONCE_LEN..];
+    let key = derive_aead_key(passphrase, salt)?;
+    let cipher =
+        Aes256Gcm::new_from_slice(&key).map_err(|e| format!("AES-GCM key setup failed: {e}"))?;
+    cipher
+        .decrypt(Nonce::from_slice(nonce_bytes), ciphertext)
+        .map_err(|_| "AES-GCM authentication failed: wrong passphrase or modified file".to_string())
+}
+
+/// XOR bytes with a cycling key. This is reversible obfuscation only.
 fn xor_cycle(data: &[u8], key: &[u8; 32]) -> Vec<u8> {
     data.iter()
         .enumerate()
@@ -160,7 +240,7 @@ fn ensure_dir(path: &Path) -> Result<(), String> {
 // 1. file_encrypt_work
 // ---------------------------------------------------------------------------
 
-/// Encrypt a file with AES-256-GCM (simulated via XOR + base64).
+/// Encrypt a file with AES-256-GCM and a PBKDF2-HMAC-SHA256 passphrase key.
 ///
 /// # Parameters
 /// - `path` (string, required): Input file path.
@@ -193,12 +273,14 @@ pub fn file_encrypt_work(params: Value) -> String {
         Err(e) => return err_json(format!("Read error: {e}")),
     };
 
-    let key = derive_key(&passphrase);
-    let xored = xor_cycle(&data, &key);
-    let encoded = BASE64.encode(&xored);
+    let encrypted = match encrypt_aead(&passphrase, &data) {
+        Ok(bytes) => bytes,
+        Err(e) => return err_json(e),
+    };
+    let encoded = BASE64.encode(&encrypted);
 
-    // Format: "ENCV1:<base64>" so we can distinguish encrypted files.
-    let payload = format!("ENCV1:{encoded}");
+    // Format: "ENCV2:<base64(salt || nonce || ciphertext || tag)>".
+    let payload = format!("{ENCV2_PREFIX}{encoded}");
 
     let out_path = {
         let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("file");
@@ -227,6 +309,11 @@ pub fn file_encrypt_work(params: Value) -> String {
     };
 
     ok_json(serde_json::json!({
+        "algorithm": ENCRYPTION_ALGORITHM,
+        "format": "ENCV2",
+        "kdf": "pbkdf2-hmac-sha256",
+        "kdf_iterations": PBKDF2_ITERATIONS,
+        "aead": "aes-256-gcm",
         "output_path": out_path.display().to_string(),
         "original_bytes": data.len(),
         "encrypted_bytes": file_size,
@@ -237,7 +324,7 @@ pub fn file_encrypt_work(params: Value) -> String {
 // 2. file_decrypt_work
 // ---------------------------------------------------------------------------
 
-/// Decrypt a file that was encrypted with `file_encrypt_work`.
+/// Reverse a file produced by `file_encrypt_work`.
 ///
 /// # Parameters
 /// - `path` (string, required): Encrypted file path (`.enc`).
@@ -270,20 +357,30 @@ pub fn file_decrypt_work(params: Value) -> String {
     };
 
     let trimmed = raw.trim();
-    if !trimmed.starts_with("ENCV1:") {
+    if !(trimmed.starts_with(ENCV2_PREFIX) || trimmed.starts_with(ENCV1_PREFIX)) {
         return err_json(
-            "File does not appear to be encrypted by this tool (missing ENCV1: header)",
+            "File does not appear to be encrypted by this tool (missing ENCV2:/ENCV1: header)",
         );
     }
 
-    let b64_part = &trimmed["ENCV1:".len()..];
-    let xored = match BASE64.decode(b64_part) {
-        Ok(d) => d,
-        Err(e) => return err_json(format!("Base64 decode error: {e}")),
+    let (format, decrypted) = if let Some(b64_part) = trimmed.strip_prefix(ENCV2_PREFIX) {
+        let payload = match BASE64.decode(b64_part) {
+            Ok(d) => d,
+            Err(e) => return err_json(format!("Base64 decode error: {e}")),
+        };
+        match decrypt_aead(&passphrase, &payload) {
+            Ok(bytes) => ("ENCV2", bytes),
+            Err(e) => return err_json(e),
+        }
+    } else {
+        let b64_part = &trimmed[ENCV1_PREFIX.len()..];
+        let xored = match BASE64.decode(b64_part) {
+            Ok(d) => d,
+            Err(e) => return err_json(format!("Base64 decode error: {e}")),
+        };
+        let key = derive_key(&passphrase);
+        ("ENCV1-legacy", xor_cycle(&xored, &key))
     };
-
-    let key = derive_key(&passphrase);
-    let decrypted = xor_cycle(&xored, &key);
 
     // Derive the output path by stripping the `.enc` suffix.
     let out_path = {
@@ -306,6 +403,9 @@ pub fn file_decrypt_work(params: Value) -> String {
     }
 
     ok_json(serde_json::json!({
+        "algorithm": if format == "ENCV2" { ENCRYPTION_ALGORITHM } else { "xor-base64-obfuscation" },
+        "format": format,
+        "warning": if format == "ENCV2" { serde_json::Value::Null } else { serde_json::Value::String(OBFUSCATION_WARNING.to_string()) },
         "output_path": out_path.display().to_string(),
         "decrypted_bytes": decrypted.len(),
     }))
@@ -353,7 +453,10 @@ pub fn file_sign_work(params: Value) -> String {
         Err(e) => return err_json(format!("Read error: {e}")),
     };
 
-    let mut mac = HmacSha256::new_from_slice(&key).expect("HMAC can accept any key size");
+    let mut mac = match <HmacSha256 as Mac>::new_from_slice(&key) {
+        Ok(mac) => mac,
+        Err(e) => return err_json(format!("HMAC init error: {e}")),
+    };
     mac.update(&data);
     let result = mac.finalize();
     let sig_hex = hex_encode(result.into_bytes().as_slice());
@@ -445,7 +548,10 @@ pub fn file_verify_signature_work(params: Value) -> String {
     };
 
     // Compute HMAC-SHA256 of the file with the key.
-    let mut mac = HmacSha256::new_from_slice(&key).expect("HMAC can accept any key size");
+    let mut mac = match <HmacSha256 as Mac>::new_from_slice(&key) {
+        Ok(mac) => mac,
+        Err(e) => return err_json(format!("HMAC init error: {e}")),
+    };
     mac.update(&data);
     let result = mac.finalize();
     let computed_hex = hex_encode(result.into_bytes().as_slice());
@@ -501,9 +607,9 @@ pub fn file_verify_signature_work(params: Value) -> String {
         "algorithm": "hmac-sha256",
     });
     if let Some(sm) = sha256_match {
-        data.as_object_mut()
-            .unwrap()
-            .insert("sha256_match".into(), serde_json::Value::Bool(sm));
+        if let Some(obj) = data.as_object_mut() {
+            obj.insert("sha256_match".into(), serde_json::Value::Bool(sm));
+        }
     }
 
     ok_json(data)
@@ -722,14 +828,14 @@ pub fn file_watch_work(params: Value) -> String {
         if compute_hash {
             match sha256_file(&path) {
                 Ok(hash) => {
-                    data.as_object_mut()
-                        .unwrap()
-                        .insert("sha256".into(), serde_json::Value::String(hash));
+                    if let Some(obj) = data.as_object_mut() {
+                        obj.insert("sha256".into(), serde_json::Value::String(hash));
+                    }
                 }
                 Err(e) => {
-                    data.as_object_mut()
-                        .unwrap()
-                        .insert("sha256_error".into(), serde_json::Value::String(e));
+                    if let Some(obj) = data.as_object_mut() {
+                        obj.insert("sha256_error".into(), serde_json::Value::String(e));
+                    }
                 }
             }
         }
@@ -856,16 +962,14 @@ fn walk_snapshot(
             if compute_hash {
                 match sha256_file(&path) {
                     Ok(hash) => {
-                        entry_data
-                            .as_object_mut()
-                            .unwrap()
-                            .insert("sha256".into(), serde_json::Value::String(hash));
+                        if let Some(obj) = entry_data.as_object_mut() {
+                            obj.insert("sha256".into(), serde_json::Value::String(hash));
+                        }
                     }
                     Err(e) => {
-                        entry_data
-                            .as_object_mut()
-                            .unwrap()
-                            .insert("sha256_error".into(), serde_json::Value::String(e));
+                        if let Some(obj) = entry_data.as_object_mut() {
+                            obj.insert("sha256_error".into(), serde_json::Value::String(e));
+                        }
                     }
                 }
             }
@@ -942,13 +1046,19 @@ mod tests {
         }));
         let enc_v = parse_resp(&enc_result);
         assert!(enc_v["ok"].as_bool().unwrap());
+        assert_eq!(
+            enc_v["data"]["algorithm"].as_str().unwrap(),
+            ENCRYPTION_ALGORITHM
+        );
+        assert_eq!(enc_v["data"]["format"].as_str().unwrap(), "ENCV2");
+        assert_eq!(enc_v["data"]["aead"].as_str().unwrap(), "aes-256-gcm");
         let out_path = enc_v["data"]["output_path"].as_str().unwrap();
         assert!(out_path.ends_with(".enc"));
         assert!(Path::new(out_path).is_file());
 
         // Verify the encrypted file starts with the header.
         let enc_content = fs::read_to_string(out_path).unwrap();
-        assert!(enc_content.starts_with("ENCV1:"));
+        assert!(enc_content.starts_with("ENCV2:"));
 
         // Decrypt
         let dec_result = file_decrypt_work(serde_json::json!({
@@ -983,20 +1093,44 @@ mod tests {
         assert!(enc_v["ok"].as_bool().unwrap());
         let out_path = enc_v["data"]["output_path"].as_str().unwrap().to_string();
 
-        // Decrypt with "pass2" — should succeed (no integrity check on XOR)
-        // but the content will be garbled.
+        // Decrypt with "pass2" — authenticated encryption must reject it.
         let dec_result = file_decrypt_work(serde_json::json!({
             "path": &out_path,
             "passphrase": "pass2"
         }));
         let dec_v = parse_resp(&dec_result);
-        assert!(dec_v["ok"].as_bool().unwrap());
-
-        let dec_path = dec_v["data"]["output_path"].as_str().unwrap();
-        let dec_content = fs::read(dec_path).unwrap();
-        assert_ne!(dec_content, b"Secret data here");
+        assert!(!dec_v["ok"].as_bool().unwrap());
+        assert!(dec_v["error"]
+            .as_str()
+            .unwrap()
+            .contains("authentication failed"));
 
         let _ = fs::remove_file(&out_path);
+    }
+
+    #[test]
+    fn decrypt_legacy_encv1_xor_file() {
+        let f = temp_file("legacy_encrypt", b"Legacy data");
+        let enc_path = f.path().with_extension("enc");
+        let key = derive_key("old-pass");
+        let xored = xor_cycle(b"Legacy data", &key);
+        fs::write(&enc_path, format!("{ENCV1_PREFIX}{}", BASE64.encode(xored))).unwrap();
+
+        let dec_result = file_decrypt_work(serde_json::json!({
+            "path": enc_path.display().to_string(),
+            "passphrase": "old-pass"
+        }));
+        let dec_v = parse_resp(&dec_result);
+        assert!(dec_v["ok"].as_bool().unwrap());
+        assert_eq!(
+            dec_v["data"]["algorithm"].as_str().unwrap(),
+            "xor-base64-obfuscation"
+        );
+        assert_eq!(dec_v["data"]["format"].as_str().unwrap(), "ENCV1-legacy");
+        let dec_path = dec_v["data"]["output_path"].as_str().unwrap();
+        assert_eq!(fs::read(dec_path).unwrap(), b"Legacy data");
+
+        let _ = fs::remove_file(&enc_path);
         let _ = fs::remove_file(dec_path);
     }
 

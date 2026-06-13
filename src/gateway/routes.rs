@@ -407,7 +407,6 @@ fn append_remote_agent_message(root: &Path, msg: &RemoteAgentMessage) -> Result<
     let line = serde_json::to_string(msg).map_err(|e| format!("serialize message: {e}"))?;
     let mut f = OpenOptions::new()
         .create(true)
-        .truncate(true)
         .append(true)
         .open(remote_bus_path(root))
         .map_err(|e| format!("open bus: {e}"))?;

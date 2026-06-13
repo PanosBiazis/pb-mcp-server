@@ -296,7 +296,7 @@ impl TorProxy {
                 .config
                 .socks5_addr
                 .parse::<SocketAddr>()
-                .unwrap_or_else(|_| "127.0.0.1:9050".parse().unwrap()),
+                .unwrap_or_else(|_| SocketAddr::from(([127, 0, 0, 1], 9050))),
             std::time::Duration::from_secs(2),
         )
         .is_ok()

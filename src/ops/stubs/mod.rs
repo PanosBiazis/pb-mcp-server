@@ -79,40 +79,211 @@ pub fn ai_inference_integration_guide_work() -> Value {
     })
 }
 
-/// Stub for AI stack probe
+fn env_flag_enabled(name: &str) -> bool {
+    std::env::var(name)
+        .map(|v| {
+            matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
+        .unwrap_or(false)
+}
+
+fn terminal_env_enabled() -> bool {
+    env_flag_enabled("PB_TERMINAL_ENABLE") || env_flag_enabled("MINT_TERMINAL_ENABLE")
+}
+
+fn terminal_allowlist() -> Vec<String> {
+    ["PB_TERMINAL_ALLOW", "MINT_TERMINAL_ALLOW"]
+        .iter()
+        .filter_map(|name| std::env::var(name).ok())
+        .flat_map(|raw| {
+            raw.split(',')
+                .map(str::trim)
+                .filter(|item| !item.is_empty())
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+fn path_lookup(program: &str) -> Option<String> {
+    if program.contains(std::path::MAIN_SEPARATOR) {
+        return None;
+    }
+
+    let path_var = std::env::var_os("PATH")?;
+    let candidates = std::env::split_paths(&path_var).flat_map(|dir| {
+        #[cfg(windows)]
+        {
+            let pathext = std::env::var("PATHEXT").unwrap_or_else(|_| ".EXE;.BAT;.CMD".into());
+            let mut out = Vec::new();
+            out.push(dir.join(program));
+            for ext in pathext.split(';').filter(|s| !s.trim().is_empty()) {
+                out.push(dir.join(format!("{program}{ext}")));
+            }
+            out
+        }
+        #[cfg(not(windows))]
+        {
+            vec![dir.join(program)]
+        }
+    });
+
+    for candidate in candidates {
+        if candidate.is_file() {
+            return Some(candidate.display().to_string());
+        }
+    }
+    None
+}
+
+fn version_probe(program: &str) -> Option<String> {
+    use std::process::Command;
+
+    for args in [vec!["--version"], vec!["-V"], vec!["version"], vec!["list"]] {
+        let output = Command::new(program).args(&args).output().ok()?;
+        if !output.status.success() {
+            continue;
+        }
+        let combined = if output.stdout.is_empty() {
+            String::from_utf8_lossy(&output.stderr).to_string()
+        } else {
+            String::from_utf8_lossy(&output.stdout).to_string()
+        };
+        let first = combined
+            .lines()
+            .map(str::trim)
+            .find(|line| !line.is_empty())
+            .unwrap_or("");
+        if !first.is_empty() {
+            return Some(first.chars().take(240).collect());
+        }
+    }
+    None
+}
+
+fn ai_probe_programs(stack_type: &str) -> Vec<(&'static str, &'static str)> {
+    let all = vec![
+        ("python3", "python runtime for scripts, data, ONNX helpers"),
+        ("python", "fallback python runtime"),
+        ("ollama", "local LLM runtime"),
+        ("tesseract", "OCR engine"),
+        ("ffmpeg", "audio/video processing"),
+        ("ffprobe", "media metadata"),
+        ("cargo", "Rust build/test toolchain"),
+        ("rustc", "Rust compiler"),
+        ("git", "source control"),
+        ("gh", "GitHub CLI"),
+        ("glab", "GitLab CLI"),
+        ("codex", "Codex CLI"),
+        ("claude", "Claude CLI"),
+        ("aider", "Aider coding agent CLI"),
+        ("gemini", "Gemini CLI"),
+        ("node", "JavaScript runtime"),
+    ];
+
+    match stack_type {
+        "llm" | "ai" => all
+            .into_iter()
+            .filter(|(p, _)| matches!(*p, "ollama" | "codex" | "claude" | "aider" | "gemini"))
+            .collect(),
+        "media" | "ocr" => all
+            .into_iter()
+            .filter(|(p, _)| matches!(*p, "tesseract" | "ffmpeg" | "ffprobe" | "python3"))
+            .collect(),
+        "dev" | "toolchain" => all
+            .into_iter()
+            .filter(|(p, _)| matches!(*p, "cargo" | "rustc" | "git" | "gh" | "glab" | "node"))
+            .collect(),
+        _ => all,
+    }
+}
+
+/// Probe local AI/tooling stack without fabricated performance metrics.
 pub fn ai_stack_probe_work(_args: Value) -> Value {
     let stack_type = _args
         .get("stack_type")
         .and_then(|v| v.as_str())
         .unwrap_or("general");
+    let terminal_feature = crate::ops::terminal_enabled();
+    let terminal_env = terminal_env_enabled();
+    let allowlist = terminal_allowlist();
+    let allowlist_set: std::collections::HashSet<String> = allowlist.iter().cloned().collect();
+
+    let mut available = 0usize;
+    let mut version_checked = 0usize;
+    let mut blocked_by_gate = 0usize;
+    let mut tools = Vec::new();
+
+    for (program, role) in ai_probe_programs(stack_type) {
+        let path = path_lookup(program);
+        let allowlisted = allowlist_set.contains(program);
+        let can_run_version = terminal_feature && terminal_env && allowlisted && path.is_some();
+        let version = if can_run_version {
+            version_checked += 1;
+            version_probe(program)
+        } else {
+            if path.is_some() {
+                blocked_by_gate += 1;
+            }
+            None
+        };
+        if path.is_some() {
+            available += 1;
+        }
+        let status = if path.is_none() {
+            "not_found"
+        } else if can_run_version {
+            if version.is_some() {
+                "version_detected"
+            } else {
+                "version_probe_failed"
+            }
+        } else {
+            "available_on_path_version_probe_blocked"
+        };
+
+        tools.push(serde_json::json!({
+            "program": program,
+            "role": role,
+            "available_on_path": path.is_some(),
+            "path": path,
+            "allowlisted": allowlisted,
+            "version_probe_allowed": can_run_version,
+            "version": version,
+            "status": status
+        }));
+    }
 
     serde_json::json!({
+        "format": "pb-mcp.ai_stack_probe.v2",
         "stack_type": stack_type,
         "probe_results": {
-            "model_availability": "Available",
-            "api_status": "Connected",
-            "performance_metrics": {
-                "latency_ms": 150,
-                "throughput_tokens_per_sec": 1000,
-                "success_rate": 0.98
+            "summary": {
+                "programs_checked": tools.len(),
+                "available_on_path": available,
+                "version_probes_attempted": version_checked,
+                "available_but_version_blocked_by_gate": blocked_by_gate
             },
-            "capabilities": [
-                "Text generation",
-                "Code completion",
-                "Analysis",
-                "Reasoning"
-            ],
-            "limitations": [
-                "Context window limits",
-                "Knowledge cutoff",
-                "No real-time data access"
-            ]
+            "terminal_gate": {
+                "terminal_exec_feature": terminal_feature,
+                "terminal_env_enabled": terminal_env,
+                "allowlist_count": allowlist.len(),
+                "version_probe_policy": "versions are probed only when terminal-exec is compiled, PB/MINT_TERMINAL_ENABLE is true, and the program is in PB/MINT_TERMINAL_ALLOW"
+            },
+            "tools": tools,
+            "honesty": {
+                "simulated_metrics": false,
+                "network_calls": false,
+                "claims_connected_api": false
+            }
         },
         "recommendations": [
-            "Monitor performance metrics regularly",
-            "Implement caching for common queries",
-            "Set up fallback mechanisms",
-            "Optimize prompt engineering"
+            "Install missing tools only when a workflow needs them",
+            "Enable terminal version probing by setting PB_TERMINAL_ENABLE=1 or MINT_TERMINAL_ENABLE=1 and allowlisting exact program names",
+            "Use ai_inference_integration_guide for safe local/cloud model integration patterns"
         ]
     })
 }
@@ -201,7 +372,6 @@ pub fn codebase_cargo_dependency_names_work(_manifest_path: PathBuf) -> String {
 pub fn codebase_duplicate_basenames_work(_search_root: PathBuf, _scan: usize) -> String {
     use std::collections::HashMap;
     use std::fs;
-    
 
     let mut basename_counts = HashMap::new();
     let mut duplicates = Vec::new();
@@ -258,25 +428,23 @@ pub fn codebase_index_work(
     walk.ignore(true);
     walk.hidden(false);
 
-    for result in walk.build() {
-        if let Ok(entry) = result {
-            if entry.file_type().map_or(false, |ft| ft.is_file()) {
-                total_files += 1;
+    for entry in walk.build().flatten() {
+        if entry.file_type().is_some_and(|ft| ft.is_file()) {
+            total_files += 1;
 
-                if let Ok(metadata) = entry.metadata() {
-                    let path = entry.path();
-                    let size = metadata.len();
-                    let lines = if let Ok(content) = fs::read_to_string(path) {
-                        content.lines().count()
-                    } else {
-                        0
-                    };
+            if let Ok(metadata) = entry.metadata() {
+                let path = entry.path();
+                let size = metadata.len();
+                let lines = if let Ok(content) = fs::read_to_string(path) {
+                    content.lines().count()
+                } else {
+                    0
+                };
 
-                    total_lines += lines;
+                total_lines += lines;
 
-                    if file_info.len() < _max_files {
-                        file_info.push((path.to_string_lossy().to_string(), size, lines));
-                    }
+                if file_info.len() < _max_files {
+                    file_info.push((path.to_string_lossy().to_string(), size, lines));
                 }
             }
         }
@@ -325,7 +493,6 @@ pub fn codebase_largest_files_work(
     _max_sym: usize,
 ) -> String {
     use std::fs;
-    
 
     let mut file_sizes = Vec::new();
 
@@ -356,27 +523,74 @@ pub fn codebase_largest_files_work(
 /// Stub for codebase manifest write
 pub fn codebase_manifest_write_work(_search_root: PathBuf, _max_files: usize) -> String {
     use ignore::WalkBuilder;
-    
+    use std::fs;
+    use std::io::Write;
+    use std::time::UNIX_EPOCH;
 
-    let mut cargo_files = Vec::new();
+    let max_files = _max_files.clamp(100, 25_000);
+    let mut records = Vec::new();
     let mut walk = WalkBuilder::new(&_search_root);
     walk.git_ignore(true);
     walk.ignore(true);
     walk.hidden(false);
 
-    for entry in walk.build().flatten().take(_max_files) {
+    for entry in walk.build().flatten() {
         let path = entry.path();
-        if path.file_name().map_or(false, |n| n == "Cargo.toml") {
-            cargo_files.push(path.display().to_string());
+        let Ok(metadata) = entry.metadata() else {
+            continue;
+        };
+        if !metadata.is_file() {
+            continue;
+        }
+
+        let relative_path = path
+            .strip_prefix(&_search_root)
+            .unwrap_or(path)
+            .to_string_lossy()
+            .replace('\\', "/");
+        let modified_unix = metadata
+            .modified()
+            .ok()
+            .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
+            .map(|duration| duration.as_secs());
+
+        records.push(serde_json::json!({
+            "path": relative_path,
+            "size_bytes": metadata.len(),
+            "modified_unix": modified_unix,
+        }));
+
+        if records.len() >= max_files {
+            break;
         }
     }
 
-    let mut result = format!("Found {} Cargo.toml files:\n\n", cargo_files.len());
-    for file in cargo_files {
-        result.push_str(&format!("{}\n", file));
+    let manifest_dir = _search_root.join(".mint-mcp");
+    if let Err(e) = fs::create_dir_all(&manifest_dir) {
+        return format!("Error: failed to create {}: {e}", manifest_dir.display());
+    }
+    let manifest_path = manifest_dir.join("file-manifest.jsonl");
+    let mut file = match fs::File::create(&manifest_path) {
+        Ok(file) => file,
+        Err(e) => return format!("Error: failed to create {}: {e}", manifest_path.display()),
+    };
+
+    for record in &records {
+        let line = match serde_json::to_string(record) {
+            Ok(line) => line,
+            Err(e) => return format!("Error: failed to serialize manifest record: {e}"),
+        };
+        if let Err(e) = writeln!(file, "{line}") {
+            return format!("Error: failed to write {}: {e}", manifest_path.display());
+        }
     }
 
-    result
+    format!(
+        "CODEBASE_MANIFEST_WRITE\npath: {}\nfiles: {}\nmax_files: {}\n",
+        manifest_path.display(),
+        records.len(),
+        max_files
+    )
 }
 
 /// Stub for codebase path list
@@ -514,6 +728,15 @@ pub fn codebase_word_index_work(_search_root: PathBuf, _max_files: usize, _top_n
         .ignore(true)
         .hidden(false)
         .build();
+    let word_regex = match regex::Regex::new(r"\b\w+\b") {
+        Ok(re) => re,
+        Err(e) => {
+            return serde_json::json!({
+                "error": format!("internal regex compile failed: {e}")
+            })
+            .to_string();
+        }
+    };
 
     for entry in walk.flatten() {
         if files_processed >= _max_files {
@@ -523,11 +746,6 @@ pub fn codebase_word_index_work(_search_root: PathBuf, _max_files: usize, _top_n
         let path = entry.path();
         if path.is_file() {
             if let Ok(content) = fs::read_to_string(path) {
-                // Extract words (alphanumeric sequences)
-                use regex::Regex;
-                let word_regex =
-                    Regex::new(r"\b\w+\b").unwrap_or_else(|_| Regex::new(r".").unwrap());
-
                 for caps in word_regex.captures_iter(&content) {
                     if let Some(word_match) = caps.get(0) {
                         let word = word_match.as_str().to_lowercase();
@@ -793,10 +1011,10 @@ pub fn compress_drop_lines_matching_regex_work(
 ) -> String {
     use regex::Regex;
 
-    let regex = if _ci {
-        Regex::new(&format!("(?i){}", &_pat)).unwrap_or_else(|_| Regex::new(r".").unwrap())
-    } else {
-        Regex::new(&_pat).unwrap_or_else(|_| Regex::new(r".").unwrap())
+    let regex_pattern = if _ci { format!("(?i){}", &_pat) } else { _pat };
+    let regex = match Regex::new(&regex_pattern) {
+        Ok(regex) => regex,
+        Err(_) => return _text,
     };
 
     let lines: Vec<&str> = _text.lines().collect();
@@ -875,16 +1093,48 @@ pub fn compress_file_work(
 }
 
 pub fn compress_gzip_base64_work(_text: Option<String>, _path: Option<&PathBuf>) -> String {
-    
+    use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+    use flate2::{write::GzEncoder, Compression};
+    use std::fs;
+    use std::io::Write;
 
-    // This is a basic implementation - in a real scenario you'd use base64 and flate2 crates
-    serde_json::json!({
-        "status": "not_implemented",
-        "message": "Gzip compression requires compression library integration",
-        "has_text": _text.is_some(),
-        "has_path": _path.is_some()
-    })
-    .to_string()
+    let bytes = match (_text, _path) {
+        (Some(text), None) => text.into_bytes(),
+        (None, Some(path)) => {
+            let meta = match fs::metadata(path) {
+                Ok(meta) => meta,
+                Err(e) => return format!("Error: failed to stat {}: {e}", path.display()),
+            };
+            if meta.len() as usize > crate::ops::MAX_CONVERT_BYTES {
+                return format!(
+                    "Error: input file exceeds {} bytes",
+                    crate::ops::MAX_CONVERT_BYTES
+                );
+            }
+            match fs::read(path) {
+                Ok(bytes) => bytes,
+                Err(e) => return format!("Error: failed to read {}: {e}", path.display()),
+            }
+        }
+        (Some(_), Some(_)) => return "Error: provide only one of text or input_path".to_string(),
+        (None, None) => return "Error: provide text or input_path".to_string(),
+    };
+
+    if bytes.len() > crate::ops::MAX_CONVERT_BYTES {
+        return format!(
+            "Error: input exceeds {} bytes",
+            crate::ops::MAX_CONVERT_BYTES
+        );
+    }
+
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+    if let Err(e) = encoder.write_all(&bytes) {
+        return format!("Error: gzip write failed: {e}");
+    }
+    match encoder.finish() {
+        Ok(compressed) => BASE64.encode(compressed),
+        Err(e) => format!("Error: gzip finish failed: {e}"),
+    }
 }
 
 pub fn compress_lines_head_work(_text: String, _head_lines: usize, _max_chars: usize) -> String {
@@ -957,8 +1207,9 @@ pub fn compress_markdown_links_work(_text: String, _mc: usize) -> String {
     use regex::Regex;
 
     // Remove markdown links [text](url) keeping just the text
-    let link_regex =
-        Regex::new(r"\[([^\]]+)\]\([^)]+\)").unwrap_or_else(|_| Regex::new(r".").unwrap());
+    let Ok(link_regex) = Regex::new(r"\[([^\]]+)\]\([^)]+\)") else {
+        return _text;
+    };
     let result = link_regex.replace_all(&_text, "$1");
 
     let output = result.to_string();
@@ -994,8 +1245,9 @@ pub fn compress_redact_emails_work(_text: String, _mc: usize) -> String {
     use regex::Regex;
 
     // Redact email addresses
-    let email_regex = Regex::new(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
-        .unwrap_or_else(|_| Regex::new(r".").unwrap());
+    let Ok(email_regex) = Regex::new(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b") else {
+        return _text;
+    };
     let result = email_regex.replace_all(&_text, "[REDACTED_EMAIL]");
 
     let output = result.to_string();
@@ -1010,7 +1262,9 @@ pub fn compress_redact_urls_work(_text: String, _mc: usize) -> String {
     use regex::Regex;
 
     // Redact URLs
-    let url_regex = Regex::new(r"https?://[^\s]+").unwrap_or_else(|_| Regex::new(r".").unwrap());
+    let Ok(url_regex) = Regex::new(r"https?://[^\s]+") else {
+        return _text;
+    };
     let result = url_regex.replace_all(&_text, "[REDACTED_URL]");
 
     let output = result.to_string();
@@ -1023,8 +1277,14 @@ pub fn compress_redact_urls_work(_text: String, _mc: usize) -> String {
 
 pub fn compress_sentences_work(_text: String, _max_sentences: usize, _max_chars: usize) -> String {
     // Split by sentence endings (., !, ?)
-    let sentences: Vec<String> = regex::Regex::new(r"[.!?]+\s+")
-        .unwrap_or_else(|_| regex::Regex::new(r".").unwrap())
+    let Ok(sentence_regex) = regex::Regex::new(r"[.!?]+\s+") else {
+        return if _text.len() > _max_chars {
+            format!("{}...[truncated]", &_text[.._max_chars.min(_text.len())])
+        } else {
+            _text
+        };
+    };
+    let sentences: Vec<String> = sentence_regex
         .split(&_text)
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
@@ -1054,7 +1314,9 @@ pub fn compress_strip_tags_work(_text: String, _mc: usize) -> String {
     use regex::Regex;
 
     // Remove HTML tags
-    let tag_regex = Regex::new(r"<[^>]*>").unwrap_or_else(|_| Regex::new(r".").unwrap());
+    let Ok(tag_regex) = Regex::new(r"<[^>]*>") else {
+        return _text;
+    };
     let result = tag_regex.replace_all(&_text, "");
 
     let output = result.to_string();
@@ -1113,8 +1375,6 @@ pub fn compress_truncate_middle_work(
 }
 
 pub fn compress_unified_diff_stats_work(_text: String, _mc: usize) -> String {
-    
-
     // Extract diff stats (lines added/removed)
     let lines: Vec<&str> = _text.lines().collect();
     let mut added = 0;
@@ -1151,9 +1411,7 @@ pub fn compress_unique_lines_work(_text: String, _max_lines: usize, _max_chars: 
     let unique_lines: Vec<String> = lines
         .iter()
         .filter_map(|line| {
-            if line.trim().is_empty() {
-                None
-            } else if seen.contains(line) {
+            if line.trim().is_empty() || seen.contains(line) {
                 None
             } else {
                 seen.insert(line);
@@ -1177,8 +1435,10 @@ pub fn compress_ws_collapse_work(_text: String, _mc: usize) -> String {
     // Collapse consecutive whitespace characters to single space
     use regex::Regex;
 
-    let ws_regex = Regex::new(r"\s+").unwrap_or_else(|_| Regex::new(r".").unwrap());
-    let result = ws_regex.replace_all(&_text.trim(), " ");
+    let Ok(ws_regex) = Regex::new(r"\s+") else {
+        return _text;
+    };
+    let result = ws_regex.replace_all(_text.trim(), " ");
 
     let output = result.to_string();
     if output.len() > _mc {
@@ -1192,29 +1452,396 @@ pub fn compress_ws_collapse_work(_text: String, _mc: usize) -> String {
 // Convert tools
 // ============================================================================
 
+#[allow(clippy::too_many_arguments)]
 pub fn convert_format_work(
-    _op: String,
-    _text: Option<String>,
-    _input_path: Option<PathBuf>,
-    _output_path: Option<PathBuf>,
-    _allow_out: bool,
-    _tab_stops: usize,
-    _line_number_start: usize,
-    _wrap_width: usize,
+    op: String,
+    text: Option<String>,
+    input_path: Option<PathBuf>,
+    output_path: Option<PathBuf>,
+    allow_out: bool,
+    tab_stops: usize,
+    line_number_start: usize,
+    wrap_width: usize,
 ) -> String {
-    
+    use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+    use sha2::{Digest, Sha256};
+    use std::fs;
 
-    // This is a basic implementation - in a real scenario you'd integrate with format conversion libraries
-    serde_json::json!({
-        "status": "not_implemented",
-        "message": "Format conversion requires integration with conversion libraries",
-        "operation": _op,
-        "allow_out": _allow_out,
-        "tab_stops": _tab_stops,
-        "line_number_start": _line_number_start,
-        "wrap_width": _wrap_width
-    })
-    .to_string()
+    fn read_input(text: Option<String>, input_path: Option<PathBuf>) -> Result<String, String> {
+        match (text, input_path) {
+            (Some(text), None) => {
+                if text.len() > crate::ops::MAX_CONVERT_BYTES {
+                    Err(format!(
+                        "Error: input exceeds {} bytes",
+                        crate::ops::MAX_CONVERT_BYTES
+                    ))
+                } else {
+                    Ok(text)
+                }
+            }
+            (None, Some(path)) => {
+                let meta = fs::metadata(&path)
+                    .map_err(|e| format!("Error: failed to stat {}: {e}", path.display()))?;
+                if meta.len() as usize > crate::ops::MAX_CONVERT_BYTES {
+                    return Err(format!(
+                        "Error: input file exceeds {} bytes",
+                        crate::ops::MAX_CONVERT_BYTES
+                    ));
+                }
+                fs::read_to_string(&path)
+                    .map_err(|e| format!("Error: failed to read UTF-8 {}: {e}", path.display()))
+            }
+            (Some(_), Some(_)) => Err("Error: provide only one of text or input_path".to_string()),
+            (None, None) => Err("Error: provide text or input_path".to_string()),
+        }
+    }
+
+    fn hex_encode(bytes: &[u8]) -> String {
+        bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+    }
+
+    fn hex_decode(text: &str) -> Result<Vec<u8>, String> {
+        let compact: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+        if !compact.len().is_multiple_of(2) {
+            return Err("Error: hex input has odd length".to_string());
+        }
+        let mut out = Vec::with_capacity(compact.len() / 2);
+        for i in (0..compact.len()).step_by(2) {
+            let pair = &compact[i..i + 2];
+            let byte = u8::from_str_radix(pair, 16)
+                .map_err(|_| format!("Error: invalid hex byte '{pair}'"))?;
+            out.push(byte);
+        }
+        Ok(out)
+    }
+
+    fn percent_encode(text: &str) -> String {
+        let mut out = String::new();
+        for byte in text.bytes() {
+            if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~') {
+                out.push(byte as char);
+            } else {
+                out.push_str(&format!("%{byte:02X}"));
+            }
+        }
+        out
+    }
+
+    fn percent_decode(text: &str) -> Result<String, String> {
+        let bytes = text.as_bytes();
+        let mut out = Vec::with_capacity(bytes.len());
+        let mut i = 0usize;
+        while i < bytes.len() {
+            if bytes[i] == b'%' {
+                if i + 2 >= bytes.len() {
+                    return Err("Error: incomplete percent escape".to_string());
+                }
+                let pair = std::str::from_utf8(&bytes[i + 1..i + 3])
+                    .map_err(|e| format!("Error: invalid percent escape: {e}"))?;
+                let byte = u8::from_str_radix(pair, 16)
+                    .map_err(|_| format!("Error: invalid percent escape '%{pair}'"))?;
+                out.push(byte);
+                i += 3;
+            } else if bytes[i] == b'+' {
+                out.push(b' ');
+                i += 1;
+            } else {
+                out.push(bytes[i]);
+                i += 1;
+            }
+        }
+        String::from_utf8(out).map_err(|e| format!("Error: decoded bytes are not UTF-8: {e}"))
+    }
+
+    fn html_escape(text: &str) -> String {
+        text.replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('"', "&quot;")
+            .replace('\'', "&#39;")
+    }
+
+    fn slugify(text: &str) -> String {
+        let mut out = String::new();
+        let mut last_dash = false;
+        for ch in text.chars().flat_map(char::to_lowercase) {
+            if ch.is_ascii_alphanumeric() {
+                out.push(ch);
+                last_dash = false;
+            } else if !last_dash && !out.is_empty() {
+                out.push('-');
+                last_dash = true;
+            }
+        }
+        while out.ends_with('-') {
+            out.pop();
+        }
+        out
+    }
+
+    fn collapse_blank_lines(text: &str) -> String {
+        let mut out = Vec::new();
+        let mut blank = false;
+        for line in text.lines() {
+            if line.trim().is_empty() {
+                if !blank {
+                    out.push(String::new());
+                }
+                blank = true;
+            } else {
+                out.push(line.to_string());
+                blank = false;
+            }
+        }
+        out.join("\n")
+    }
+
+    fn wrap_lines(text: &str, width: usize) -> String {
+        let width = width.clamp(8, 200);
+        let mut out = Vec::new();
+        for line in text.lines() {
+            let mut current = String::new();
+            for word in line.split_whitespace() {
+                if current.is_empty() {
+                    current.push_str(word);
+                } else if current.len() + 1 + word.len() <= width {
+                    current.push(' ');
+                    current.push_str(word);
+                } else {
+                    out.push(current);
+                    current = word.to_string();
+                }
+            }
+            if current.is_empty() {
+                out.push(String::new());
+            } else {
+                out.push(current);
+            }
+        }
+        out.join("\n")
+    }
+
+    fn top_level_keys_from_value(value: &serde_json::Value) -> String {
+        match value.as_object() {
+            Some(map) => map.keys().cloned().collect::<Vec<_>>().join("\n"),
+            None => "Error: top-level value is not an object/table".to_string(),
+        }
+    }
+
+    fn strip_json_nulls(value: serde_json::Value) -> Option<serde_json::Value> {
+        match value {
+            serde_json::Value::Null => None,
+            serde_json::Value::Array(items) => Some(serde_json::Value::Array(
+                items.into_iter().filter_map(strip_json_nulls).collect(),
+            )),
+            serde_json::Value::Object(map) => {
+                let filtered = map
+                    .into_iter()
+                    .filter_map(|(key, value)| strip_json_nulls(value).map(|value| (key, value)))
+                    .collect();
+                Some(serde_json::Value::Object(filtered))
+            }
+            other => Some(other),
+        }
+    }
+
+    fn maybe_write_output(
+        output_path: Option<PathBuf>,
+        allow_out: bool,
+        bytes: &[u8],
+        text_fallback: String,
+    ) -> String {
+        match output_path {
+            Some(path) => {
+                if !allow_out {
+                    return "Error: output_path is blocked on public network profile".to_string();
+                }
+                if bytes.len() > crate::ops::MAX_CONVERT_BYTES {
+                    return format!(
+                        "Error: output exceeds {} bytes",
+                        crate::ops::MAX_CONVERT_BYTES
+                    );
+                }
+                match fs::write(&path, bytes) {
+                    Ok(()) => format!(
+                        "CONVERT_FORMAT_WRITE\npath: {}\nbytes: {}\n",
+                        path.display(),
+                        bytes.len()
+                    ),
+                    Err(e) => format!("Error: failed to write {}: {e}", path.display()),
+                }
+            }
+            None => text_fallback,
+        }
+    }
+
+    let op = op.trim().to_ascii_lowercase();
+    let input = match read_input(text, input_path) {
+        Ok(input) => input,
+        Err(e) => return e,
+    };
+
+    let result: Result<String, String> = match op.as_str() {
+        "json_pretty" | "json" => serde_json::from_str::<serde_json::Value>(&input)
+            .and_then(|value| serde_json::to_string_pretty(&value))
+            .map_err(|e| format!("Error: JSON conversion failed: {e}")),
+        "json_minify" => serde_json::from_str::<serde_json::Value>(&input)
+            .and_then(|value| serde_json::to_string(&value))
+            .map_err(|e| format!("Error: JSON conversion failed: {e}")),
+        "json_top_level_keys" => serde_json::from_str::<serde_json::Value>(&input)
+            .map(|value| top_level_keys_from_value(&value))
+            .map_err(|e| format!("Error: JSON parse failed: {e}")),
+        "toml_to_json" => match input.parse::<toml::Value>() {
+            Ok(value) => serde_json::to_string_pretty(&value)
+                .map_err(|e| format!("Error: TOML to JSON serialization failed: {e}")),
+            Err(e) => Err(format!("Error: TOML parse failed: {e}")),
+        },
+        "toml_to_json_minify" => match input.parse::<toml::Value>() {
+            Ok(value) => serde_json::to_string(&value)
+                .map_err(|e| format!("Error: TOML to JSON serialization failed: {e}")),
+            Err(e) => Err(format!("Error: TOML parse failed: {e}")),
+        },
+        "toml_top_level_keys" => input
+            .parse::<toml::Value>()
+            .map(|value| match value.as_table() {
+                Some(table) => table.keys().cloned().collect::<Vec<_>>().join("\n"),
+                None => "Error: top-level TOML value is not a table".to_string(),
+            })
+            .map_err(|e| format!("Error: TOML parse failed: {e}")),
+        "json_to_toml" => {
+            let value = match serde_json::from_str::<serde_json::Value>(&input) {
+                Ok(value) => value,
+                Err(e) => return format!("Error: JSON parse failed: {e}"),
+            };
+            match strip_json_nulls(value) {
+                Some(value) => toml::to_string_pretty(&value)
+                    .map_err(|e| format!("Error: JSON to TOML conversion failed: {e}")),
+                None => Err("Error: JSON null cannot be represented as TOML".to_string()),
+            }
+        }
+        "yaml_to_json" | "yaml_to_json_minify" | "json_to_yaml" => Err(
+            "Error: YAML conversion is not compiled into this binary; add serde_yaml support before advertising this op".to_string(),
+        ),
+        "yaml_top_level_keys" => {
+            let keys = input
+                .lines()
+                .filter_map(|line| {
+                    if line.starts_with(' ') || line.starts_with('\t') || line.trim().is_empty() {
+                        return None;
+                    }
+                    line.split_once(':')
+                        .map(|(key, _)| key.trim().trim_matches('"').trim_matches('\'').to_string())
+                        .filter(|key| !key.is_empty() && !key.starts_with('#'))
+                })
+                .collect::<Vec<_>>();
+            Ok(keys.join("\n"))
+        }
+        "base64" | "base64_encode" => Ok(BASE64.encode(input.as_bytes())),
+        "base64_decode" => {
+            let bytes = match BASE64.decode(input.trim()) {
+                Ok(bytes) => bytes,
+                Err(e) => return format!("Error: invalid base64 input: {e}"),
+            };
+            let fallback = match String::from_utf8(bytes.clone()) {
+                Ok(text) => text,
+                Err(_) => serde_json::json!({
+                    "binary": true,
+                    "bytes": bytes.len(),
+                    "data_base64": BASE64.encode(&bytes)
+                })
+                .to_string(),
+            };
+            return maybe_write_output(output_path, allow_out, &bytes, fallback);
+        }
+        "hex" | "hex_encode" => Ok(hex_encode(input.as_bytes())),
+        "hex_decode" => {
+            let bytes = match hex_decode(&input) {
+                Ok(bytes) => bytes,
+                Err(e) => return e,
+            };
+            let fallback = match String::from_utf8(bytes.clone()) {
+                Ok(text) => text,
+                Err(_) => serde_json::json!({
+                    "binary": true,
+                    "bytes": bytes.len(),
+                    "data_base64": BASE64.encode(&bytes)
+                })
+                .to_string(),
+            };
+            return maybe_write_output(output_path, allow_out, &bytes, fallback);
+        }
+        "sha256_hex" => {
+            let digest = Sha256::digest(input.as_bytes());
+            Ok(hex_encode(&digest))
+        }
+        "utf8_bom_strip" => Ok(input.trim_start_matches('\u{feff}').to_string()),
+        "crlf" | "lf_to_crlf" => Ok(input.replace("\r\n", "\n").replace('\n', "\r\n")),
+        "lf" | "crlf_to_lf" => Ok(input.replace("\r\n", "\n")),
+        "tabs_to_spaces" => Ok(input.replace('\t', &" ".repeat(tab_stops.clamp(1, 16)))),
+        "spaces_to_tabs" => {
+            let width = tab_stops.clamp(1, 16);
+            Ok(input.replace(&" ".repeat(width), "\t"))
+        }
+        "strip_ansi" => match regex::Regex::new(r"\x1b\[[0-9;?]*[ -/]*[@-~]") {
+            Ok(re) => Ok(re.replace_all(&input, "").to_string()),
+            Err(e) => Err(format!("Error: internal ANSI regex failed: {e}")),
+        },
+        "collapse_blank_lines" => Ok(collapse_blank_lines(&input)),
+        "remove_empty_lines" => Ok(input
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .collect::<Vec<_>>()
+            .join("\n")),
+        "dedupe_adjacent_lines" => {
+            let mut out = Vec::new();
+            let mut previous: Option<&str> = None;
+            for line in input.lines() {
+                if previous != Some(line) {
+                    out.push(line);
+                    previous = Some(line);
+                }
+            }
+            Ok(out.join("\n"))
+        }
+        "slugify" => Ok(slugify(&input)),
+        "c_string_escape" => Ok(input.escape_default().to_string()),
+        "html_escape" => Ok(html_escape(&input)),
+        "prefix_line_numbers" => Ok(input
+            .lines()
+            .enumerate()
+            .map(|(i, line)| format!("{:>6}: {}", line_number_start.saturating_add(i), line))
+            .collect::<Vec<_>>()
+            .join("\n")),
+        "text_lowercase" | "lowercase" => Ok(input.to_lowercase()),
+        "text_uppercase" | "uppercase" => Ok(input.to_uppercase()),
+        "sort_lines" => {
+            let mut lines = input.lines().collect::<Vec<_>>();
+            lines.sort_unstable();
+            Ok(lines.join("\n"))
+        }
+        "reverse_lines" => Ok(input.lines().rev().collect::<Vec<_>>().join("\n")),
+        "trim_each_line" => Ok(input.lines().map(str::trim).collect::<Vec<_>>().join("\n")),
+        "unique_sorted_lines" => {
+            let mut lines = input.lines().map(str::trim).collect::<Vec<_>>();
+            lines.sort_unstable();
+            lines.dedup();
+            Ok(lines.join("\n"))
+        }
+        "wrap_lines" | "hard_wrap_lines" => Ok(wrap_lines(&input, wrap_width)),
+        "percent_encode" | "url_encode" => Ok(percent_encode(&input)),
+        "percent_decode" | "url_decode" => percent_decode(&input),
+        other => Err(format!(
+            "Error: unsupported convert_format operation '{other}'"
+        )),
+    };
+
+    match result {
+        Ok(out) => {
+            let bytes = out.as_bytes().to_vec();
+            maybe_write_output(output_path, allow_out, &bytes, out)
+        }
+        Err(e) => e,
+    }
 }
 
 // ============================================================================
@@ -1222,15 +1849,38 @@ pub fn convert_format_work(
 // ============================================================================
 
 pub fn decompress_gzip_base64_work(_text: String) -> String {
-    
+    use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+    use flate2::read::GzDecoder;
+    use std::io::Read;
 
-    // This is a basic implementation - in a real scenario you'd use base64 and flate2 crates
-    serde_json::json!({
-        "status": "not_implemented",
-        "message": "Gzip decompression requires compression library integration",
-        "input_length": _text.len()
-    })
-    .to_string()
+    let compressed = match BASE64.decode(_text.trim()) {
+        Ok(bytes) => bytes,
+        Err(e) => return format!("Error: invalid base64 gzip payload: {e}"),
+    };
+    let mut decoder = GzDecoder::new(compressed.as_slice());
+    let mut out = Vec::new();
+    let max = crate::ops::MAX_GZIP_DECOMPRESSED_BYTES;
+    let read_limit = (max + 1) as u64;
+    let mut limited = decoder.by_ref().take(read_limit);
+    if let Err(e) = limited.read_to_end(&mut out) {
+        return format!("Error: gzip decompress failed: {e}");
+    }
+    if out.len() > max {
+        return format!("Error: decompressed payload exceeds {max} bytes");
+    }
+
+    match String::from_utf8(out) {
+        Ok(text) => text,
+        Err(e) => {
+            let bytes = e.into_bytes();
+            serde_json::json!({
+                "binary": true,
+                "bytes": bytes.len(),
+                "data_base64": BASE64.encode(bytes)
+            })
+            .to_string()
+        }
+    }
 }
 
 // ============================================================================
@@ -1249,6 +1899,19 @@ pub fn extract_snippets_work(
     let lines: Vec<&str> = _text.lines().collect();
     let mut results = Vec::new();
     let mut found_snippets = 0;
+    let regex = if _literal {
+        None
+    } else {
+        let pattern = if _case_sensitive {
+            _pattern.clone()
+        } else {
+            format!("(?i){}", &_pattern)
+        };
+        match regex::Regex::new(&pattern) {
+            Ok(re) => Some(re),
+            Err(e) => return format!("Invalid regex pattern: {e}"),
+        }
+    };
 
     for (line_index, line) in lines.iter().enumerate() {
         let matches = if _literal {
@@ -1258,14 +1921,7 @@ pub fn extract_snippets_work(
                 line.to_lowercase().contains(&_pattern.to_lowercase())
             }
         } else {
-            use regex::Regex;
-            let regex = if _case_sensitive {
-                Regex::new(&_pattern).unwrap_or_else(|_| Regex::new(r".").unwrap())
-            } else {
-                Regex::new(&format!("(?i){}", &_pattern))
-                    .unwrap_or_else(|_| Regex::new(r".").unwrap())
-            };
-            regex.is_match(line)
+            regex.as_ref().is_some_and(|re| re.is_match(line))
         };
 
         if matches {
@@ -1310,6 +1966,7 @@ pub fn extract_snippets_work(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn extract_snippets_from_file_work(
     _path: PathBuf,
     _pattern: String,
@@ -1557,7 +2214,7 @@ pub fn git_cherry_pick_work(_dir: PathBuf, _commits: Vec<String>, _no_commit: bo
     }
 
     for commit in &_commits {
-        cmd.arg(&commit);
+        cmd.arg(commit);
     }
 
     let output = cmd.output();
@@ -1601,6 +2258,7 @@ pub fn git_describe_work(_dir: PathBuf) -> String {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn git_diff_snippets_work(
     _dir: PathBuf,
     _staged: bool,
@@ -1777,13 +2435,13 @@ pub fn git_log_or_diff_work(
                 cmd.arg(rev);
             }
             if let Some(since) = _since {
-                cmd.arg(&format!("--since={}", since));
+                cmd.arg(format!("--since={}", since));
             }
             if let Some(until) = _until {
-                cmd.arg(&format!("--until={}", until));
+                cmd.arg(format!("--until={}", until));
             }
             for author in _authors {
-                cmd.arg(&format!("--author={}", author));
+                cmd.arg(format!("--author={}", author));
             }
         }
         "diff" => {
@@ -1981,7 +2639,7 @@ pub fn git_revert_work(_dir: PathBuf, _commits: Vec<String>, _no_commit: bool) -
     }
 
     for commit in &_commits {
-        cmd.arg(&commit);
+        cmd.arg(commit);
     }
 
     let output = cmd.output();
@@ -2313,6 +2971,7 @@ pub fn glab_mr_show_work(_dir: PathBuf, _mr: &str) -> String {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn grep_snippets_work(
     _search_root: PathBuf,
     _pattern: String,
@@ -2328,6 +2987,19 @@ pub fn grep_snippets_work(
 
     let mut results = Vec::new();
     let mut found_snippets = 0;
+    let regex = if _literal {
+        None
+    } else {
+        let pattern = if _case_sensitive {
+            _pattern.clone()
+        } else {
+            format!("(?i){}", &_pattern)
+        };
+        match regex::Regex::new(&pattern) {
+            Ok(re) => Some(re),
+            Err(e) => return format!("Invalid regex pattern: {e}"),
+        }
+    };
 
     let mut walk = WalkBuilder::new(&_search_root);
     if _respect_gitignore {
@@ -2357,14 +3029,7 @@ pub fn grep_snippets_work(
                             line.to_lowercase().contains(&_pattern.to_lowercase())
                         }
                     } else {
-                        use regex::Regex;
-                        let regex = if _case_sensitive {
-                            Regex::new(&_pattern).unwrap_or_else(|_| Regex::new(r".").unwrap())
-                        } else {
-                            Regex::new(&format!("(?i){}", &_pattern))
-                                .unwrap_or_else(|_| Regex::new(r".").unwrap())
-                        };
-                        regex.is_match(line)
+                        regex.as_ref().is_some_and(|re| re.is_match(line))
                     };
 
                     if matches {
@@ -2491,21 +3156,31 @@ pub fn notify_desktop_work(_args: Value) -> Value {
 pub fn notify_email_send_work(_args: Value) -> Value {
     let to = _args.get("to").and_then(|v| v.as_str()).unwrap_or("");
     let subject = _args.get("subject").and_then(|v| v.as_str()).unwrap_or("");
-    let _body = _args.get("body").and_then(|v| v.as_str()).unwrap_or("");
+    let body = _args.get("body").and_then(|v| v.as_str()).unwrap_or("");
+    let from = _args
+        .get("from")
+        .and_then(|v| v.as_str())
+        .map(str::to_string);
     let smtp_server = _args.get("smtp_server").and_then(|v| v.as_str());
 
     if to.is_empty() {
         return serde_json::json!({"error": "Recipient email is required"});
     }
+    if let Some(server) = smtp_server {
+        return serde_json::json!({
+            "error": "Direct SMTP server mode is not supported by this local helper",
+            "smtp_server": server,
+            "supported_delivery": "sendmail or mailx via src/ops/notify.rs"
+        });
+    }
 
-    // Basic implementation - in a real scenario you'd use SMTP library
-    serde_json::json!({
-        "status": "not_implemented",
-        "message": "Email sending requires SMTP library integration",
-        "to": to,
-        "subject": subject,
-        "smtp_server": smtp_server
-    })
+    let output = crate::ops::notify::notify_email_send_work(
+        to.to_string(),
+        subject.to_string(),
+        body.to_string(),
+        from,
+    );
+    serde_json::json!({ "output": output })
 }
 
 pub fn notify_webhook_work(_args: Value) -> Value {
@@ -2520,20 +3195,43 @@ pub fn notify_webhook_work(_args: Value) -> Value {
         .and_then(|v| v.as_object())
         .cloned()
         .unwrap_or_default();
+    let block_internal = _args
+        .get("block_internal")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
 
     if url.is_empty() {
         return serde_json::json!({"error": "Webhook URL is required"});
     }
 
-    // Basic implementation - in a real scenario you'd use HTTP client
-    serde_json::json!({
-        "status": "not_implemented",
-        "message": "Webhook calls require HTTP client library integration",
-        "url": url,
-        "method": method,
-        "has_payload": payload.is_some(),
-        "headers_count": headers.len()
-    })
+    let payload_text = payload
+        .map(|v| {
+            v.as_str()
+                .map(str::to_string)
+                .unwrap_or_else(|| v.to_string())
+        })
+        .unwrap_or_else(|| "{}".to_string());
+    let header_pairs = headers
+        .into_iter()
+        .map(|(key, value)| {
+            (
+                key,
+                value
+                    .as_str()
+                    .map(str::to_string)
+                    .unwrap_or_else(|| value.to_string()),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    let output = crate::ops::notify::notify_webhook_work(
+        url.to_string(),
+        payload_text,
+        Some(method.to_string()),
+        Some(header_pairs),
+        block_internal,
+    );
+    serde_json::json!({ "output": output })
 }
 
 // ============================================================================
@@ -2670,17 +3368,113 @@ pub fn ollama_chat_work(_model: String, _messages: Vec<String>, _max_tokens: usi
     }
 }
 
-/// Stub for codebase word index
 pub fn ai_openai_chat_work(_messages: Vec<String>, _model: String, _max_tokens: usize) -> String {
-    // Basic implementation - in a real scenario you'd use OpenAI API
-    serde_json::json!({
-        "status": "not_implemented",
-        "message": "OpenAI chat requires API key and HTTP client integration",
+    use std::io::Write;
+    use std::process::Command;
+
+    if _messages.is_empty() {
+        return serde_json::json!({
+            "error": "at least one message is required",
+            "model": _model,
+            "max_tokens": _max_tokens
+        })
+        .to_string();
+    }
+
+    let api_key = match std::env::var("OPENAI_API_KEY") {
+        Ok(key) if !key.trim().is_empty() => key,
+        _ => {
+            return serde_json::json!({
+                "error": "OPENAI_API_KEY is not set; cannot call an OpenAI-compatible chat endpoint",
+                "model": _model,
+                "messages_count": _messages.len(),
+                "max_tokens": _max_tokens,
+                "network_calls": false
+            })
+            .to_string();
+        }
+    };
+    let base_url = std::env::var("OPENAI_BASE_URL")
+        .unwrap_or_else(|_| "https://api.openai.com/v1".to_string())
+        .trim_end_matches('/')
+        .to_string();
+    let url = format!("{base_url}/chat/completions");
+    let max_tokens = _max_tokens.clamp(1, 8192);
+    let messages = _messages
+        .into_iter()
+        .map(|content| serde_json::json!({ "role": "user", "content": content }))
+        .collect::<Vec<_>>();
+    let body = serde_json::json!({
         "model": _model,
-        "messages_count": _messages.len(),
-        "max_tokens": _max_tokens
+        "messages": messages,
+        "max_tokens": max_tokens
     })
-    .to_string()
+    .to_string();
+
+    let mut child = match Command::new("curl")
+        .args([
+            "-sS",
+            "--fail-with-body",
+            "--max-time",
+            "120",
+            "-H",
+            "Content-Type: application/json",
+            "-H",
+            &format!("Authorization: Bearer {api_key}"),
+            "-d",
+            "@-",
+            &url,
+        ])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+    {
+        Ok(child) => child,
+        Err(e) => {
+            return serde_json::json!({
+                "error": format!("failed to execute curl: {e}"),
+                "model": _model,
+                "network_calls": false
+            })
+            .to_string();
+        }
+    };
+
+    if let Some(mut stdin) = child.stdin.take() {
+        if let Err(e) = stdin.write_all(body.as_bytes()) {
+            let _ = child.kill();
+            return serde_json::json!({
+                "error": format!("failed to write request body to curl stdin: {e}"),
+                "model": _model
+            })
+            .to_string();
+        }
+    }
+
+    match child.wait_with_output() {
+        Ok(output) => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            if output.status.success() {
+                stdout.trim().to_string()
+            } else {
+                serde_json::json!({
+                    "error": "OpenAI-compatible chat request failed",
+                    "status": output.status.code(),
+                    "stderr": stderr.trim(),
+                    "body": stdout.trim(),
+                    "model": _model
+                })
+                .to_string()
+            }
+        }
+        Err(e) => serde_json::json!({
+            "error": format!("failed to wait for curl: {e}"),
+            "model": _model
+        })
+        .to_string(),
+    }
 }
 
 // ============================================================================
@@ -2880,17 +3674,14 @@ pub fn repository_get_file_content_work(
     if let Some(git_ref) = _gitref {
         let output = Command::new("git")
             .arg("show")
-            .arg(&format!("{}:{}", git_ref, _filepath))
+            .arg(format!("{}:{}", git_ref, _filepath))
             .current_dir(&_dir)
             .output();
 
-        match output {
-            Ok(result) => {
-                if result.status.success() {
-                    return String::from_utf8_lossy(&result.stdout).to_string();
-                }
+        if let Ok(result) = output {
+            if result.status.success() {
+                return String::from_utf8_lossy(&result.stdout).to_string();
             }
-            Err(_) => {} // Fall back to file system
         }
     }
 
@@ -3312,7 +4103,7 @@ pub fn summarize_file_work(
                 selected_lines
                     .iter()
                     .take(5)
-                    .map(|&s| s)
+                    .copied()
                     .collect::<Vec<_>>()
                     .join("\n")
             );
@@ -3338,7 +4129,9 @@ pub fn summarize_identifier_frequency_work(
     use std::collections::HashMap;
 
     // Extract identifiers (alphanumeric sequences starting with letter or underscore)
-    let identifier_regex = Regex::new(r"\b[a-zA-Z_][a-zA-Z0-9_]*\b").unwrap();
+    let Ok(identifier_regex) = Regex::new(r"\b[a-zA-Z_][a-zA-Z0-9_]*\b") else {
+        return "Found 0 unique identifiers".to_string();
+    };
 
     let mut frequency_map = HashMap::new();
 
@@ -3496,8 +4289,9 @@ pub fn summarize_diff_file_list_work(
     use regex::Regex;
 
     // Extract file paths from git diff (lines starting with diff --git)
-    let diff_regex =
-        Regex::new(r"diff --git a/(.*?) b/").unwrap_or_else(|_| Regex::new(r".").unwrap());
+    let Ok(diff_regex) = Regex::new(r"diff --git a/(.*?) b/") else {
+        return "No files found in diff".to_string();
+    };
     let lines: Vec<&str> = _diff.lines().collect();
     let mut files = Vec::new();
 
@@ -3590,7 +4384,9 @@ pub fn summarize_headings_work(_text: String, _max_headings: usize, _max_chars: 
     use regex::Regex;
 
     // Extract markdown headings (lines starting with #)
-    let heading_regex = Regex::new(r"^#+\s+(.+)$").unwrap_or_else(|_| Regex::new(r".").unwrap());
+    let Ok(heading_regex) = Regex::new(r"^#+\s+(.+)$") else {
+        return "No headings found".to_string();
+    };
     let lines: Vec<&str> = _text.lines().collect();
     let headings: Vec<String> = lines
         .iter()
@@ -3742,8 +4538,9 @@ pub fn summarize_markdown_toc_work(
     use regex::Regex;
 
     // Extract markdown headings (lines starting with #)
-    let heading_regex =
-        Regex::new(r"^(#{1,6})\s+(.+)$").unwrap_or_else(|_| Regex::new(r".").unwrap());
+    let Ok(heading_regex) = Regex::new(r"^(#{1,6})\s+(.+)$") else {
+        return "No markdown headings found".to_string();
+    };
     let lines: Vec<&str> = _text.lines().collect();
     let mut headings = Vec::new();
 
@@ -3926,8 +4723,15 @@ pub fn summarize_top_terms_work(
     use std::collections::HashMap;
 
     // Extract words (alphanumeric sequences)
-    let word_regex =
-        Regex::new(r"\b[a-zA-Z]{}\b").unwrap_or_else(|_| Regex::new(r"\b\w+\b").unwrap());
+    let word_regex = match Regex::new(r"\b[a-zA-Z]+\b") {
+        Ok(re) => re,
+        Err(e) => {
+            return serde_json::json!({
+                "error": format!("internal regex compile failed: {e}")
+            })
+            .to_string();
+        }
+    };
 
     let mut term_counts = HashMap::new();
 
@@ -4041,11 +4845,11 @@ pub fn text_levenshtein_distance_work(_a: String, _b: String, _max_len: usize) -
 
     let mut dp = vec![vec![0; b.len() + 1]; a.len() + 1];
 
-    for i in 0..=a.len() {
-        dp[i][0] = i;
+    for (i, row) in dp.iter_mut().enumerate().take(a.len() + 1) {
+        row[0] = i;
     }
-    for j in 0..=b.len() {
-        dp[0][j] = j;
+    for (j, cell) in dp[0].iter_mut().enumerate().take(b.len() + 1) {
+        *cell = j;
     }
 
     for i in 1..=a.len() {
@@ -4124,19 +4928,23 @@ pub fn web_search_work(_args: Value) -> Value {
     let engine = _args
         .get("engine")
         .and_then(|v| v.as_str())
-        .unwrap_or("google");
+        .unwrap_or("duckduckgo");
+    let max_results = _args
+        .get("max_results")
+        .or_else(|| _args.get("limit"))
+        .and_then(|v| v.as_u64())
+        .map(|v| v as usize);
 
     if query.is_empty() {
         return serde_json::json!({"error": "Query is required"});
     }
 
-    // Basic implementation - in a real scenario you'd integrate with search APIs
-    serde_json::json!({
-        "status": "not_implemented",
-        "message": "Web search requires search API integration",
-        "query": query,
-        "engine": engine
-    })
+    let output = crate::ops::web_ext::web_search_work(
+        query.to_string(),
+        Some(engine.to_string()),
+        max_results,
+    );
+    serde_json::json!({ "output": output })
 }
 
 pub fn web_api_call_work(_args: Value) -> Value {
@@ -4153,15 +4961,35 @@ pub fn web_api_call_work(_args: Value) -> Value {
         .unwrap_or_default();
     let body = _args.get("body").and_then(|v| v.as_str());
 
-    // Basic implementation - in a real scenario you'd use reqwest or similar
-    serde_json::json!({
-        "status": "not_implemented",
-        "message": "Web API calls require HTTP client library integration",
-        "url": url,
-        "method": method,
-        "headers_count": headers.len(),
-        "has_body": body.is_some()
-    })
+    if url.is_empty() {
+        return serde_json::json!({"error": "URL is required"});
+    }
+
+    let headers_text = if headers.is_empty() {
+        None
+    } else {
+        Some(
+            headers
+                .into_iter()
+                .map(|(key, value)| {
+                    let value = value
+                        .as_str()
+                        .map(str::to_string)
+                        .unwrap_or_else(|| value.to_string());
+                    format!("{key}: {value}")
+                })
+                .collect::<Vec<_>>()
+                .join("\n"),
+        )
+    };
+    let output = crate::ops::web_ext::web_api_call_work(
+        url.to_string(),
+        method.to_string(),
+        headers_text,
+        body.map(str::to_string),
+        _args.get("timeout_secs").and_then(|v| v.as_u64()),
+    );
+    serde_json::json!({ "output": output })
 }
 
 pub fn web_dns_lookup_work(_args: Value) -> Value {
@@ -4174,7 +5002,7 @@ pub fn web_dns_lookup_work(_args: Value) -> Value {
     }
 
     // Basic DNS lookup using system command
-    let output = Command::new("dig").arg(&hostname).arg("+short").output();
+    let output = Command::new("dig").arg(hostname).arg("+short").output();
 
     match output {
         Ok(result) => {
@@ -4207,18 +5035,21 @@ pub fn web_dns_lookup_work(_args: Value) -> Value {
 pub fn web_download_file_work(_args: Value) -> Value {
     let url = _args.get("url").and_then(|v| v.as_str()).unwrap_or("");
     let output_path = _args.get("output_path").and_then(|v| v.as_str());
+    let max_size_mb = _args.get("max_size_mb").and_then(|v| v.as_u64());
 
     if url.is_empty() {
         return serde_json::json!({"error": "URL is required"});
     }
+    let Some(output_path) = output_path else {
+        return serde_json::json!({"error": "output_path is required"});
+    };
 
-    // Basic implementation - in a real scenario you'd use HTTP client
-    serde_json::json!({
-        "status": "not_implemented",
-        "message": "File download requires HTTP client library integration",
-        "url": url,
-        "output_path": output_path
-    })
+    let output = crate::ops::web_ext::web_download_file_work(
+        url.to_string(),
+        PathBuf::from(output_path),
+        max_size_mb,
+    );
+    serde_json::json!({ "output": output })
 }
 
 pub fn web_rss_fetch_work(_args: Value) -> Value {
@@ -4232,13 +5063,8 @@ pub fn web_rss_fetch_work(_args: Value) -> Value {
         return serde_json::json!({"error": "URL is required"});
     }
 
-    // Basic implementation - in a real scenario you'd use RSS parser
-    serde_json::json!({
-        "status": "not_implemented",
-        "message": "RSS fetching requires RSS parser library integration",
-        "url": url,
-        "max_items": max_items
-    })
+    let output = crate::ops::web_ext::web_rss_fetch_work(url.to_string(), Some(max_items as usize));
+    serde_json::json!({ "output": output })
 }
 
 pub fn web_screenshot_work(_args: Value) -> Value {
@@ -4251,14 +5077,13 @@ pub fn web_screenshot_work(_args: Value) -> Value {
         return serde_json::json!({"error": "URL is required"});
     }
 
-    // Basic implementation - in a real scenario you'd use headless browser
-    serde_json::json!({
-        "status": "not_implemented",
-        "message": "Screenshot requires headless browser integration",
-        "url": url,
-        "output_path": output_path,
-        "dimensions": format!("{}x{}", width, height)
-    })
+    let output = crate::ops::web_ext::web_screenshot_work(
+        url.to_string(),
+        Some(width.min(u32::MAX as u64) as u32),
+        Some(height.min(u32::MAX as u64) as u32),
+        output_path.map(PathBuf::from),
+    );
+    serde_json::json!({ "output": output })
 }
 
 pub fn web_tls_inspect_work(_args: Value) -> Value {
@@ -4275,7 +5100,7 @@ pub fn web_tls_inspect_work(_args: Value) -> Value {
     let output = Command::new("openssl")
         .arg("s_client")
         .arg("-connect")
-        .arg(&format!("{}:{}", hostname, port))
+        .arg(format!("{}:{}", hostname, port))
         .arg("-showcerts")
         .arg("<")
         .arg("/dev/null")
@@ -5664,5 +6489,276 @@ pub fn system_cpu_info_work() -> String {
             }
         }
         Err(e) => format!("Error running lscpu: {}", e),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn summarize_top_terms_uses_valid_word_regex() {
+        let out = summarize_top_terms_work(
+            "alpha beta alpha gamma123 beta alpha".to_string(),
+            4,
+            3,
+            10_000,
+        );
+        assert!(out.contains("'alpha': 3 occurrences"), "{out}");
+        assert!(out.contains("'beta': 2 occurrences"), "{out}");
+        assert!(!out.contains("internal regex compile failed"), "{out}");
+    }
+
+    #[test]
+    fn ai_stack_probe_does_not_fabricate_metrics() {
+        let out = ai_stack_probe_work(serde_json::json!({ "stack_type": "ai" }));
+        assert_eq!(out["format"], "pb-mcp.ai_stack_probe.v2");
+        assert_eq!(out["probe_results"]["honesty"]["simulated_metrics"], false);
+        assert!(out["probe_results"]["performance_metrics"].is_null());
+        assert!(out["probe_results"]["tools"].as_array().is_some());
+        assert!(
+            out.to_string().contains("version_probe_policy"),
+            "probe should explain why versions may be skipped: {out}"
+        );
+    }
+
+    #[test]
+    fn codebase_manifest_write_creates_jsonl_manifest() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path();
+        std::fs::write(root.join("Cargo.toml"), "[package]\nname='demo'\n")
+            .expect("write Cargo.toml");
+        std::fs::create_dir(root.join("src")).expect("mkdir src");
+        std::fs::write(root.join("src/lib.rs"), "pub fn demo() {}\n").expect("write lib.rs");
+
+        let out = codebase_manifest_write_work(root.to_path_buf(), 100);
+        assert!(out.contains("CODEBASE_MANIFEST_WRITE"), "{out}");
+        assert!(out.contains("files: 2"), "{out}");
+
+        let manifest = root.join(".mint-mcp/file-manifest.jsonl");
+        let text = std::fs::read_to_string(manifest).expect("read manifest");
+        assert!(text.contains("\"path\":\"Cargo.toml\""), "{text}");
+        assert!(text.contains("\"path\":\"src/lib.rs\""), "{text}");
+        assert!(text.contains("\"size_bytes\""), "{text}");
+    }
+
+    #[test]
+    fn gzip_base64_round_trip_text() {
+        let payload = "alpha\nbeta\npb-mcp-server\n".to_string();
+        let encoded = compress_gzip_base64_work(Some(payload.clone()), None);
+        assert!(!encoded.starts_with("Error:"), "{encoded}");
+        assert!(
+            !encoded.contains(concat!("not", "_implemented")),
+            "{encoded}"
+        );
+
+        let decoded = decompress_gzip_base64_work(encoded);
+        assert_eq!(decoded, payload);
+    }
+
+    #[test]
+    fn gzip_base64_round_trip_file() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = tmp.path().join("payload.txt");
+        std::fs::write(&path, "from file").expect("write payload");
+
+        let encoded = compress_gzip_base64_work(None, Some(&path));
+        assert!(!encoded.starts_with("Error:"), "{encoded}");
+
+        let decoded = decompress_gzip_base64_work(encoded);
+        assert_eq!(decoded, "from file");
+    }
+
+    #[test]
+    fn convert_format_json_and_toml_are_real() {
+        let pretty = convert_format_work(
+            "json_pretty".to_string(),
+            Some("{\"b\":2,\"a\":1}".to_string()),
+            None,
+            None,
+            true,
+            4,
+            1,
+            88,
+        );
+        assert!(pretty.contains("\"a\": 1"), "{pretty}");
+        assert!(!pretty.contains(concat!("not", "_implemented")), "{pretty}");
+
+        let json = convert_format_work(
+            "toml_to_json_minify".to_string(),
+            Some("[package]\nname = \"pb\"\nversion = \"1.0.0\"\n".to_string()),
+            None,
+            None,
+            true,
+            4,
+            1,
+            88,
+        );
+        assert!(json.contains("\"package\""), "{json}");
+        assert!(json.contains("\"name\":\"pb\""), "{json}");
+    }
+
+    #[test]
+    fn convert_format_encoding_hash_and_text_ops_work() {
+        let encoded = convert_format_work(
+            "base64_encode".to_string(),
+            Some("hello".to_string()),
+            None,
+            None,
+            true,
+            4,
+            1,
+            88,
+        );
+        assert_eq!(encoded, "aGVsbG8=");
+
+        let decoded = convert_format_work(
+            "base64_decode".to_string(),
+            Some(encoded),
+            None,
+            None,
+            true,
+            4,
+            1,
+            88,
+        );
+        assert_eq!(decoded, "hello");
+
+        let hash = convert_format_work(
+            "sha256_hex".to_string(),
+            Some("".to_string()),
+            None,
+            None,
+            true,
+            4,
+            1,
+            88,
+        );
+        assert_eq!(
+            hash,
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+
+        let slug = convert_format_work(
+            "slugify".to_string(),
+            Some("Hello, pb MCP Server!".to_string()),
+            None,
+            None,
+            true,
+            4,
+            1,
+            88,
+        );
+        assert_eq!(slug, "hello-pb-mcp-server");
+    }
+
+    #[test]
+    fn convert_format_file_input_and_output_gate_work() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let input = tmp.path().join("input.txt");
+        let output = tmp.path().join("output.bin");
+        std::fs::write(&input, "68656c6c6f").expect("write input");
+
+        let blocked = convert_format_work(
+            "hex_decode".to_string(),
+            None,
+            Some(input.clone()),
+            Some(output.clone()),
+            false,
+            4,
+            1,
+            88,
+        );
+        assert!(blocked.contains("blocked on public"), "{blocked}");
+        assert!(!output.exists());
+
+        let written = convert_format_work(
+            "hex_decode".to_string(),
+            None,
+            Some(input),
+            Some(output.clone()),
+            true,
+            4,
+            1,
+            88,
+        );
+        assert!(written.contains("CONVERT_FORMAT_WRITE"), "{written}");
+        assert_eq!(std::fs::read(output).expect("read output"), b"hello");
+    }
+
+    #[test]
+    fn convert_format_yaml_conversion_is_honest_until_parser_is_added() {
+        let out = convert_format_work(
+            "yaml_to_json".to_string(),
+            Some("a: 1\n".to_string()),
+            None,
+            None,
+            true,
+            4,
+            1,
+            88,
+        );
+        assert!(out.contains("YAML conversion is not compiled"), "{out}");
+
+        let keys = convert_format_work(
+            "yaml_top_level_keys".to_string(),
+            Some("a: 1\nnested:\n  b: 2\n".to_string()),
+            None,
+            None,
+            true,
+            4,
+            1,
+            88,
+        );
+        assert_eq!(keys, "a\nnested");
+    }
+
+    #[test]
+    fn stubs_module_has_no_placeholder_status_payloads() {
+        let source = include_str!("mod.rs");
+        let marker = format!("\"status\": \"{}\"", concat!("not", "_implemented"));
+        assert!(
+            !source.contains(&marker),
+            "stubs module should not expose placeholder status payloads"
+        );
+    }
+
+    #[test]
+    fn legacy_json_wrappers_validate_without_placeholder_status() {
+        let email = notify_email_send_work(serde_json::json!({}));
+        assert_eq!(email["error"], "Recipient email is required");
+
+        let webhook = notify_webhook_work(serde_json::json!({}));
+        assert_eq!(webhook["error"], "Webhook URL is required");
+
+        let search = web_search_work(serde_json::json!({}));
+        assert_eq!(search["error"], "Query is required");
+
+        let api = web_api_call_work(serde_json::json!({}));
+        assert_eq!(api["error"], "URL is required");
+
+        let download = web_download_file_work(serde_json::json!({"url": "https://example.com"}));
+        assert_eq!(download["error"], "output_path is required");
+
+        let rss = web_rss_fetch_work(serde_json::json!({}));
+        assert_eq!(rss["error"], "URL is required");
+
+        let screenshot = web_screenshot_work(serde_json::json!({}));
+        assert_eq!(screenshot["error"], "URL is required");
+
+        for value in [email, webhook, search, api, download, rss, screenshot] {
+            let rendered = value.to_string();
+            assert!(
+                !rendered.contains(concat!("not", "_implemented")),
+                "{rendered}"
+            );
+        }
+    }
+
+    #[test]
+    fn ai_openai_chat_validates_empty_messages_without_network() {
+        let out = ai_openai_chat_work(Vec::new(), "gpt-test".to_string(), 8);
+        assert!(out.contains("at least one message is required"), "{out}");
+        assert!(!out.contains(concat!("not", "_implemented")), "{out}");
     }
 }

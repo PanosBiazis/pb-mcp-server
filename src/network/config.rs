@@ -47,7 +47,7 @@ impl Default for NetworkConfig {
         Self {
             node_id: format!("node-{}", hex::encode(&[0u8; 8])),
             peers: Vec::new(),
-            listen_addr: "0.0.0.0:9200".parse().unwrap(),
+            listen_addr: SocketAddr::from(([0, 0, 0, 0], 9200)),
             tor_enabled: false,
             tor_socks_addr: "127.0.0.1:9050".to_string(),
             signing_secret: String::new(),

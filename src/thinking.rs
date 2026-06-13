@@ -30,10 +30,7 @@ fn rotate_log(path: &Path) {
     }
     let start = bytes.len() - KEEP_TAIL_BYTES;
     let slice = &raw[start..];
-    let cut = slice
-        .find('\n')
-        .map(|i| start + i + 1)
-        .unwrap_or(start);
+    let cut = slice.find('\n').map(|i| start + i + 1).unwrap_or(start);
     let _ = fs::write(path, &raw.as_bytes()[cut..]);
 }
 
@@ -85,7 +82,11 @@ pub fn thinking_step_back_work(problem: String, max_chars: usize) -> String {
     let p = problem.trim();
     let mut s = String::from("THINKING_STEP_BACK\n\n");
     s.push_str("Problem as stated:\n");
-    s.push_str(if p.is_empty() { "(empty — restate the user goal.)" } else { p });
+    s.push_str(if p.is_empty() {
+        "(empty — restate the user goal.)"
+    } else {
+        p
+    });
     s.push_str("\n\nWork through:\n");
     s.push_str("1) What is the smallest outcome that would still help?\n");
     s.push_str("2) What are you assuming? Which assumptions are risky?\n");
@@ -169,7 +170,12 @@ pub fn thinking_session_read_work(root: PathBuf, tail_lines: usize) -> String {
     let lines: Vec<&str> = raw.lines().collect();
     let start = lines.len().saturating_sub(tail_lines);
     let mut out = String::from("THINKING_SESSION_READ\n");
-    out.push_str(&format!("path: {}\nlines: {} (showing last {})\n\n", path.display(), lines.len(), tail_lines));
+    out.push_str(&format!(
+        "path: {}\nlines: {} (showing last {})\n\n",
+        path.display(),
+        lines.len(),
+        tail_lines
+    ));
     for line in &lines[start..] {
         out.push_str(line);
         out.push('\n');
@@ -194,7 +200,9 @@ pub fn plan_execution_checklist_work(milestones: Vec<String>, max_chars: usize) 
     if n == 0 {
         s.push_str("(no milestones — pass ordered strings: design, implement, test, ship, …)\n");
     }
-    s.push_str("\nAdd dates/owners in your tracker; use agent_subagent_task for delegated items.\n");
+    s.push_str(
+        "\nAdd dates/owners in your tracker; use agent_subagent_task for delegated items.\n",
+    );
     let (out, _) = crate::ops::truncate_chars(&s, max_chars);
     out
 }
@@ -253,7 +261,9 @@ pub fn plan_handoff_brief_work(
     if k == 0 {
         s.push_str("(none listed)\n");
     }
-    s.push_str("\n## Ground-truth tools\nread_file, grep_code, git_*, code_index_search, agent_thread.\n");
+    s.push_str(
+        "\n## Ground-truth tools\nread_file, grep_code, git_*, code_index_search, agent_thread.\n",
+    );
     let (out, _) = crate::ops::truncate_chars(&s, max_chars);
     out
 }
@@ -301,7 +311,9 @@ pub fn plan_risk_register_work(risks: Vec<String>, max_chars: usize) -> String {
         ));
     }
     if n == 0 {
-        s.push_str("(no risks — add technical, security, schedule, dependency, and operational items.)\n");
+        s.push_str(
+            "(no risks — add technical, security, schedule, dependency, and operational items.)\n",
+        );
     }
     let (out, _) = crate::ops::truncate_chars(&s, max_chars);
     out
@@ -321,7 +333,9 @@ pub fn plan_definition_of_done_work(outcomes: Vec<String>, max_chars: usize) -> 
         s.push_str(&format!("[ ] {n}. {t}\n"));
     }
     if n == 0 {
-        s.push_str("(add observable outcomes: tests pass, metrics, docs updated, bus handoff closed, …)\n");
+        s.push_str(
+            "(add observable outcomes: tests pass, metrics, docs updated, bus handoff closed, …)\n",
+        );
     }
     s.push_str("\nSign-off: owner __  date __  evidence links (git SHA, CI run, ticket) __\n");
     let (out, _) = crate::ops::truncate_chars(&s, max_chars);
@@ -335,9 +349,17 @@ pub fn reasoning_premortem_work(project: String, timeframe: String, max_chars: u
     let tf = timeframe.trim();
     let mut s = String::from("REASONING_PREMORTEM\n\n");
     s.push_str("Project / decision:\n");
-    s.push_str(if p.is_empty() { "(name the initiative.)" } else { p });
+    s.push_str(if p.is_empty() {
+        "(name the initiative.)"
+    } else {
+        p
+    });
     s.push_str("\n\nHorizon:\n");
-    s.push_str(if tf.is_empty() { "(e.g. next sprint, release cut, 30 days.)" } else { tf });
+    s.push_str(if tf.is_empty() {
+        "(e.g. next sprint, release cut, 30 days.)"
+    } else {
+        tf
+    });
     s.push_str("\n\nAssume it failed badly. Answer:\n");
     s.push_str("1) What concrete failure happened (symptoms users saw)?\n");
     s.push_str("2) What early warnings did we ignore?\n");
@@ -359,7 +381,11 @@ pub fn plan_test_strategy_work(
     let sc = scope.trim();
     let mut s = String::from("PLAN_TEST_STRATEGY\n\n");
     s.push_str("## Scope under test\n");
-    s.push_str(if sc.is_empty() { "(crate, service, or feature area.)" } else { sc });
+    s.push_str(if sc.is_empty() {
+        "(crate, service, or feature area.)"
+    } else {
+        sc
+    });
     s.push_str("\n\n## Risk / change hotspots\n");
     let mut n = 0usize;
     for r in risk_hotspots.iter().take(20) {
@@ -373,9 +399,13 @@ pub fn plan_test_strategy_work(
     if n == 0 {
         s.push_str("(list fragile modules, concurrency, parsing, crypto, migrations, …)\n");
     }
-    s.push_str("\n## Unit\n- [ ] …\n\n## Integration\n- [ ] …\n\n## E2E / smoke (if any)\n- [ ] …\n\n");
+    s.push_str(
+        "\n## Unit\n- [ ] …\n\n## Integration\n- [ ] …\n\n## E2E / smoke (if any)\n- [ ] …\n\n",
+    );
     s.push_str("## Data / fixtures\n- [ ] …\n\n## How to run (local / CI)\n");
-    s.push_str("- Rust: project_cargo_test (MINT_PROJECT_TEST_ENABLE=1 + cargo in MINT_TERMINAL_ALLOW)\n");
+    s.push_str(
+        "- Rust: project_cargo_test (MINT_PROJECT_TEST_ENABLE=1 + cargo in MINT_TERMINAL_ALLOW)\n",
+    );
     s.push_str("- Python: project_pytest (same gate + pytest allowlisted)\n");
     s.push_str("- Or terminal_run with explicit argv on trusted LAN only.\n\n");
     s.push_str("## Exit criteria\n- [ ] All targeted tests green; no new clippy -D warnings (if enforced).\n");
@@ -389,7 +419,11 @@ pub fn reasoning_five_whys_work(seed_problem: String, max_chars: usize) -> Strin
     let p = seed_problem.trim();
     let mut s = String::from("REASONING_FIVE_WHYS\n\n");
     s.push_str("Observed problem / symptom:\n");
-    s.push_str(if p.is_empty() { "(state the failure or bug.)" } else { p });
+    s.push_str(if p.is_empty() {
+        "(state the failure or bug.)"
+    } else {
+        p
+    });
     s.push_str("\n\nFill each line with your answer; stop early if root cause is clear.\n");
     s.push_str("1) Why did this happen? → …\n");
     s.push_str("2) Why was that? → …\n");
@@ -407,10 +441,16 @@ pub fn plan_retrospective_work(iteration: String, max_chars: usize) -> String {
     let it = iteration.trim();
     let mut s = String::from("PLAN_RETROSPECTIVE\n\n");
     s.push_str("Iteration / window:\n");
-    s.push_str(if it.is_empty() { "(sprint, PR, or agent batch.)" } else { it });
+    s.push_str(if it.is_empty() {
+        "(sprint, PR, or agent batch.)"
+    } else {
+        it
+    });
     s.push_str("\n\n## Went well\n- …\n\n## Did not go well\n- …\n\n## Surprises\n- …\n\n## Actions (owners)\n");
     s.push_str("| Action | Owner | Due | Metric |\n|--------|-------|-----|--------|\n| … | … | … | … |\n\n");
-    s.push_str("## Bus / multi-agent\n- Topics that worked: …\n- Adjust serial vs parallel next time: …\n");
+    s.push_str(
+        "## Bus / multi-agent\n- Topics that worked: …\n- Adjust serial vs parallel next time: …\n",
+    );
     let (out, _) = crate::ops::truncate_chars(&s, max_chars);
     out
 }
@@ -464,9 +504,17 @@ pub fn reasoning_devils_advocate_work(claim: String, context: String, max_chars:
     let ctx = context.trim();
     let mut s = String::from("REASONING_DEVILS_ADVOCATE\n\n");
     s.push_str("Claim:\n");
-    s.push_str(if c.is_empty() { "(empty — state the thesis.)" } else { c });
+    s.push_str(if c.is_empty() {
+        "(empty — state the thesis.)"
+    } else {
+        c
+    });
     s.push_str("\n\nContext:\n");
-    s.push_str(if ctx.is_empty() { "(optional background)" } else { ctx });
+    s.push_str(if ctx.is_empty() {
+        "(optional background)"
+    } else {
+        ctx
+    });
     s.push_str("\n\nStress-test:\n");
     s.push_str("1) Strongest alternative explanation?\n");
     s.push_str("2) What data would disprove the claim?\n");

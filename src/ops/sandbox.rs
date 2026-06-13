@@ -1745,6 +1745,8 @@ mod tests {
     fn test_constants_reasonable() {
         assert_eq!(SANDBOX_DEFAULT_TIMEOUT_SECS, 30);
         assert_eq!(SANDBOX_MAX_OUTPUT_BYTES, 1_048_576);
-        assert!(MAX_NETWORK_RESPONSE_BYTES < SANDBOX_MAX_OUTPUT_BYTES);
+        let max_network_response = MAX_NETWORK_RESPONSE_BYTES;
+        let sandbox_max_output = SANDBOX_MAX_OUTPUT_BYTES;
+        assert!(max_network_response < sandbox_max_output);
     }
 }
