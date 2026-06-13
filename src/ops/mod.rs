@@ -1,6 +1,8 @@
 #[allow(dead_code)]
 pub mod ai_ops;
 #[allow(dead_code)]
+pub mod app_tools;
+#[allow(dead_code)]
 pub mod audio;
 #[allow(dead_code)]
 pub mod code_intel;
@@ -29,7 +31,7 @@ pub mod speech;
 /// Stub implementations for tools that are not yet fully implemented.
 ///
 /// This module contains placeholder implementations that either:
-/// - Return "Not implemented" messages
+/// - Return explicit runtime/configuration errors for unavailable integrations
 /// - Reference actual implementations in other modules
 /// - Provide basic functionality for simple operations
 ///
@@ -66,6 +68,24 @@ pub mod neural;
 pub mod protection;
 #[allow(dead_code)]
 pub mod research;
+
+#[allow(unused_imports)]
+pub use app_tools::{
+    agent_patch_plan_work, agent_prompt_pack_work, agent_session_summary_work,
+    agent_task_packet_work, app_agent_mode_plan_work, app_capability_catalog_work,
+    app_capability_search_work, app_command_palette_work, app_command_registry_generate_work,
+    app_context_budget_plan_work, app_eval_prompt_pack_work, app_hooks_policy_validate_work,
+    app_model_profile_select_work, app_node_suggest_work, app_permission_policy_evaluate_work,
+    app_plugin_capability_matrix_work, app_plugin_manifest_validate_work,
+    app_plugin_route_plan_work, app_skill_manifest_validate_work, app_skill_route_match_work,
+    app_skill_template_generate_work, app_slash_command_expand_work, app_task_queue_plan_work,
+    app_tool_recipe_work, app_worktree_session_plan_work, mcp_manifest_validate_work,
+    mcp_prompt_template_validate_work, mcp_resource_template_validate_work,
+    mcp_sampling_request_plan_work, mcp_server_config_generate_work, mcp_tool_spec_generate_work,
+    shell_command_catalog_work, shell_command_safety_check_work, shell_command_translate_work,
+    shell_script_template_generate_work, workflow_execution_plan_work,
+    workflow_template_generate_work, workflow_validate_work,
+};
 
 #[allow(unused_imports)]
 pub use reverse_eng::{
@@ -186,11 +206,20 @@ pub use ai_ml_extended::{
 
 #[allow(unused_imports)]
 pub use algorithms::{
-    algo_bloom_filter_work, algo_edit_distance_work, algo_fft_work, algo_graph_bfs_work,
-    algo_graph_dfs_work, algo_graph_shortest_path_work, algo_graph_topo_sort_work,
-    algo_hash_text_work, algo_matrix_ops_work, algo_ngram_similarity_work, algo_search_work,
-    algo_sort_work, algo_stats_correlation_work, algo_stats_describe_work,
-    algo_stats_regression_work,
+    algo_base_convert_work, algo_binary_search_bounds_work, algo_bloom_filter_work,
+    algo_bootstrap_mean_ci_work, algo_combinations_count_work, algo_confusion_matrix_work,
+    algo_cosine_similarity_work, algo_dataset_quality_work, algo_edit_distance_work,
+    algo_entropy_work, algo_fft_work, algo_fibonacci_work, algo_frequency_table_work,
+    algo_gcd_lcm_work, algo_graph_bfs_work, algo_graph_dfs_work, algo_graph_shortest_path_work,
+    algo_graph_topo_sort_work, algo_hash_text_work, algo_is_prime_work, algo_kmeans_work,
+    algo_label_distribution_work, algo_matrix_ops_work, algo_minhash_signature_work,
+    algo_minhash_similarity_work, algo_moving_average_work, algo_ngram_similarity_work,
+    algo_normalize_scores_work, algo_numeric_histogram_work, algo_outliers_iqr_work,
+    algo_percentile_work, algo_permutations_count_work, algo_prime_factors_work, algo_roc_auc_work,
+    algo_rolling_stats_work, algo_roman_numeral_work, algo_run_length_encode_work,
+    algo_search_work, algo_set_ops_work, algo_sieve_primes_work, algo_sort_work,
+    algo_stats_correlation_work, algo_stats_describe_work, algo_stats_regression_work,
+    algo_stratified_split_work, algo_task_schedule_work, algo_text_chunks_work, algo_top_k_work,
 };
 
 // Fix: use correct function names that actually exist in file_crypto.rs

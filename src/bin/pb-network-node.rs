@@ -5,6 +5,17 @@
 //! and bus events across the network.
 
 #![cfg(feature = "network-node")]
+#![cfg_attr(
+    test,
+    allow(
+        clippy::expect_used,
+        clippy::field_reassign_with_default,
+        clippy::io_other_error,
+        clippy::needless_borrows_for_generic_args,
+        clippy::panic,
+        clippy::unwrap_used
+    )
+)]
 
 use pb_mcp_server::network::{NetworkConfig, P2PNode};
 

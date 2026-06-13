@@ -203,3 +203,10 @@ struct AlgoBloomFilterArgs {
     /// Example (query): {"operation": "query", "query": "foo", "items": ["foo","bar"]}
     input: serde_json::Value,
 }
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct AlgoJsonArgs {
+    /// JSON input for the selected algorithm tool. Each tool documents its
+    /// required keys in the tool description.
+    input: serde_json::Value,
+}

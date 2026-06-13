@@ -1,3 +1,12 @@
+#![allow(
+    clippy::expect_used,
+    clippy::field_reassign_with_default,
+    clippy::io_other_error,
+    clippy::needless_borrows_for_generic_args,
+    clippy::panic,
+    clippy::unwrap_used
+)]
+
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use pb_mcp_server::bus::AgentMessage;
 use tempfile::TempDir;
@@ -9,12 +18,12 @@ fn create_test_message(i: usize) -> AgentMessage {
             "Benchmark message number {} with some payload content for realistic sizing",
             i
         ),
-        to_agent: if i % 3 == 0 {
+        to_agent: if i.is_multiple_of(3) {
             Some("target-agent".into())
         } else {
             None
         },
-        topic: if i % 2 == 0 {
+        topic: if i.is_multiple_of(2) {
             Some("bench-topic".into())
         } else {
             None

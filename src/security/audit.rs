@@ -30,6 +30,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, MutexGuard};
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -170,9 +171,9 @@ pub struct AuditLog {
     /// Maximum number of entries before rotation.
     max_entries: usize,
     /// Number of entries in the current active log file.
-    entry_count: std::sync::Mutex<u64>,
+    entry_count: Mutex<u64>,
     /// The `prev_hash` that the *next* entry should carry.
-    current_prev_hash: std::sync::Mutex<String>,
+    current_prev_hash: Mutex<String>,
 }
 
 impl std::fmt::Debug for AuditLog {
@@ -235,8 +236,8 @@ impl AuditLog {
             log_dir,
             log_path,
             max_entries: max_entries.max(100),
-            entry_count: std::sync::Mutex::new(entry_count),
-            current_prev_hash: std::sync::Mutex::new(current_prev_hash),
+            entry_count: Mutex::new(entry_count),
+            current_prev_hash: Mutex::new(current_prev_hash),
         })
     }
 
@@ -266,10 +267,10 @@ impl AuditLog {
         let now_iso = Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
 
         let (entry_id, prev_hash) = {
-            let mut count = self.entry_count.lock().unwrap();
+            let mut count = lock_recover(&self.entry_count);
             *count += 1;
             let id = *count;
-            let prev = self.current_prev_hash.lock().unwrap().clone();
+            let prev = lock_recover(&self.current_prev_hash).clone();
             (id, prev)
         };
 
@@ -309,7 +310,7 @@ impl AuditLog {
         result?;
 
         // Update chain head.
-        *self.current_prev_hash.lock().unwrap() = this_hash;
+        *lock_recover(&self.current_prev_hash) = this_hash;
 
         // Rotate if needed.
         self.rotate_if_needed()?;
@@ -447,7 +448,7 @@ impl AuditLog {
     /// Rotation renames the current file to `audit-log.{timestamp_ms}.jsonl`
     /// and starts a fresh file with a reset chain.
     pub fn rotate_if_needed(&self) -> std::io::Result<bool> {
-        let count = *self.entry_count.lock().unwrap();
+        let count = *lock_recover(&self.entry_count);
         if (count as usize) <= self.max_entries {
             return Ok(false);
         }
@@ -462,12 +463,13 @@ impl AuditLog {
         }
 
         // Reset in-memory counters.
-        *self.entry_count.lock().unwrap() = 0;
-        *self.current_prev_hash.lock().unwrap() = GENESIS_HASH.to_string();
+        *lock_recover(&self.entry_count) = 0;
+        *lock_recover(&self.current_prev_hash) = GENESIS_HASH.to_string();
 
         // Create fresh empty file.
         fs::OpenOptions::new()
             .create(true)
+            .truncate(true)
             .write(true)
             .open(&self.log_path)?;
 
@@ -517,18 +519,24 @@ impl AuditLog {
 
     /// Return the current entry count.
     pub fn entry_count(&self) -> u64 {
-        *self.entry_count.lock().unwrap()
+        *lock_recover(&self.entry_count)
     }
 
     /// Return the current chain-head hash.
     pub fn current_hash(&self) -> String {
-        self.current_prev_hash.lock().unwrap().clone()
+        lock_recover(&self.current_prev_hash).clone()
     }
 }
 
 // ---------------------------------------------------------------------------
 // Private helpers
 // ---------------------------------------------------------------------------
+
+fn lock_recover<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 
 /// Compute SHA-256 hex digest of an arbitrary byte slice.
 fn sha256_hex(data: &[u8]) -> String {

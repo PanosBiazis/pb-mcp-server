@@ -125,7 +125,9 @@ impl Default for DashboardApp {
             auto_refresh: true,
             refresh_interval_secs: 5.0,
             last_refresh: Instant::now(),
-            status_text: "Enter gateway URL and click Connect".to_string(),
+            status_text:
+                "Enter gateway URL; live gateway polling is not wired in this dashboard yet"
+                    .to_string(),
             bus_filter: String::new(),
             connected: false,
         }
@@ -133,10 +135,10 @@ impl Default for DashboardApp {
 }
 
 // ---------------------------------------------------------------------------
-// Placeholder data helpers
+// Demo data helpers
 // ---------------------------------------------------------------------------
 
-fn load_placeholder_data(app: &mut DashboardApp) {
+fn load_demo_data(app: &mut DashboardApp) {
     app.agents = vec![
         AgentInfo {
             id: "agent-coder-01".into(),
@@ -334,11 +336,13 @@ impl eframe::App for DashboardApp {
                         .desired_width(220.0)
                         .hint_text("http://localhost:8123"),
                 );
-                if ui.button("Connect").clicked() {
+                if ui.button("Load Demo").clicked() {
                     self.connected = true;
-                    load_placeholder_data(self);
-                    self.status_text =
-                        format!("Connected to {} (placeholder data)", self.gateway_url);
+                    load_demo_data(self);
+                    self.status_text = format!(
+                        "Loaded local demo data for {}; live gateway polling/control is not wired yet",
+                        self.gateway_url
+                    );
                 }
                 ui.separator();
                 ui.label("Auto-refresh:");
@@ -529,7 +533,7 @@ impl DashboardApp {
         ui.add_space(4.0);
 
         if self.agents.is_empty() {
-            ui.label("No agents loaded. Connect to a gateway to fetch agent data.");
+            ui.label("No agents loaded. Use Load Demo to inspect the dashboard layout.");
             return;
         }
 
@@ -576,13 +580,22 @@ impl DashboardApp {
                     ui.label(&agent.id);
                     if agent.status == "running" {
                         if ui.button("⏹ Stop").clicked() {
-                            self.status_text = format!("TODO: stop agent {}", agent.id);
+                            self.status_text = format!(
+                                "Agent control endpoint is not wired yet; cannot stop {}",
+                                agent.id
+                            );
                         }
                     } else if ui.button("▶ Start").clicked() {
-                        self.status_text = format!("TODO: start agent {}", agent.id);
+                        self.status_text = format!(
+                            "Agent control endpoint is not wired yet; cannot start {}",
+                            agent.id
+                        );
                     }
                     if ui.button("🔄 Restart").clicked() {
-                        self.status_text = format!("TODO: restart agent {}", agent.id);
+                        self.status_text = format!(
+                            "Agent control endpoint is not wired yet; cannot restart {}",
+                            agent.id
+                        );
                     }
                     ui.label(format!("[{}]", agent.status));
                     ui.end_row();

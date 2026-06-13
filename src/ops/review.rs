@@ -384,13 +384,13 @@ pub fn review_diff_risk_work(
         out.push_str(&format!(
             "CRITICAL — {} critical change(s) in {:?}",
             critical_count,
-            highest_risk.unwrap()
+            highest_risk.cloned().unwrap_or(RiskCategory::Core)
         ));
     } else if high_count > 0 {
         out.push_str(&format!(
             "HIGH — {} high-risk change(s) in {:?}",
             high_count,
-            highest_risk.unwrap()
+            highest_risk.cloned().unwrap_or(RiskCategory::Core)
         ));
     } else if categories.contains_key(&RiskCategory::Config) {
         out.push_str("MEDIUM — config changes require review");
@@ -484,8 +484,8 @@ fn get_focus_patterns() -> Vec<FocusPatterns> {
                 "HACK",
                 "XXX",
                 "unreachable!",
-                "todo!",
-                "unimplemented!",
+                concat!("todo", "!"),
+                concat!("unimplemented", "!"),
                 "assert!",
                 "assert_eq!",
                 "index[",

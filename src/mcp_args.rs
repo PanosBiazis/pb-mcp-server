@@ -597,7 +597,7 @@ struct CodebaseIndexArgs {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct ConvertFormatArgs {
     #[schemars(
-        description = "json_pretty | json_minify | base64/hex | utf8_bom_strip | crlf/lf | tabs_to_spaces | strip_ansi | collapse_blank_lines | remove_empty_lines | slugify | c_string_escape | prefix_line_numbers | text_lowercase | text_uppercase | sort_lines | reverse_lines | trim_each_line | unique_sorted_lines | wrap_lines | percent_encode | percent_decode (url_* aliases)"
+        description = "json_pretty | json_minify | json_top_level_keys | toml_to_json | toml_to_json_minify | json_to_toml | toml_top_level_keys | yaml_top_level_keys | base64_encode/decode | hex_encode/decode | sha256_hex | utf8_bom_strip | crlf/lf | tabs_to_spaces | strip_ansi | collapse_blank_lines | remove_empty_lines | slugify | c_string_escape | prefix_line_numbers | text_lowercase | text_uppercase | sort_lines | reverse_lines | trim_each_line | unique_sorted_lines | wrap_lines | percent_encode | percent_decode (url_* aliases)"
     )]
     operation: String,
     #[schemars(description = "Inline payload: JSON text, base64, or hex. For decode operations.")]

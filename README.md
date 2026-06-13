@@ -26,13 +26,16 @@
 
 ## Overview
 
-`pb-mcp-server` is a Rust-based MCP (Model Context Protocol) server designed for IDE agents in Zed, Cursor, and similar editors. It exposes **484+ tools** across six profiles and is built as a Cargo workspace with 5 members covering the MCP core, HTTP gateway, LSP bridge, P2P networking, and an admin dashboard. It provides:
+`pb-mcp-server` is a Rust-based MCP (Model Context Protocol) server designed for IDE agents in Zed, Cursor, and similar editors. It exposes **500+ tools** across six profiles and is built as a Cargo workspace with 5 members covering the MCP core, HTTP gateway, LSP bridge, P2P networking, and an admin dashboard. It provides:
 
 - **Profile-based tool exposure** - Different tool sets for different workflows
 - **Multi-agent coordination** - Durable append-only message bus for agent communication
 - **Code intelligence** - Symbol indexing, search, and analysis tools
 - **Safe execution** - Sandboxed terminal operations with allowlists
 - **Review tools** - PR review, architecture analysis, risk assessment
+- **App/workflow equivalents** - Local deterministic helpers inspired by n8n,
+  MCP builders, skills/plugins/commands, Codex, Claude Code, OpenCode,
+  OpenClaw, Hermes, bash, PowerShell, batch/cmd, and macOS Terminal workflows
 
 ## Features
 
@@ -46,6 +49,7 @@
 | **Text Processing** | Compression, summarization, format conversion |
 | **Agent Bus** | Multi-agent messaging, handoffs, consensus |
 | **Execution** | Terminal commands, test runners, OCR (gated) |
+| **App / Workflow Tools** | n8n-style workflow validation/templates, MCP manifest/spec helpers, skills/plugins/commands, shell command helpers, agent prompt/session/patch/context/task planning |
 
 ### 🛡️ Security Features
 
@@ -97,6 +101,19 @@ cargo build --release
 
 # The binary will be at:
 # ./target/release/pb-mcp-server
+
+# Linux full release binary
+cargo build --release -p pb-mcp-server --all-features --bin pb-mcp-server
+
+# Smart release matrix for available Linux/Windows/macOS targets
+make release-matrix
+
+# Windows x64 exact all-features release binary from Linux
+rustup target add x86_64-pc-windows-gnu
+cargo build --release -p pb-mcp-server --all-features --bin pb-mcp-server --target x86_64-pc-windows-gnu
+
+# The Windows binary will be at:
+# ./target/x86_64-pc-windows-gnu/release/pb-mcp-server.exe
 ```
 
 ### Run in Zed
@@ -512,7 +529,7 @@ pb-mcp-server/
 | `protect_secret_scan` | local-power | Secret detection in files |
 | `protect_dependency_audit` | local-power | Dependency vulnerability audit |
 
-> **Note:** The tables above show representative tools from each category. The full catalog includes 484+ tools. Run `workspace_context` in an agent to see the complete list.
+> **Note:** The tables above show representative tools from each category. The full MCP handler surface includes 500+ tools. Run `workspace_context` in an agent to see the complete list.
 
 ---
 
@@ -710,7 +727,24 @@ cargo build --release --features experimental-lab
 
 # Build with all features
 cargo build --release --features full
+
+# Build all package binaries for available release targets into dist/
+make release-matrix
+
+# Build Windows x64 with exact all-features
+cargo build --release -p pb-mcp-server --all-features --bins --target x86_64-pc-windows-gnu
+
+# Build the lighter Windows-compatible profile
+cargo build --release -p pb-mcp-server --features full-windows --bin pb-mcp-server --target x86_64-pc-windows-gnu
 ```
+
+`scripts/build-release-matrix.sh` builds every package binary with exact
+`--all-features` by default, copies artifacts into `dist/<target>/`, and writes
+`dist/SHA256SUMS` plus `dist/build-manifest.jsonl`. macOS targets are skipped
+from Linux unless an Apple SDK/osxcross-style linker is configured. The
+`full-windows` profile remains available as a lighter Windows-compatible build,
+but exact Windows `--all-features` is supported when the MinGW target is
+installed.
 
 ---
 
@@ -1066,17 +1100,24 @@ chore: update dependencies
 
 ## Roadmap
 
-### v0.3.0 (Planned)
+### v0.4.0 (Planned)
 
 - [ ] WebAssembly tool support
 - [ ] Distributed bus (multi-node with nonce deduplication)
 - [ ] Advanced ML model integration
 - [ ] Real-time collaboration features
-- [ ] Plugin system for custom tools
+- [ ] Runtime plugin loading for custom tools
 - [ ] Rate limiting for expensive tools (neural inference, chart generation)
 - [ ] OpenTelemetry tracing for all tool invocations
 
-### v0.2.1 (Latest patch)
+### v0.3.0
+
+- [x] Expanded app/workflow local-equivalent tools for n8n, MCP builders, Codex, Claude Code, OpenCode, OpenClaw, and Hermes style workflows
+- [x] Added local skill/plugin/command planning and validation helpers
+- [x] Added bash, PowerShell, batch/cmd, and macOS Terminal command catalog, translation, script-template, and safety-check helpers
+- [x] Increased active MCP handler surface to 564 handlers
+
+### v0.2.1
 
 - [x] Fixed HMAC timing oracle in `network/protocol.rs`
 - [x] Added nonce-based replay protection for inter-node messages
@@ -1092,7 +1133,7 @@ chore: update dependencies
 - [x] Enhanced security model (path guard, command policy, rate limiter)
 - [x] Comprehensive test suite (1,292+ tests)
 - [x] Modular architecture (28 operational modules)
-- [x] Extended tool catalog (484+ tools)
+- [x] Extended tool catalog (500+ tools)
 - [x] AI/ML integration (22 Ollama-based tools)
 - [x] Logging & SVG chart generation (22 tools)
 - [x] Neural network tools (5 ONNX/tokenizer tools)

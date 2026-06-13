@@ -109,7 +109,7 @@ async fn ocr_from_clipboard(
 
 #[tool(
     description = "Capture a screen region with `scrot` or ImageMagick `import` and OCR it immediately with Tesseract. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "OCR screen region", read_only_hint = true)
+    annotations(title = "OCR screen region", read_only_hint = false)
 )]
 async fn ocr_screen_region(
     &self,
@@ -188,7 +188,7 @@ async fn ocr_with_confidence(
 
 #[tool(
     description = "Preprocess an image with ImageMagick before OCR. Operations: grayscale | threshold | despeckle | sharpen | resize2x. Requires a trusted (local-power) deployment. Blocked on public profile.",
-    annotations(title = "OCR preprocess image", read_only_hint = true)
+    annotations(title = "OCR preprocess image", read_only_hint = false)
 )]
 async fn ocr_preprocess(
     &self,

@@ -273,7 +273,8 @@ pub fn convert_document_work(input_path: PathBuf, output_format: Option<String>)
          apt install pandoc                    # Debian / Ubuntu\n  \
          brew install pandoc                   # macOS\n  \
          apt install libreoffice               # Debian / Ubuntu\n  \
-         brew install --cask libreoffice       # macOS".to_string()
+         brew install --cask libreoffice       # macOS"
+        .to_string()
 }
 
 // ---------------------------------------------------------------------------

@@ -584,7 +584,9 @@ impl ConsensusEngine {
                 // Find the highest-ranked option still in the running.
                 for pref in rankings {
                     if remaining.contains(pref) {
-                        *round_counts.get_mut(pref).unwrap() += 1;
+                        if let Some(count) = round_counts.get_mut(pref) {
+                            *count += 1;
+                        }
                         break;
                     }
                 }
@@ -775,8 +777,8 @@ impl Default for ConsensusEngine {
 fn real_now_ms() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .expect("system clock is before UNIX epoch")
-        .as_millis() as u64
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 /// Generate a simple pseudo-unique identifier.

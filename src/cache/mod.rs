@@ -18,19 +18,17 @@
 //! # Example
 //!
 //! ```no_run
-//! use pb_mcp_server::cache::{FileCache, CacheConfig};
+//! use pb_mcp_server::cache::FileCache;
+//! use pb_mcp_server::cache::file::FileCacheConfig;
+//! use std::path::Path;
 //!
-//! let config = CacheConfig {
-//!     max_entries: 1000,
-//!     max_bytes: 50 * 1024 * 1024, // 50 MB
-//!     default_ttl_secs: 300, // 5 minutes
-//! };
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let config = FileCacheConfig::default();
 //! let cache = FileCache::new(config);
 //!
-//! // Get or load file
-//! let content = cache.get_or_load("src/main.rs", || {
-//!     std::fs::read_to_string("src/main.rs")
-//! })?;
+//! let content = cache.read(Path::new("src/main.rs"))?;
+//! # Ok(())
+//! # }
 //! ```
 
 use dashmap::DashMap;

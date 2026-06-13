@@ -1,3 +1,12 @@
+#![allow(
+    clippy::expect_used,
+    clippy::field_reassign_with_default,
+    clippy::io_other_error,
+    clippy::needless_borrows_for_generic_args,
+    clippy::panic,
+    clippy::unwrap_used
+)]
+
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::io::Write;
 use tempfile::TempDir;
@@ -27,7 +36,7 @@ fn create_test_project(file_count: usize) -> TempDir {
         writeln!(f, "    let value_{} = {} * 2;", i, i).unwrap();
         writeln!(f, "    value_{}", i).unwrap();
         writeln!(f, "}}").unwrap();
-        writeln!(f, "").unwrap();
+        writeln!(f).unwrap();
         writeln!(f, "pub struct Struct{} {{", i).unwrap();
         writeln!(f, "    pub field: String,").unwrap();
         writeln!(f, "}}").unwrap();

@@ -35,7 +35,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 
@@ -45,6 +45,12 @@ use tokio::task::JoinHandle;
 
 /// Global counter for generating unique worker IDs.
 static WORKER_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn lock_recover<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 
 /// Generate a unique worker ID of the form `worker-<counter>-<timestamp_hex>`.
 fn generate_worker_id() -> String {
@@ -437,7 +443,7 @@ impl AgentWorker {
 
     /// Snapshot the current status.
     pub fn status_snapshot(&self) -> AgentWorkerStatus {
-        self.status.lock().unwrap().clone()
+        lock_recover(&self.status).clone()
     }
 
     /// Read the current message count.
@@ -507,7 +513,7 @@ impl AgentWorker {
 
             // Update status to Processing
             {
-                let mut st = self.status.lock().unwrap();
+                let mut st = lock_recover(&self.status);
                 let summary = if msg.body.len() > 80 {
                     format!("{}…", &msg.body[..80])
                 } else {
@@ -555,7 +561,7 @@ impl AgentWorker {
 
                     // Reset status to Idle
                     {
-                        let mut st = self.status.lock().unwrap();
+                        let mut st = lock_recover(&self.status);
                         *st = AgentWorkerStatus::Idle;
                     }
                 }
@@ -567,7 +573,7 @@ impl AgentWorker {
                         "LLM call failed"
                     );
                     {
-                        let mut st = self.status.lock().unwrap();
+                        let mut st = lock_recover(&self.status);
                         *st = AgentWorkerStatus::Error(e);
                     }
 
@@ -576,7 +582,7 @@ impl AgentWorker {
 
                     // Reset to Idle so the worker can try again
                     {
-                        let mut st = self.status.lock().unwrap();
+                        let mut st = lock_recover(&self.status);
                         *st = AgentWorkerStatus::Idle;
                     }
                 }
@@ -585,7 +591,7 @@ impl AgentWorker {
 
         // Mark as stopped
         {
-            let mut st = self.status.lock().unwrap();
+            let mut st = lock_recover(&self.status);
             *st = AgentWorkerStatus::Stopped;
         }
 
@@ -726,7 +732,7 @@ impl PooledWorkerHandle {
 
     /// Returns a snapshot of the worker's current information.
     pub fn info(&self) -> WorkerInfo {
-        let st = self.state.lock().unwrap();
+        let st = lock_recover(&self.state);
         WorkerInfo {
             id: self.id.clone(),
             role: st.role.clone(),
@@ -802,8 +808,8 @@ impl WorkerPool {
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-                let mut st = sync_state.lock().unwrap();
-                st.status = sync_status.lock().unwrap().clone();
+                let mut st = lock_recover(&sync_state);
+                st.status = lock_recover(&sync_status).clone();
                 st.message_count = sync_count.load(Ordering::Relaxed);
                 if matches!(st.status, AgentWorkerStatus::Stopped) {
                     tracing::debug!(

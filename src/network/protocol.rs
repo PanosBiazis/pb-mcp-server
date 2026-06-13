@@ -112,11 +112,11 @@ impl NodeMessage {
             "{}:{}:{}:{}:{}:{}:{}",
             self.id, self.from_node, to_str, kind_str, self.nonce, self.ts, self.body
         );
-        let mut mac =
-            HmacSha256::new_from_slice(secret.as_bytes()).expect("HMAC key length is valid");
-        mac.update(input.as_bytes());
-        let result = mac.finalize().into_bytes();
-        self.signature = Some(hex_encode(&result));
+        if let Ok(mut mac) = HmacSha256::new_from_slice(secret.as_bytes()) {
+            mac.update(input.as_bytes());
+            let result = mac.finalize().into_bytes();
+            self.signature = Some(hex_encode(&result));
+        }
     }
 
     /// Verify this message's HMAC-SHA256 signature.

@@ -388,12 +388,12 @@ pub fn agent_fan_out(
 pub type PipelineStep = (String, Option<String>, Option<String>, Option<String>);
 
 /// Send a pipeline of steps from one agent to another.
-/// 
+///
 /// # Arguments
 /// * `project_root` - The root directory of the project
 /// * `from_agent` - The name of the agent sending the pipeline
 /// * `steps` - A vector of pipeline steps to execute
-/// 
+///
 /// # Returns
 /// A result containing the pipeline ID or an error message.
 #[allow(clippy::too_many_arguments)]

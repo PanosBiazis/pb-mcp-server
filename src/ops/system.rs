@@ -178,38 +178,28 @@ pub fn system_network_interfaces_work() -> String {
 
 /// Read a single environment variable by name.
 ///
-/// Refuses to return values for keys containing sensitive keywords:
-/// SECRET, PASSWORD, TOKEN, KEY, CREDENTIAL, PRIVATE (case-insensitive).
+/// Refuses to return values for keys or values that look sensitive.
 pub fn system_env_get_work(key: String) -> String {
     let mut out = String::from("SYSTEM: ENV GET\n\n");
     out.push_str(&format!("Key: {key}\n"));
 
-    // Check for sensitive key names
-    let upper = key.to_uppercase();
-    let sensitive_keywords = [
-        "SECRET",
-        "PASSWORD",
-        "TOKEN",
-        "KEY",
-        "CREDENTIAL",
-        "PRIVATE",
-        "AUTH",
-        "SIGNING",
-    ];
-
-    let is_sensitive = sensitive_keywords.iter().any(|kw| upper.contains(kw));
-
-    if is_sensitive {
+    if is_sensitive_env_key(&key) {
         out.push_str("Value: [REDACTED — key name suggests sensitive content]\n");
         out.push_str("This tool refuses to display values for keys containing:\n");
-        out.push_str("SECRET, PASSWORD, TOKEN, KEY, CREDENTIAL, PRIVATE, AUTH, SIGNING\n");
+        out.push_str(
+            "SECRET, PASSWORD/PASSWD/PASS, TOKEN, KEY, CREDENTIAL, PRIVATE, AUTH, SIGNING, WEBHOOK, COOKIE, SESSION, DATABASE/DB URL, CONNECTION, DSN, BEARER, OAUTH, JWT, PAT, PWD, CERT\n",
+        );
         return out;
     }
 
     match env::var(&key) {
         Ok(value) => {
             let value_len = value.len();
-            out.push_str(&format!("Value: {}\n", value));
+            if looks_sensitive_env_value(&value) {
+                out.push_str("Value: [REDACTED — value looks like a secret]\n");
+            } else {
+                out.push_str(&format!("Value: {}\n", value));
+            }
             out.push_str(&format!("Length: {value_len} characters\n"));
         }
         Err(env::VarError::NotPresent) => {
@@ -221,6 +211,71 @@ pub fn system_env_get_work(key: String) -> String {
     }
 
     out
+}
+
+fn env_key_tokens_upper(key: &str) -> Vec<String> {
+    key.split(|ch: char| !ch.is_ascii_alphanumeric())
+        .filter(|part| !part.is_empty())
+        .map(|part| part.to_ascii_uppercase())
+        .collect()
+}
+
+fn is_sensitive_env_key(key: &str) -> bool {
+    let upper = key.to_ascii_uppercase();
+    let sensitive_substrings = [
+        "SECRET",
+        "PASSWORD",
+        "PASSWD",
+        "TOKEN",
+        "CREDENTIAL",
+        "PRIVATE",
+        "AUTH",
+        "SIGNING",
+        "WEBHOOK",
+        "COOKIE",
+        "SESSION",
+        "DATABASE_URL",
+        "DB_URL",
+        "CONNECTION_STRING",
+        "CONN_STRING",
+        "DSN",
+        "BEARER",
+        "OAUTH",
+        "JWT",
+        "APIKEY",
+    ];
+    if sensitive_substrings
+        .iter()
+        .any(|needle| upper.contains(needle))
+    {
+        return true;
+    }
+
+    let tokens = env_key_tokens_upper(key);
+    let sensitive_tokens = ["KEY", "PAT", "PWD", "PASS", "CERT"];
+    tokens
+        .iter()
+        .any(|token| sensitive_tokens.contains(&token.as_str()))
+}
+
+fn looks_sensitive_env_value(value: &str) -> bool {
+    let trimmed = value.trim();
+    let lower = trimmed.to_ascii_lowercase();
+    if lower.starts_with("bearer ") || lower.starts_with("basic ") {
+        return true;
+    }
+    if trimmed.contains("://") && trimmed.contains('@') {
+        return true;
+    }
+    if trimmed.len() >= 32
+        && !trimmed.contains(char::is_whitespace)
+        && !trimmed.starts_with('/')
+        && trimmed.chars().any(|ch| ch.is_ascii_alphabetic())
+        && trimmed.chars().any(|ch| ch.is_ascii_digit())
+    {
+        return true;
+    }
+    false
 }
 
 // ---------------------------------------------------------------------------
@@ -244,11 +299,7 @@ fn tool_available_sys(name: &str) -> bool {
 /// `kill -<signal> <pid>` or `pkill -<signal> <name>`.
 /// Populates `targets_found` by querying `pgrep -a` before killing.
 /// Returns JSON: {killed, targets_found: [{pid, name}], signal}
-pub fn sys_process_kill_work(
-    pid: Option<u32>,
-    name: Option<String>,
-    signal: String,
-) -> String {
+pub fn sys_process_kill_work(pid: Option<u32>, name: Option<String>, signal: String) -> String {
     let sig = signal.trim_start_matches("SIG").to_string();
     if sig.is_empty() {
         return json!({"error": "signal is required (e.g. 9, TERM, KILL)"}).to_string();
@@ -319,9 +370,15 @@ pub fn sys_process_kill_work(
 /// Returns JSON: {service, action, success, output, active_state}
 pub fn sys_service_control_work(service: String, action: String) -> String {
     const VALID: &[&str] = &[
-        "start", "stop", "restart", "status",
-        "enable", "disable", "reload",
-        "is-active", "is-enabled",
+        "start",
+        "stop",
+        "restart",
+        "status",
+        "enable",
+        "disable",
+        "reload",
+        "is-active",
+        "is-enabled",
     ];
     if !VALID.contains(&action.as_str()) {
         return json!({
@@ -641,7 +698,11 @@ pub fn sys_docker_logs_work(container: String, lines: usize) -> String {
         Ok(o) => {
             let stdout = String::from_utf8_lossy(&o.stdout).to_string();
             let stderr = String::from_utf8_lossy(&o.stderr).to_string();
-            let output = if stdout.trim().is_empty() { stderr } else { stdout };
+            let output = if stdout.trim().is_empty() {
+                stderr
+            } else {
+                stdout
+            };
             json!({
                 "container":      container,
                 "lines":          lines,
@@ -736,7 +797,11 @@ pub fn sys_docker_build_work(path: String, tag: String) -> String {
             let build_time_ms = start.elapsed().as_millis() as u64;
             let stdout = String::from_utf8_lossy(&o.stdout).to_string();
             let stderr = String::from_utf8_lossy(&o.stderr).to_string();
-            let combined = if stdout.trim().is_empty() { stderr } else { stdout };
+            let combined = if stdout.trim().is_empty() {
+                stderr
+            } else {
+                stdout
+            };
             let success = o.status.success();
             let output_tail: Vec<String> = combined
                 .lines()
@@ -796,25 +861,18 @@ pub fn sys_k8s_pods_work(namespace: String) -> String {
             if !o.status.success() {
                 return json!({"error": stderr, "namespace": ns}).to_string();
             }
-            let parsed =
-                serde_json::from_str::<serde_json::Value>(&stdout).unwrap_or_default();
+            let parsed = serde_json::from_str::<serde_json::Value>(&stdout).unwrap_or_default();
             let empty: Vec<serde_json::Value> = vec![];
             let items = parsed["items"].as_array().unwrap_or(&empty);
             let pods: Vec<serde_json::Value> = items
                 .iter()
                 .map(|item| {
-                    let name = item["metadata"]["name"]
-                        .as_str()
-                        .unwrap_or("")
-                        .to_string();
+                    let name = item["metadata"]["name"].as_str().unwrap_or("").to_string();
                     let phase = item["status"]["phase"]
                         .as_str()
                         .unwrap_or("Unknown")
                         .to_string();
-                    let node = item["spec"]["nodeName"]
-                        .as_str()
-                        .unwrap_or("")
-                        .to_string();
+                    let node = item["spec"]["nodeName"].as_str().unwrap_or("").to_string();
                     let start_time = item["status"]["startTime"]
                         .as_str()
                         .unwrap_or("")
@@ -823,8 +881,7 @@ pub fn sys_k8s_pods_work(namespace: String) -> String {
                     let cs = item["status"]["containerStatuses"]
                         .as_array()
                         .unwrap_or(&empty_cs);
-                    let ready =
-                        cs.iter().all(|c| c["ready"].as_bool().unwrap_or(false));
+                    let ready = cs.iter().all(|c| c["ready"].as_bool().unwrap_or(false));
                     let restarts: u64 = cs
                         .iter()
                         .map(|c| c["restartCount"].as_u64().unwrap_or(0))
@@ -896,7 +953,11 @@ pub fn sys_k8s_logs_work(
         Ok(o) => {
             let stdout = String::from_utf8_lossy(&o.stdout).to_string();
             let stderr = String::from_utf8_lossy(&o.stderr).trim().to_string();
-            let output = if stdout.trim().is_empty() { stderr } else { stdout };
+            let output = if stdout.trim().is_empty() {
+                stderr
+            } else {
+                stdout
+            };
             json!({
                 "pod":       pod,
                 "namespace": ns,
@@ -1000,8 +1061,7 @@ pub fn sys_hardware_info_work() -> String {
                         match key.as_str() {
                             "model name" => model = val,
                             "cpu(s)" => logical_cpus = val.parse().unwrap_or(0),
-                            "thread(s) per core" =>
-                                threads_per_core = val.parse().unwrap_or(1),
+                            "thread(s) per core" => threads_per_core = val.parse().unwrap_or(1),
                             "socket(s)" => sockets = val.parse().unwrap_or(1),
                             "architecture" => arch = val,
                             _ => {}
@@ -1033,7 +1093,7 @@ pub fn sys_hardware_info_work() -> String {
             for line in text.lines() {
                 if line.starts_with("Mem:") {
                     let parts: Vec<&str> = line.split_whitespace().collect();
-                    total     = parts.get(1).copied().unwrap_or("").to_string();
+                    total = parts.get(1).copied().unwrap_or("").to_string();
                     available = parts.get(6).copied().unwrap_or("").to_string();
                     break;
                 }
@@ -1056,12 +1116,14 @@ pub fn sys_hardware_info_work() -> String {
                     .and_then(|p| p["blockdevices"].as_array().cloned())
                     .map(|devs| {
                         devs.iter()
-                            .map(|d| json!({
-                                "name":       d["name"],
-                                "size":       d["size"],
-                                "type":       d["type"],
-                                "mountpoint": d["mountpoint"],
-                            }))
+                            .map(|d| {
+                                json!({
+                                    "name":       d["name"],
+                                    "size":       d["size"],
+                                    "type":       d["type"],
+                                    "mountpoint": d["mountpoint"],
+                                })
+                            })
                             .collect()
                     })
                     .unwrap_or_default()
@@ -1156,6 +1218,39 @@ mod tests {
     fn test_system_env_get_sensitive() {
         let result = system_env_get_work("MY_SECRET_PASSWORD".to_string());
         assert!(result.contains("REDACTED"));
+    }
+
+    #[test]
+    fn test_system_env_get_redacts_common_secret_names() {
+        for key in [
+            "OPENAI_API_KEY",
+            "GH_PAT",
+            "DATABASE_URL",
+            "SLACK_WEBHOOK_URL",
+            "AWS_SESSION_TOKEN",
+            "SSH_AUTH_SOCK",
+            "CLIENT_CERT",
+            "OAUTH_REFRESH_TOKEN",
+        ] {
+            let result = system_env_get_work(key.to_string());
+            assert!(result.contains("REDACTED"), "{key} should be redacted");
+        }
+    }
+
+    #[test]
+    fn test_system_env_get_avoids_key_substring_false_positive() {
+        assert!(!is_sensitive_env_key("MONKEY_MODE"));
+    }
+
+    #[test]
+    fn test_system_env_value_secret_heuristic() {
+        assert!(looks_sensitive_env_value(
+            "postgres://user:pass@localhost:5432/db"
+        ));
+        assert!(looks_sensitive_env_value(
+            "Bearer abcdefghijklmnopqrstuvwxyz1234567890"
+        ));
+        assert!(!looks_sensitive_env_value("/home/panosboy/Documents"));
     }
 
     #[test]

@@ -338,6 +338,7 @@ fn estimate_params_from_filename(filename: &str, size_bytes: u64) -> String {
 }
 
 /// Simple k-means clustering on embedding vectors.
+#[allow(clippy::needless_range_loop)]
 fn k_means(embeddings: &[Vec<f64>], k: usize, max_iter: usize) -> Vec<Vec<usize>> {
     if embeddings.is_empty() || k == 0 {
         return vec![];
@@ -903,10 +904,6 @@ pub fn ai_cluster_texts_work(args: Value) -> Value {
     })
 }
 
-/// Build a RAG index from a directory of text files.
-///
-/// Args: `path` (string), `chunk_size` (int, default 500), `overlap` (int,
-
 /// Pack multiple files into a context window respecting a token budget.
 ///
 /// Args: `paths` (array of strings), `max_tokens` (int, default 8000),
@@ -1449,13 +1446,11 @@ pub fn ml_dataset_validate_work(args: Value) -> Value {
         };
 
         // Check required fields (messages or conversations)
-        let has_messages = parsed.get("messages").and_then(|m| m.as_array()).is_some();
-        let has_conversations = parsed
-            .get("conversations")
-            .and_then(|c| c.as_array())
-            .is_some();
+        let messages_array = parsed.get("messages").and_then(|m| m.as_array());
+        let conversations_array = parsed.get("conversations").and_then(|c| c.as_array());
+        let uses_messages_schema = messages_array.is_some();
 
-        if !has_messages && !has_conversations {
+        if messages_array.is_none() && conversations_array.is_none() {
             errors.push(serde_json::json!({
                 "line": line_num_1based,
                 "issue": "Missing 'messages' or 'conversations' field"
@@ -1465,10 +1460,12 @@ pub fn ml_dataset_validate_work(args: Value) -> Value {
         }
 
         // Validate individual messages
-        let messages = if has_messages {
-            parsed["messages"].as_array().unwrap()
+        let messages = if let Some(messages) = messages_array {
+            messages
+        } else if let Some(conversations) = conversations_array {
+            conversations
         } else {
-            parsed["conversations"].as_array().unwrap()
+            continue;
         };
 
         if messages.is_empty() {
@@ -1482,8 +1479,12 @@ pub fn ml_dataset_validate_work(args: Value) -> Value {
 
         for (msg_idx, msg) in messages.iter().enumerate() {
             // Check role/content fields
-            let role_key = if has_messages { "role" } else { "from" };
-            let content_key = if has_messages { "content" } else { "value" };
+            let role_key = if uses_messages_schema { "role" } else { "from" };
+            let content_key = if uses_messages_schema {
+                "content"
+            } else {
+                "value"
+            };
 
             if msg.get(role_key).is_none() {
                 errors.push(serde_json::json!({
@@ -1768,7 +1769,8 @@ pub fn ml_convert_to_gguf_work(params: Value) -> String {
 
     let input = Path::new(&input_path);
     if !input.exists() {
-        return serde_json::json!({"error": format!("input_path does not exist: {input_path}")}).to_string();
+        return serde_json::json!({"error": format!("input_path does not exist: {input_path}")})
+            .to_string();
     }
 
     let output_path = arg_str(&params, "output_path", "");
@@ -1825,12 +1827,14 @@ pub fn ml_convert_to_gguf_work(params: Value) -> String {
                 "stdout": &stdout[..stdout.len().min(1000)],
                 "stderr": &stderr[..stderr.len().min(1000)],
                 "tool_available": true
-            }).to_string()
+            })
+            .to_string()
         }
         Err(e) => serde_json::json!({
             "error": format!("Failed to run convert.py: {e}"),
             "tool_available": false
-        }).to_string(),
+        })
+        .to_string(),
     }
 }
 
@@ -1841,7 +1845,11 @@ pub fn ml_convert_to_gguf_work(params: Value) -> String {
 #[allow(dead_code)]
 pub fn ml_model_compare_benchmark_work(params: Value) -> String {
     let models = arg_str_array(&params, "models", &["llama3.2"]);
-    let prompts = arg_str_array(&params, "prompts", &["Explain quantum computing in one sentence."]);
+    let prompts = arg_str_array(
+        &params,
+        "prompts",
+        &["Explain quantum computing in one sentence."],
+    );
     let ollama_url = arg_str(&params, "ollama_url", "http://localhost:11434");
 
     if models.is_empty() {

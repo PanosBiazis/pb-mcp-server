@@ -79,6 +79,7 @@ impl ToolProfile {
     }
 
     /// Parse profile from string
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "core-code" | "core_code" | "core" => Some(ToolProfile::CoreCode),
@@ -125,10 +126,7 @@ impl ToolProfile {
 
     /// Check if this profile allows terminal execution
     pub fn allows_execution(&self) -> bool {
-        matches!(
-            self,
-            ToolProfile::LocalPower | ToolProfile::ExperimentalLab
-        )
+        matches!(self, ToolProfile::LocalPower | ToolProfile::ExperimentalLab)
     }
 
     /// Check if this profile is safe for public/remote access
@@ -393,7 +391,7 @@ impl ToolProfile {
                 // Reverse engineering
                 "reverse-eng.strings",
                 "reverse-eng.hex_dump",
-                "reverse-eng.disassemble_stub",
+                "reverse-eng.disassemble",
                 // Debug
                 "debug.trace_start",
                 "debug.trace_stop",
@@ -489,7 +487,6 @@ impl ToolProfile {
                     // Testing
                     "testing.generate_unit_tests",
                     "testing.assert_coverage",
-                    "testing.mutation_stub",
                 ]);
                 // Deduplicate while preserving order
                 let mut seen = std::collections::HashSet::new();
@@ -702,9 +699,15 @@ mod tests {
 
     #[test]
     fn test_profile_from_str() {
-        assert_eq!(ToolProfile::from_str("core-code"), Some(ToolProfile::CoreCode));
+        assert_eq!(
+            ToolProfile::from_str("core-code"),
+            Some(ToolProfile::CoreCode)
+        );
         assert_eq!(ToolProfile::from_str("core"), Some(ToolProfile::CoreCode));
-        assert_eq!(ToolProfile::from_str("local-power"), Some(ToolProfile::LocalPower));
+        assert_eq!(
+            ToolProfile::from_str("local-power"),
+            Some(ToolProfile::LocalPower)
+        );
         assert_eq!(ToolProfile::from_str("invalid"), None);
     }
 
@@ -754,7 +757,25 @@ mod tests {
     fn test_experimental_lab_no_duplicates() {
         let tools = ToolProfile::ExperimentalLab.tools();
         let deduped: std::collections::HashSet<_> = tools.iter().collect();
-        assert_eq!(tools.len(), deduped.len(), "ExperimentalLab tool list must not contain duplicates");
+        assert_eq!(
+            tools.len(),
+            deduped.len(),
+            "ExperimentalLab tool list must not contain duplicates"
+        );
+    }
+
+    #[test]
+    fn profile_tool_lists_do_not_expose_stub_names() {
+        for profile in ToolProfile::all() {
+            for tool in profile.tools() {
+                assert!(
+                    !tool.ends_with("_stub") && !tool.ends_with(".stub"),
+                    "{:?} exposes stale stub tool name {}",
+                    profile,
+                    tool
+                );
+            }
+        }
     }
 
     #[test]

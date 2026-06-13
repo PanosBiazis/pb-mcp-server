@@ -95,6 +95,14 @@ impl ToolRegistry {
             .collect()
     }
 
+    /// Return enabled tools that are currently backed by placeholder/stub implementations.
+    pub fn enabled_stubs(&self) -> Vec<&ToolInfo> {
+        self.enabled_tools()
+            .into_iter()
+            .filter(|tool| tool.is_stub())
+            .collect()
+    }
+
     // -----------------------------------------------------------------------
     // Dynamic registration
     // -----------------------------------------------------------------------
@@ -196,36 +204,28 @@ impl ToolRegistry {
         let allowed: &[&str] = match self.profile {
             ToolProfile::PublicSafe => &["public-safe"],
             ToolProfile::CoreCode => &["public-safe", "core-code"],
-            ToolProfile::ReviewRefactor => {
-                &["public-safe", "core-code", "review-refactor"]
-            }
-            ToolProfile::AgentOrchestration => {
-                &[
-                    "public-safe",
-                    "core-code",
-                    "review-refactor",
-                    "agent-orchestration",
-                ]
-            }
-            ToolProfile::LocalPower => {
-                &[
-                    "public-safe",
-                    "core-code",
-                    "review-refactor",
-                    "agent-orchestration",
-                    "local-power",
-                ]
-            }
-            ToolProfile::ExperimentalLab => {
-                &[
-                    "public-safe",
-                    "core-code",
-                    "review-refactor",
-                    "agent-orchestration",
-                    "local-power",
-                    "experimental-lab",
-                ]
-            }
+            ToolProfile::ReviewRefactor => &["public-safe", "core-code", "review-refactor"],
+            ToolProfile::AgentOrchestration => &[
+                "public-safe",
+                "core-code",
+                "review-refactor",
+                "agent-orchestration",
+            ],
+            ToolProfile::LocalPower => &[
+                "public-safe",
+                "core-code",
+                "review-refactor",
+                "agent-orchestration",
+                "local-power",
+            ],
+            ToolProfile::ExperimentalLab => &[
+                "public-safe",
+                "core-code",
+                "review-refactor",
+                "agent-orchestration",
+                "local-power",
+                "experimental-lab",
+            ],
         };
         allowed.contains(&tool_profile)
     }
@@ -299,6 +299,11 @@ mod tests {
                 "CoreCode should not expose exec tools, found: {}",
                 tool.name
             );
+            assert!(
+                !tool.requires_write,
+                "CoreCode should not expose write tools, found: {}",
+                tool.name
+            );
         }
 
         // Additionally, `is_enabled` should return false for any
@@ -353,6 +358,26 @@ mod tests {
             !lab_tools.is_empty(),
             "ExperimentalLab should expose experimental-lab tools"
         );
+    }
+
+    #[test]
+    fn deterministic_scaffolds_are_not_enabled_stubs() {
+        let registry = ToolRegistry::new(ToolProfile::ReviewRefactor);
+        let enabled_names: Vec<_> = registry
+            .enabled_tools()
+            .into_iter()
+            .map(|tool| tool.name.as_str())
+            .collect();
+        assert!(enabled_names.contains(&"plan.risk_register"));
+        assert!(enabled_names.contains(&"reasoning.evidence_matrix"));
+
+        let names: Vec<_> = registry
+            .enabled_stubs()
+            .into_iter()
+            .map(|tool| tool.name.as_str())
+            .collect();
+        assert!(!names.contains(&"plan.risk_register"));
+        assert!(!names.contains(&"reasoning.evidence_matrix"));
     }
 
     /// Verifies that registering a tool with a duplicate name is a no-op:

@@ -138,82 +138,78 @@ impl SecretScanner {
 
     /// Create a new scanner pre-loaded with common secret patterns.
     pub fn new() -> Self {
-        let patterns = vec![
-            // AWS Access Key ID
-            SecretPattern {
-                name: "AWS Access Key ID".into(),
-                pattern: Regex::new(r"AKIA[0-9A-Z]{16}").unwrap(),
-                severity: Severity::Critical,
-                description: "AWS Access Key ID (starts with AKIA)".into(),
-            },
-            // AWS Secret Access Key
-            SecretPattern {
-                name: "AWS Secret Key".into(),
-                pattern: Regex::new(r"\b[0-9a-zA-Z/+]{40}\b").unwrap(),
-                severity: Severity::Critical,
-                description: "Potential AWS Secret Access Key (40-char base64-ish string)".into(),
-            },
-            // GitHub Personal Access Token
-            SecretPattern {
-                name: "GitHub Token".into(),
-                pattern: Regex::new(r"gh[ps]_[0-9a-zA-Z]{36}").unwrap(),
-                severity: Severity::Critical,
-                description: "GitHub Personal Access Token (ghp_/ghs_ prefix)".into(),
-            },
-            // GitHub OAuth Access Token
-            SecretPattern {
-                name: "GitHub OAuth".into(),
-                pattern: Regex::new(r"gho_[0-9a-zA-Z]{36}").unwrap(),
-                severity: Severity::High,
-                description: "GitHub OAuth Access Token (gho_ prefix)".into(),
-            },
-            // Private Key header
-            SecretPattern {
-                name: "Private Key".into(),
-                pattern: Regex::new(r"-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----")
-                    .unwrap(),
-                severity: Severity::Critical,
-                description: "PEM private key header".into(),
-            },
-            // Generic API key assignment
-            SecretPattern {
-                name: "Generic API Key".into(),
-                pattern: Regex::new(
-                    r#"(?i)(api[-_]?key|apikey|access[-_]?key)\s*[:=]\s*["\']?[0-9a-zA-Z]{20,}"#,
-                )
-                .unwrap(),
-                severity: Severity::High,
-                description: "Generic API key assignment pattern".into(),
-            },
-            // Bearer token
-            SecretPattern {
-                name: "Bearer Token".into(),
-                pattern: Regex::new(r"Bearer [0-9a-zA-Z\-._~+/]+=*").unwrap(),
-                severity: Severity::High,
-                description: "HTTP Bearer authorization token".into(),
-            },
-            // Slack token
-            SecretPattern {
-                name: "Slack Token".into(),
-                pattern: Regex::new(r"xox[bpors]-[0-9a-zA-Z-]+").unwrap(),
-                severity: Severity::High,
-                description: "Slack bot/user/token (xoxb/xoxp/xoxx prefix)".into(),
-            },
-            // Database URL
-            SecretPattern {
-                name: "Database URL".into(),
-                pattern: Regex::new(r"(mysql|postgres|mongodb)://[^\s\x27\x22]+").unwrap(),
-                severity: Severity::Critical,
-                description: "Database connection string with embedded credentials".into(),
-            },
-            // JSON Web Token
-            SecretPattern {
-                name: "JWT Token".into(),
-                pattern: Regex::new(r"eyJ[A-Za-z0-9-_]+\.eyJ[A-Za-z0-9-_]+").unwrap(),
-                severity: Severity::High,
-                description: "JSON Web Token (JWT) header.payload fragment".into(),
-            },
-        ];
+        let mut patterns = Vec::new();
+        for (name, pattern, severity, description) in [
+            (
+                "AWS Access Key ID",
+                r"AKIA[0-9A-Z]{16}",
+                Severity::Critical,
+                "AWS Access Key ID (starts with AKIA)",
+            ),
+            (
+                "AWS Secret Key",
+                r"\b[0-9a-zA-Z/+]{40}\b",
+                Severity::Critical,
+                "Potential AWS Secret Access Key (40-char base64-ish string)",
+            ),
+            (
+                "GitHub Token",
+                r"gh[ps]_[0-9a-zA-Z]{36}",
+                Severity::Critical,
+                "GitHub Personal Access Token (ghp_/ghs_ prefix)",
+            ),
+            (
+                "GitHub OAuth",
+                r"gho_[0-9a-zA-Z]{36}",
+                Severity::High,
+                "GitHub OAuth Access Token (gho_ prefix)",
+            ),
+            (
+                "Private Key",
+                r"-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----",
+                Severity::Critical,
+                "PEM private key header",
+            ),
+            (
+                "Generic API Key",
+                r#"(?i)(api[-_]?key|apikey|access[-_]?key)\s*[:=]\s*["\']?[0-9a-zA-Z]{20,}"#,
+                Severity::High,
+                "Generic API key assignment pattern",
+            ),
+            (
+                "Bearer Token",
+                r"Bearer [0-9a-zA-Z\-._~+/]+=*",
+                Severity::High,
+                "HTTP Bearer authorization token",
+            ),
+            (
+                "Slack Token",
+                r"xox[bpors]-[0-9a-zA-Z-]+",
+                Severity::High,
+                "Slack bot/user/token (xoxb/xoxp/xoxx prefix)",
+            ),
+            (
+                "Database URL",
+                r"(mysql|postgres|mongodb)://[^\s\x27\x22]+",
+                Severity::Critical,
+                "Database connection string with embedded credentials",
+            ),
+            (
+                "JWT Token",
+                r"eyJ[A-Za-z0-9-_]+\.eyJ[A-Za-z0-9-_]+",
+                Severity::High,
+                "JSON Web Token (JWT) header.payload fragment",
+            ),
+        ] {
+            if let Ok(pattern) = Regex::new(pattern) {
+                patterns.push(SecretPattern {
+                    name: name.into(),
+                    pattern,
+                    severity,
+                    description: description.into(),
+                });
+            }
+        }
 
         Self {
             patterns,
@@ -325,30 +321,21 @@ impl SecretScanner {
     /// alphanumeric strings, key-value assignments, Bearer tokens, PEM
     /// headers, database URLs, and JWT fragments).
     pub fn redact_secret(text: &str) -> String {
-        let patterns = [
-            // AWS Access Key IDs
-            Regex::new(r"AKIA[0-9A-Z]{16}").unwrap(),
-            // GitHub tokens
-            Regex::new(r"gh[ps]_[0-9a-zA-Z]{36}").unwrap(),
-            Regex::new(r"gho_[0-9a-zA-Z]{36}").unwrap(),
-            // Slack tokens
-            Regex::new(r"xox[bpors]-[0-9a-zA-Z-]+").unwrap(),
-            // Bearer tokens
-            Regex::new(r"Bearer [0-9a-zA-Z\-._~+/]+=*").unwrap(),
-            // Private key headers
-            Regex::new(r"-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----").unwrap(),
-            // Database URLs (redact the credentials part)
-            Regex::new(r"(mysql|postgres|mongodb)://[^\s\x27\x22]+").unwrap(),
-            // JWT tokens
-            Regex::new(r"eyJ[A-Za-z0-9-_]+\.eyJ[A-Za-z0-9-_]+[A-Za-z0-9-_.+/]*=*").unwrap(),
-            // Generic API key values
-            Regex::new(
-                r#"(?i)(api[-_]?key|apikey|access[-_]?key)\s*[:=]\s*["\']?[0-9a-zA-Z]{20,}"#,
-            )
-            .unwrap(),
-            // Long base64-ish strings (AWS secret key candidates)
-            Regex::new(r"[0-9a-zA-Z/+]{40,}").unwrap(),
-        ];
+        let patterns: Vec<Regex> = [
+            r"AKIA[0-9A-Z]{16}",
+            r"gh[ps]_[0-9a-zA-Z]{36}",
+            r"gho_[0-9a-zA-Z]{36}",
+            r"xox[bpors]-[0-9a-zA-Z-]+",
+            r"Bearer [0-9a-zA-Z\-._~+/]+=*",
+            r"-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----",
+            r"(mysql|postgres|mongodb)://[^\s\x27\x22]+",
+            r"eyJ[A-Za-z0-9-_]+\.eyJ[A-Za-z0-9-_]+[A-Za-z0-9-_.+/]*=*",
+            r#"(?i)(api[-_]?key|apikey|access[-_]?key)\s*[:=]\s*["\']?[0-9a-zA-Z]{20,}"#,
+            r"[0-9a-zA-Z/+]{40,}",
+        ]
+        .into_iter()
+        .filter_map(|pattern| Regex::new(pattern).ok())
+        .collect();
 
         let mut result = text.to_string();
         for re in &patterns {

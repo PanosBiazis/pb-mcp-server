@@ -618,6 +618,7 @@ pub fn protect_suid_find_work(_args: Value) -> Value {
 }
 
 #[cfg(unix)]
+/// Find SUID and SGID files under a Unix directory.
 pub fn protect_suid_find_work(args: Value) -> Value {
     let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("/");
 
@@ -696,6 +697,7 @@ pub fn protect_world_writable_find_work(_args: Value) -> Value {
 }
 
 #[cfg(unix)]
+/// Find world-writable files under a Unix directory.
 pub fn protect_world_writable_find_work(args: Value) -> Value {
     let path = match args.get("path").and_then(|v| v.as_str()) {
         Some(p) => p.to_string(),
@@ -1645,6 +1647,7 @@ pub fn protect_permissions_scan_work(_params: Value) -> String {
 
 #[allow(dead_code)]
 #[cfg(unix)]
+/// Run a combined Unix permission scan for risky permission bits.
 pub fn protect_permissions_scan_work(params: Value) -> String {
     let path = params.get("path").and_then(|v| v.as_str()).unwrap_or(".");
 
@@ -2195,10 +2198,11 @@ mod tests {
     fn test_quarantine_file_nonexistent() {
         let result = protect_quarantine_file_work(json!({"path": "/nonexistent/file"}));
         let result: Value = serde_json::from_str(&result).unwrap();
-        assert!(
-            result.get("error").is_some()
-                || result.get("quarantined").unwrap().as_bool().unwrap() == false
-        );
+        let quarantined = result
+            .get("quarantined")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false);
+        assert!(result.get("error").is_some() || !quarantined);
     }
 
     #[test]
@@ -2213,7 +2217,7 @@ mod tests {
             "quarantine_dir": quarantine_dir.to_str().unwrap()
         }));
         let result: Value = serde_json::from_str(&result).unwrap();
-        assert_eq!(result.get("quarantined").unwrap().as_bool().unwrap(), true);
+        assert!(result.get("quarantined").unwrap().as_bool().unwrap());
         assert!(!file_path.exists());
     }
 

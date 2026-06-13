@@ -8,7 +8,7 @@
 // ---------------------------------------------------------------------------
 
 #[tool(
-    description = "Encrypt a file using AES-256-GCM (XOR+base64 implementation). Writes an .enc output file next to the original. Requires trusted profile.",
+    description = "Encrypt a file using AES-256-GCM with a PBKDF2-HMAC-SHA256 passphrase key. Writes an .enc output file next to the original. Requires trusted profile.",
     annotations(title = "File encrypt", read_only_hint = false)
 )]
 async fn file_encrypt(
@@ -33,7 +33,7 @@ async fn file_encrypt(
 // ---------------------------------------------------------------------------
 
 #[tool(
-    description = "Decrypt a file previously encrypted with file_encrypt. Reads an .enc file and writes the plaintext back (stripping the .enc suffix). Requires trusted profile.",
+    description = "Decrypt a file previously encrypted with file_encrypt. Supports current ENCV2 AES-GCM files and legacy ENCV1 XOR-obfuscated files. Reads an .enc file and writes the plaintext back. Requires trusted profile.",
     annotations(title = "File decrypt", read_only_hint = false)
 )]
 async fn file_decrypt(

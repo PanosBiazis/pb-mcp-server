@@ -18,7 +18,7 @@ use std::{
     fs::OpenOptions,
     io::Write,
     net::{IpAddr, SocketAddr},
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::Command,
     sync::{Arc, Mutex},
     time::{SystemTime, UNIX_EPOCH},
@@ -380,24 +380,25 @@ struct ReviewPacketAgent {
     kind: Option<String>,
 }
 
-fn review_log_path(root: &PathBuf) -> PathBuf {
+fn review_log_path(root: &Path) -> PathBuf {
     root.join(".mint-mcp").join("review-packets.jsonl")
 }
 
-fn review_lock_path(root: &PathBuf) -> PathBuf {
+fn review_lock_path(root: &Path) -> PathBuf {
     root.join(".mint-mcp").join("review-packets.lock")
 }
 
-fn ensure_bus_dir(root: &PathBuf) -> std::io::Result<()> {
+fn ensure_bus_dir(root: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(root.join(".mint-mcp"))
 }
 
-fn append_review_packet_jsonl(root: &PathBuf, json_line: &str) -> Result<usize, String> {
+fn append_review_packet_jsonl(root: &Path, json_line: &str) -> Result<usize, String> {
     ensure_bus_dir(root).map_err(|e| format!("create .mint-mcp dir: {e}"))?;
 
     let lockp = review_lock_path(root);
     let lockf = OpenOptions::new()
         .create(true)
+        .truncate(false)
         .read(true)
         .write(true)
         .open(&lockp)
@@ -421,12 +422,13 @@ fn append_review_packet_jsonl(root: &PathBuf, json_line: &str) -> Result<usize, 
     Ok(json_line.len() + 1)
 }
 
-fn read_review_packets_tail(root: &PathBuf, limit: usize) -> Result<Vec<String>, String> {
+fn read_review_packets_tail(root: &Path, limit: usize) -> Result<Vec<String>, String> {
     let limit = limit.clamp(1, 200);
     ensure_bus_dir(root).map_err(|e| format!("create .mint-mcp dir: {e}"))?;
     let lockp = review_lock_path(root);
     let lockf = OpenOptions::new()
         .create(true)
+        .truncate(false)
         .read(true)
         .write(true)
         .open(&lockp)
@@ -456,11 +458,11 @@ fn read_review_packets_tail(root: &PathBuf, limit: usize) -> Result<Vec<String>,
     Ok(out)
 }
 
-fn remote_bus_path(root: &PathBuf) -> PathBuf {
+fn remote_bus_path(root: &Path) -> PathBuf {
     root.join(".mint-mcp").join("remote-agent-bus.jsonl")
 }
 
-fn remote_bus_lock_path(root: &PathBuf) -> PathBuf {
+fn remote_bus_lock_path(root: &Path) -> PathBuf {
     root.join(".mint-mcp").join("remote-agent-bus.lock")
 }
 
@@ -478,10 +480,11 @@ fn sanitize_agent_name(s: &str) -> String {
         .collect()
 }
 
-fn append_remote_agent_message(root: &PathBuf, msg: &RemoteAgentMessage) -> Result<(), String> {
+fn append_remote_agent_message(root: &Path, msg: &RemoteAgentMessage) -> Result<(), String> {
     ensure_bus_dir(root).map_err(|e| format!("create .mint-mcp dir: {e}"))?;
     let lockf = OpenOptions::new()
         .create(true)
+        .truncate(false)
         .read(true)
         .write(true)
         .open(remote_bus_lock_path(root))
@@ -502,10 +505,11 @@ fn append_remote_agent_message(root: &PathBuf, msg: &RemoteAgentMessage) -> Resu
     Ok(())
 }
 
-fn read_remote_agent_messages(root: &PathBuf) -> Result<Vec<RemoteAgentMessage>, String> {
+fn read_remote_agent_messages(root: &Path) -> Result<Vec<RemoteAgentMessage>, String> {
     ensure_bus_dir(root).map_err(|e| format!("create .mint-mcp dir: {e}"))?;
     let lockf = OpenOptions::new()
         .create(true)
+        .truncate(false)
         .read(true)
         .write(true)
         .open(remote_bus_lock_path(root))
@@ -532,8 +536,8 @@ fn read_remote_agent_messages(root: &PathBuf) -> Result<Vec<RemoteAgentMessage>,
     Ok(out)
 }
 
-fn resolve_under_root(base: &PathBuf, path: &str) -> Result<PathBuf, String> {
-    let root = base.canonicalize().unwrap_or_else(|_| base.clone());
+fn resolve_under_root(base: &Path, path: &str) -> Result<PathBuf, String> {
+    let root = base.canonicalize().unwrap_or_else(|_| base.to_path_buf());
     if path.trim().is_empty() {
         return Ok(root);
     }
@@ -559,7 +563,7 @@ fn read_text_limited(path: &std::path::Path, max_bytes: u64) -> Option<String> {
     use std::io::Read;
     let mut take = f.take(max_bytes);
     take.read_to_end(&mut buf).ok()?;
-    if buf.iter().any(|&b| b == 0) {
+    if buf.contains(&0) {
         return None;
     }
     String::from_utf8(buf).ok()
