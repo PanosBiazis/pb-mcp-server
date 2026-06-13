@@ -559,8 +559,8 @@ mod tests {
         assert_eq!(cfg.max_circuit_retries, back.max_circuit_retries);
 
         // YAML roundtrip
-        let yaml = serde_yml::to_string(&cfg).unwrap();
-        let back_yaml: TorConfig = serde_yml::from_str(&yaml).unwrap();
+        let yaml = serde_norway::to_string(&cfg).unwrap();
+        let back_yaml: TorConfig = serde_norway::from_str(&yaml).unwrap();
         assert_eq!(cfg.socks5_addr, back_yaml.socks5_addr);
         assert_eq!(cfg.enabled, back_yaml.enabled);
     }
