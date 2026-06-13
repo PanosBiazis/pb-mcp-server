@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-*(no changes yet)*
+### Security
+
+- Cleared the RustSec vulnerability set reported on 2026-06-13: updated TLS,
+  websocket, tokenizer, scraper, and random dependencies; replaced unsound
+  `serde_yml`/`libyml` with `serde_norway`; and patched the local `libp2p`
+  dependency surface so unused vulnerable DNS/mDNS transitive crates are not
+  locked.
+
+### Changed
+
+- Rebuilt all-features release binaries for Linux `x86_64-unknown-linux-gnu`
+  and Windows `x86_64-pc-windows-gnu`; refreshed `dist/SHA256SUMS`.
 
 ## [0.2.1] - 2025-07-01
 

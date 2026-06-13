@@ -304,6 +304,7 @@ use tokio::io::{stdin, stdout, AsyncWriteExt};
 #[derive(Clone)]
 struct MintMcp {
     root: PathBuf,
+    #[allow(dead_code)]
     tool_router: ToolRouter<Self>,
     bus_rate: Arc<bus_rate::BusSendRateLimiter>,
     bus_read_only: bool,
