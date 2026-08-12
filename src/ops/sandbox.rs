@@ -77,6 +77,14 @@ const DANGEROUS_COMMAND_PATTERNS: &[&str] = &[
     "/etc/passwd",
     "/etc/shadow",
     "crontab -r",
+    // Shell command-substitution injection vectors. These matter for the
+    // shell-backed sandbox entry points (sandbox_script / sandbox_docker_run),
+    // where a metacharacter in the command string is interpreted by the shell.
+    // A backtick or `$(` lets an attacker smuggle a nested command past the
+    // phrase-based denylist above (e.g. `echo $(cat /etc/passwd)`), so block
+    // both forms of command substitution outright.
+    "`",
+    "$(",
 ];
 
 // ---------------------------------------------------------------------------
@@ -1378,6 +1386,16 @@ mod tests {
     fn test_dangerous_command_case_insensitive() {
         assert!(check_dangerous_command("RM -RF /").is_err());
         assert!(check_dangerous_command("Shutdown now").is_err());
+    }
+
+    #[test]
+    fn test_command_substitution_blocked() {
+        // Backtick and $() command substitution must be rejected so nested
+        // commands cannot be smuggled past the phrase-based denylist.
+        assert!(check_dangerous_command("echo `cat /etc/passwd`").is_err());
+        assert!(check_dangerous_command("echo $(whoami)").is_err());
+        // Plain, substitution-free commands still pass.
+        assert!(check_dangerous_command("echo hello world").is_ok());
     }
 
     // -- interpreter_for_language tests --

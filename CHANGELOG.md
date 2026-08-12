@@ -9,6 +9,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **Gateway `trust_local_network` bind-exposure gap (High)**: the guard that refuses
+  `PB_GATEWAY_TRUST_LOCAL_NETWORK=true` combined with a non-loopback bind lived only in the
+  standalone `pb-gateway` binary's `main()`; the reusable library serve path (`AppState::from_env`
+  + `build_router` + `axum::serve`, the documented embedding) had none — exposing the token/
+  signature auth bypass and `POST /exec` (shell) to the local subnet on a `0.0.0.0` bind. Added a
+  reusable, fail-closed `gateway::assert_bind_safe(bind, trust_local_network)` (exported), used it
+  to document `build_router`, and fixed the same "unparseable hostname ⇒ assumed loopback" hole in
+  the standalone binary's inline check. 3 new unit tests.
+- **Gateway anti-replay nonce cache DoS (Medium)**: bounded the in-memory
+  nonce map in `src/gateway/auth.rs` (`verify_signature`) and the duplicated
+  logic in `src/bin/pb-gateway.rs`. A new `MAX_NONCES = 100_000` cap evicts the
+  oldest half of entries (by recorded timestamp) before inserting when the cap
+  is hit, so an attacker streaming unique nonces within the skew window can no
+  longer grow the map without bound. Replay protection for recent nonces is
+  preserved.
+- **Gateway request-body hashing DoS (Medium)**: added
+  `tower_http::limit::RequestBodyLimitLayer` (10 MiB) to both the shared
+  `gateway::build_router` (`src/gateway/routes.rs`) and the `pb-gateway`
+  binary router (`src/bin/pb-gateway.rs`). Oversized bodies are rejected with
+  `413 Payload Too Large` before handlers run, so a giant body can no longer be
+  SHA-256/HMAC-hashed during signature verification. Uses the already-present
+  `tower-http` `limit` feature; no new dependency.
+- **`trust_local_network` misuse hardening (Medium)**: `PB_GATEWAY_TRUST_LOCAL_NETWORK=true`
+  bypasses both token and signature auth for loopback/private/Tailscale peers.
+  The `pb-gateway` binary now emits a loud `WARNING` at startup when it is
+  enabled and **refuses to start** (fatal) when it is combined with a bind on a
+  non-loopback interface, which would expose the auth bypass to the local
+  subnet. The feature itself is retained for local development.
+- **Sandbox shell command-substitution injection (Medium)**: extended
+  `DANGEROUS_COMMAND_PATTERNS` in `src/ops/sandbox.rs` to block backtick
+  (`` ` ``) and `$(` command substitution. These reach the shell-backed sandbox
+  entry points (`sandbox_script` / `sandbox_docker_run`, which run through
+  `sh -c`) and previously slipped past the phrase-based denylist. Added the
+  `test_command_substitution_blocked` unit test; existing accepted inputs are
+  unchanged.
+- **`PB_MCP_PROFILE` silent-fallback misconfig (Low)**: `MintMcp::from_env`
+  in `src/server.rs` now logs a `WARN` to stderr when `PB_MCP_PROFILE` is set to
+  an unrecognised value before falling back to the default profile, instead of
+  falling back silently (which could quietly expose the wrong tool surface).
+- Verified existing path-guard symlink protections in
+  `src/security/path_guard.rs`: the `MAX_SYMLINK_DEPTH = 8` cap, the clear
+  "Symlink resolution depth exceeded" error, and the post-resolution
+  `verify_under_root` re-check (blocking symlink escapes out of the project
+  root) are correct and were left tightened as-is.
 - Cleared the RustSec vulnerability set reported on 2026-06-13: updated TLS,
   websocket, tokenizer, scraper, and random dependencies; replaced unsound
   `serde_yml`/`libyml` with `serde_norway`; and patched the local `libp2p`
@@ -57,7 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pb-dashboard/src/main.rs` simplified: `required-features = ["dashboard"]` eliminates `#[cfg(not(feature = ...))]` fallback block and unreachable_code warning
 
 ### Fixed
-- Compilation errors (20 → 0): missing stub module files, ort 2.0.0-rc.12 API incompatibilities, image 0.25 API change (`rotate_about_center` removed), deprecated `image::io::Reader`
+- Compilation errors (20 → 0): missing generated module files, ort 2.0.0-rc.12 API incompatibilities, image 0.25 API change (`rotate_about_center` removed), deprecated `image::io::Reader`
 - Compiler warnings (6 → 0): unused imports in `agent/live.rs`, `cache/file.rs`, `ops/image.rs`; feature-gated re-exports in `agent/mod.rs`
 - `verify_under_root()` now uses `Path::starts_with()` instead of unsafe string prefix comparison (path traversal vulnerability)
 - `DANGEROUS_EXTENSIONS` blocklist expanded (+8 extensions)

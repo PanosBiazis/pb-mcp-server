@@ -91,6 +91,55 @@ PB_GATEWAY_TOKEN=<your-secret-token>
 
 The server will reject requests that do not present this token. Never expose the gateway port on a public network without a strong, randomly generated token.
 
+#### Request-signing anti-replay cache
+
+Signed requests carry a nonce that is remembered for the duration of the
+timestamp-skew window to reject replays. The nonce cache is hard-capped at
+`MAX_NONCES = 100_000` entries; when the cap is reached the oldest half of the
+entries are evicted before a new nonce is stored. This bounds memory even if a
+client floods the gateway with unique nonces, while preserving replay
+protection for recent requests.
+
+#### Request-body size limit
+
+Every gateway request body is capped at **10 MiB** by a
+`RequestBodyLimitLayer` applied at the router. Oversized requests receive
+`413 Payload Too Large` **before** any handler — and therefore before any
+HMAC-SHA256 hashing of the body — runs, preventing a giant-body hashing
+denial-of-service.
+
+#### Local-network trust bypass
+
+Setting:
+
+```
+PB_GATEWAY_TRUST_LOCAL_NETWORK=1
+```
+
+makes requests from loopback, RFC-1918 private, and Tailscale-CGNAT IPs bypass
+**both** the bearer token and the HMAC signature. This is a **development-only
+convenience**. When it is enabled the `pb-gateway` binary prints a loud startup
+`WARNING`, and it will **refuse to start** if it is combined with a bind on a
+non-loopback interface (which would extend the auth bypass to the local
+subnet). Only enable it while bound to `127.0.0.1` on a machine you trust.
+
+The bind-safety check is now the reusable, fail-closed
+`pb_mcp_server::gateway::assert_bind_safe(bind, trust_local_network)` — call it
+before serving **any** router built with `build_router` (embedders included), not
+just the standalone binary. It refuses `0.0.0.0`, LAN IPs, `[::]`, **and any
+hostname it cannot prove is loopback** (a hostname resolving to a LAN address is
+no longer assumed safe — the previous "unparseable host ⇒ loopback" gap is
+closed). Verified by unit tests in `src/gateway/auth.rs`.
+
+### Sandbox command execution
+
+The sandbox tools block a denylist of dangerous command patterns, including
+shell command-substitution vectors (backtick `` ` `` and `$(`) that would
+otherwise let a nested command slip through the shell-backed entry points
+(`sandbox_script`, `sandbox_docker_run`). Sandbox commands still run with a
+wall-clock timeout, an output-size cap, and path-traversal validation against
+the sandbox root.
+
 ### Message integrity
 
 All inter-node messages exchanged by `pb-mcp-server` are signed with **HMAC-SHA256**. Messages with an invalid or missing signature are rejected before processing.

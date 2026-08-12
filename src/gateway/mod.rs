@@ -35,6 +35,6 @@ pub mod routes;
 pub mod state;
 
 // Re-export key types
-pub use auth::{is_local_network_ip, require_token, verify_signature};
+pub use auth::{assert_bind_safe, is_local_network_ip, require_token, verify_signature};
 pub use routes::build_router;
 pub use state::AppState;

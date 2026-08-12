@@ -1,4 +1,4 @@
-/// Deployment trust tier: LAN/local vs internet-exposed MCP.
+/// Deployment trust tier: local/LAN profile vs public-edge MCP profile.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NetworkProfile {
     /// Trusted network (default): full surface subject to `PB_*` / `MINT_*` gates.

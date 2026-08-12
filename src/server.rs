@@ -52,10 +52,23 @@ impl MintMcp {
     /// Falls back to [`ToolProfile::CoreCode`] when the variable is absent or
     /// contains an unrecognised value.
     pub fn from_env() -> Self {
-        let profile = std::env::var("PB_MCP_PROFILE")
-            .ok()
-            .and_then(|s| ToolProfile::from_str(&s))
-            .unwrap_or_default();
+        let profile = match std::env::var("PB_MCP_PROFILE") {
+            Ok(raw) => match ToolProfile::from_str(&raw) {
+                Some(p) => p,
+                None => {
+                    // Surface misconfiguration instead of silently falling back,
+                    // otherwise a typo in PB_MCP_PROFILE would quietly expose the
+                    // wrong (default) tool surface.
+                    eprintln!(
+                        "[pb-mcp-server] WARN: unrecognised PB_MCP_PROFILE={raw:?}; \
+                         falling back to default profile ({})",
+                        ToolProfile::default().as_str()
+                    );
+                    ToolProfile::default()
+                }
+            },
+            Err(_) => ToolProfile::default(),
+        };
         Self::new(profile)
     }
 
