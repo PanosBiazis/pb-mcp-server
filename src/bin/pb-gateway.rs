@@ -37,6 +37,15 @@ use std::{
 };
 use subtle::ConstantTimeEq;
 
+/// Hard upper bound on retained anti-replay nonces (memory-exhaustion DoS
+/// guard). See the eviction logic in `verify_signature`.
+const MAX_NONCES: usize = 100_000;
+
+/// Maximum accepted request body size (10 MiB). Enforced by a
+/// `RequestBodyLimitLayer` so oversized bodies are rejected before handlers —
+/// and therefore before any HMAC hashing of the body — run.
+const MAX_REQUEST_BODY_BYTES: usize = 10 * 1024 * 1024;
+
 struct AppState {
     token: Option<String>,
     signing_secret: Option<String>,
@@ -191,6 +200,15 @@ fn require_signed_request(
         map.retain(|_, seen_ts| *seen_ts >= min_ts);
         if map.contains_key(nonce) {
             return Err((StatusCode::UNAUTHORIZED, "replayed nonce"));
+        }
+        // Hard size cap so the nonce map cannot grow without bound inside the
+        // skew window (memory-exhaustion DoS). Evict the oldest half by
+        // timestamp when the cap is hit.
+        if map.len() >= MAX_NONCES {
+            let mut timestamps: Vec<u64> = map.values().copied().collect();
+            timestamps.sort_unstable();
+            let cutoff = timestamps[timestamps.len() / 2];
+            map.retain(|_, seen_ts| *seen_ts > cutoff);
         }
         map.insert(nonce.to_string(), now);
     }
@@ -1369,6 +1387,44 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(|s| s == "1" || s.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
 
+    // `trust_local_network` bypasses BOTH token and signature checks for any
+    // peer whose IP is loopback/private/Tailscale. This is a dev convenience
+    // and must be loud when enabled. Combining it with a bind on a non-loopback
+    // interface exposes the trust bypass to the local subnet (RFC-1918 peers),
+    // so refuse that combination outright.
+    if trust_local_network {
+        eprintln!(
+            "[pb-gateway] WARNING: PB_GATEWAY_TRUST_LOCAL_NETWORK is ENABLED — \
+             requests from loopback/private/Tailscale IPs BYPASS token and \
+             signature auth. Use only in trusted development environments."
+        );
+        let host = bind
+            .rsplit_once(':')
+            .map(|(host, _)| host)
+            .unwrap_or(bind.as_str())
+            .trim_matches(|c| c == '[' || c == ']')
+            .trim();
+        // Fail-closed: only a numeric loopback IP, the literal "localhost", or an empty/portless
+        // host (which defaults to 127.0.0.1) counts as loopback. Any OTHER hostname may resolve
+        // to a public/LAN interface, so it is treated as non-loopback rather than assumed safe.
+        let bind_is_loopback = if host.is_empty() || host.eq_ignore_ascii_case("localhost") {
+            true
+        } else if let Ok(ip) = host.parse::<IpAddr>() {
+            ip.is_loopback()
+        } else {
+            false
+        };
+        if !bind_is_loopback {
+            eprintln!(
+                "[pb-gateway] FATAL: refusing to start with \
+                 PB_GATEWAY_TRUST_LOCAL_NETWORK=true bound to a non-loopback \
+                 interface ('{bind}'). This would expose the auth bypass to the \
+                 local network. Bind to 127.0.0.1 or disable trust_local_network."
+            );
+            return Err("insecure configuration: trust_local_network + public bind".into());
+        }
+    }
+
     let state = Arc::new(AppState {
         token,
         signing_secret,
@@ -1394,6 +1450,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/exec", post(exec_local))
         .route("/review-packet", post(review_packet))
         .route("/review-packets", get(review_packets))
+        // Reject oversized request bodies BEFORE handlers (and therefore before
+        // any HMAC hashing of the body) to prevent a giant-body hashing DoS.
+        .layer(tower_http::limit::RequestBodyLimitLayer::new(
+            MAX_REQUEST_BODY_BYTES,
+        ))
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind(&bind).await?;

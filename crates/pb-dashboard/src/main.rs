@@ -315,7 +315,7 @@ fn load_demo_data(app: &mut DashboardApp) {
 // ---------------------------------------------------------------------------
 
 impl eframe::App for DashboardApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if self.auto_refresh && self.connected {
             if self.last_refresh.elapsed().as_secs_f32() >= self.refresh_interval_secs {
                 self.last_refresh = Instant::now();
@@ -324,85 +324,78 @@ impl eframe::App for DashboardApp {
             }
             ctx.request_repaint_after(std::time::Duration::from_millis(500));
         }
+    }
 
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                ui.label(RichText::new("⬡ pb-dashboard").strong().size(16.0));
-                ui.separator();
-                ui.label("Gateway:");
-                ui.add(
-                    egui::TextEdit::singleline(&mut self.gateway_url)
-                        .desired_width(220.0)
-                        .hint_text("http://localhost:8123"),
-                );
-                if ui.button("Load Demo").clicked() {
-                    self.connected = true;
-                    load_demo_data(self);
-                    self.status_text = format!(
-                        "Loaded local demo data for {}; live gateway polling/control is not wired yet",
-                        self.gateway_url
-                    );
-                }
-                ui.separator();
-                ui.label("Auto-refresh:");
-                ui.toggle_value(&mut self.auto_refresh, "On");
-                if self.auto_refresh {
-                    ui.add(
-                        egui::Slider::new(&mut self.refresh_interval_secs, 1.0..=60.0)
-                            .text("s")
-                            .step_by(1.0),
-                    );
-                }
-                ui.separator();
-                let dot_color = if self.connected {
-                    Color32::GREEN
-                } else {
-                    Color32::GRAY
-                };
-                ui.colored_label(dot_color, "●");
-                ui.label(if self.connected {
-                    "connected"
-                } else {
-                    "disconnected"
-                });
-            });
-            ui.add_space(2.0);
-        });
-
-        egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
-            ui.add_space(2.0);
-            ui.horizontal(|ui| {
-                ui.label(
-                    RichText::new(&self.status_text)
-                        .small()
-                        .color(Color32::GRAY),
-                );
-            });
-            ui.add_space(2.0);
-        });
-
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                for tab in DashboardTab::ALL {
-                    let is_selected = self.selected_tab == tab;
-                    let label = RichText::new(tab.label()).size(14.0);
-                    if ui.selectable_label(is_selected, label).clicked() {
-                        self.selected_tab = tab;
-                    }
-                }
-            });
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        ui.add_space(4.0);
+        ui.horizontal_wrapped(|ui| {
+            ui.label(RichText::new("⬡ pb-dashboard").strong().size(16.0));
             ui.separator();
+            ui.label("Gateway:");
+            ui.add(
+                egui::TextEdit::singleline(&mut self.gateway_url)
+                    .desired_width(220.0)
+                    .hint_text("http://localhost:8123"),
+            );
+            if ui.button("Load Demo").clicked() {
+                self.connected = true;
+                load_demo_data(self);
+                self.status_text = format!(
+                    "Loaded local demo data for {}; live gateway polling/control is not wired yet",
+                    self.gateway_url
+                );
+            }
+            ui.separator();
+            ui.label("Auto-refresh:");
+            ui.toggle_value(&mut self.auto_refresh, "On");
+            if self.auto_refresh {
+                ui.add(
+                    egui::Slider::new(&mut self.refresh_interval_secs, 1.0..=60.0)
+                        .text("s")
+                        .step_by(1.0),
+                );
+            }
+            ui.separator();
+            let dot_color = if self.connected {
+                Color32::GREEN
+            } else {
+                Color32::GRAY
+            };
+            ui.colored_label(dot_color, "●");
+            ui.label(if self.connected {
+                "connected"
+            } else {
+                "disconnected"
+            });
+        });
+        ui.separator();
 
-            match self.selected_tab {
-                DashboardTab::Overview => self.draw_overview(ui),
-                DashboardTab::Agents => self.draw_agents(ui),
-                DashboardTab::Bus => self.draw_bus(ui),
-                DashboardTab::Tools => self.draw_tools(ui),
-                DashboardTab::Security => self.draw_security(ui),
-                DashboardTab::Metrics => self.draw_metrics(ui),
+        ui.horizontal_wrapped(|ui| {
+            for tab in DashboardTab::ALL {
+                let is_selected = self.selected_tab == tab;
+                let label = RichText::new(tab.label()).size(14.0);
+                if ui.selectable_label(is_selected, label).clicked() {
+                    self.selected_tab = tab;
+                }
             }
         });
+        ui.separator();
+
+        match self.selected_tab {
+            DashboardTab::Overview => self.draw_overview(ui),
+            DashboardTab::Agents => self.draw_agents(ui),
+            DashboardTab::Bus => self.draw_bus(ui),
+            DashboardTab::Tools => self.draw_tools(ui),
+            DashboardTab::Security => self.draw_security(ui),
+            DashboardTab::Metrics => self.draw_metrics(ui),
+        }
+
+        ui.separator();
+        ui.label(
+            RichText::new(&self.status_text)
+                .small()
+                .color(Color32::GRAY),
+        );
     }
 }
 
@@ -898,9 +891,12 @@ impl DashboardApp {
         let draw_chart = |ui: &mut egui::Ui, title: &str, y_values: &[f64], line_color: Color32| {
             ui.group(|ui| {
                 ui.label(RichText::new(title).strong());
-                let line = egui_plot::Line::new(egui_plot::PlotPoints::from_iter(
-                    x_values.iter().zip(y_values.iter()).map(|(&x, &y)| [x, y]),
-                ))
+                let line = egui_plot::Line::new(
+                    title,
+                    egui_plot::PlotPoints::from_iter(
+                        x_values.iter().zip(y_values.iter()).map(|(&x, &y)| [x, y]),
+                    ),
+                )
                 .color(line_color)
                 .width(2.0);
 

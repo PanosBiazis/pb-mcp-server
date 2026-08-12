@@ -27,7 +27,7 @@ Per the docs: do not upload the real Rust MCP server to Netlify first. Wire the 
 
 - `PB_GATEWAY_BASE_URL`: e.g. `https://your-host` (no trailing path)
 - `PB_GATEWAY_URL`: optional convenience for `status.ts` (full URL ending in `/status`)
-- `PB_GATEWAY_TOKEN`: optional; sent as `Authorization: Bearer ...` to the gateway
+- `PB_GATEWAY_TOKEN`: optional; sent to the gateway as a bearer-token auth header
 - `PB_GATEWAY_SIGNING_SECRET`: optional but recommended; signs Netlify->gateway requests
 
 ### Agent token auth
@@ -63,4 +63,3 @@ Note: you cannot reliably prove “AI agent vs human”; this is a best-effort g
 - `RATE_LIMIT_ENABLED=1`
 - `RATE_LIMIT_WINDOW_MS=1000`
 - `RATE_LIMIT_MAX_REQUESTS=1000000` (set extremely high if you enable)
-

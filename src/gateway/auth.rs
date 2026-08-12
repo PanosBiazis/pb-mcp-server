@@ -25,6 +25,15 @@ use super::state::AppState;
 /// HMAC type alias for SHA-256.
 type HmacSha256 = Hmac<Sha256>;
 
+/// Hard upper bound on the number of nonces retained for anti-replay.
+///
+/// Within the timestamp-skew window an attacker could otherwise submit an
+/// unbounded stream of unique nonces, growing `nonce_seen` without limit and
+/// exhausting memory. When this cap is reached we evict the oldest half of the
+/// entries (by recorded timestamp) before inserting the new nonce, which keeps
+/// replay protection correct for all *recent* nonces while bounding memory.
+const MAX_NONCES: usize = 100_000;
+
 // ---------------------------------------------------------------------------
 // Bearer token validation
 // ---------------------------------------------------------------------------
@@ -196,6 +205,18 @@ pub fn verify_signature(
         if map.contains_key(nonce) {
             return Err((StatusCode::UNAUTHORIZED, "replayed nonce"));
         }
+
+        // Hard size cap: even inside the skew window the map must not grow
+        // without bound (memory-exhaustion DoS). If pruning stale entries did
+        // not bring us back under the cap, evict the oldest half by timestamp.
+        if map.len() >= MAX_NONCES {
+            let mut timestamps: Vec<u64> = map.values().copied().collect();
+            timestamps.sort_unstable();
+            // Cutoff at the median: keep the newer half, drop the older half.
+            let cutoff = timestamps[timestamps.len() / 2];
+            map.retain(|_, seen_ts| *seen_ts > cutoff);
+        }
+
         map.insert(nonce.to_string(), now);
     }
 
@@ -244,6 +265,47 @@ pub fn is_local_network_ip(ip: IpAddr) -> bool {
     }
 }
 
+/// Guard the insecure `trust_local_network` + non-loopback-bind combination in ONE reusable
+/// place, so every serving path enforces it — the `pb-gateway` binary AND any embedder that
+/// serves [`build_router`](crate::gateway::build_router) over an [`AppState::from_env`] built
+/// from the environment. Previously the check lived only inside the standalone binary's `main`,
+/// so the library's own documented serve path had no protection.
+///
+/// When `trust_local_network` is on, requests from loopback/private/Tailscale peers bypass BOTH
+/// token and signature auth (see [`is_local_network_ip`]) and reach `/exec`, so binding to
+/// anything but loopback exposes that bypass — and remote code execution — to the local subnet.
+///
+/// Fail-closed: a numeric host must be `is_loopback()`; the literal `localhost` (any case) or an
+/// empty/portless host maps to the default `127.0.0.1` bind and is allowed; **any other hostname
+/// is refused** rather than assumed safe (closing the earlier "unparseable host ⇒ treated as
+/// loopback" gap, where e.g. a machine hostname resolving to a LAN address slipped through).
+pub fn assert_bind_safe(bind: &str, trust_local_network: bool) -> Result<(), String> {
+    if !trust_local_network {
+        return Ok(());
+    }
+    let host = bind
+        .rsplit_once(':')
+        .map(|(h, _)| h)
+        .unwrap_or(bind)
+        .trim_matches(|c| c == '[' || c == ']')
+        .trim();
+    let is_loopback_bind = if host.is_empty() || host.eq_ignore_ascii_case("localhost") {
+        true
+    } else if let Ok(ip) = host.parse::<IpAddr>() {
+        ip.is_loopback()
+    } else {
+        false
+    };
+    if !is_loopback_bind {
+        return Err(format!(
+            "insecure configuration: PB_GATEWAY_TRUST_LOCAL_NETWORK=true bound to a non-loopback \
+             address ('{bind}') would expose the auth bypass and /exec to the local network. Bind \
+             to 127.0.0.1 / localhost, or disable trust_local_network."
+        ));
+    }
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Composite authorisation helper
 // ---------------------------------------------------------------------------
@@ -289,6 +351,32 @@ mod tests {
             false,
             std::path::PathBuf::from("."),
         )
+    }
+
+    #[test]
+    fn assert_bind_safe_allows_anything_without_trust() {
+        // With trust off, the bind address is irrelevant — auth still applies.
+        assert!(assert_bind_safe("0.0.0.0:8080", false).is_ok());
+        assert!(assert_bind_safe("example.com:80", false).is_ok());
+    }
+
+    #[test]
+    fn assert_bind_safe_allows_loopback_with_trust() {
+        assert!(assert_bind_safe("127.0.0.1:8080", true).is_ok());
+        assert!(assert_bind_safe("localhost:8080", true).is_ok());
+        assert!(assert_bind_safe("LOCALHOST:8080", true).is_ok());
+        assert!(assert_bind_safe("[::1]:8080", true).is_ok());
+    }
+
+    #[test]
+    fn assert_bind_safe_refuses_non_loopback_with_trust() {
+        // The dangerous combos: bind to all interfaces / a LAN IP while trusting the local net.
+        assert!(assert_bind_safe("0.0.0.0:8080", true).is_err());
+        assert!(assert_bind_safe("192.168.1.5:8080", true).is_err());
+        assert!(assert_bind_safe("10.0.0.2:8080", true).is_err());
+        assert!(assert_bind_safe("[::]:8080", true).is_err());
+        // Fail-closed on an unresolved hostname (the closed gap): NOT assumed loopback.
+        assert!(assert_bind_safe("my-lan-host:8080", true).is_err());
     }
 
     #[test]

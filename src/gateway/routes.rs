@@ -1224,10 +1224,23 @@ async fn metrics(
 // Router builder
 // ===========================================================================
 
+/// Maximum accepted request body size (10 MiB). Enforced by a
+/// `RequestBodyLimitLayer` so oversized bodies are rejected before handlers —
+/// and therefore before any HMAC hashing of the body — run.
+const MAX_REQUEST_BODY_BYTES: usize = 10 * 1024 * 1024;
+
 /// Build the complete `axum::Router` with all gateway routes.
 ///
 /// The returned router is ready to be served with
 /// `axum::serve(listener, router.into_make_service_with_connect_info::<SocketAddr>())`.
+///
+/// # Security
+///
+/// If the [`AppState`] has `trust_local_network` enabled, loopback/private/Tailscale peers
+/// bypass token + signature auth and can reach `POST /exec`. **Before binding, call
+/// [`assert_bind_safe`](crate::gateway::assert_bind_safe)`(bind_addr, state.trust_local_network)`
+/// and refuse to serve on error** — otherwise binding to a non-loopback interface exposes that
+/// bypass (and remote code execution) to the local subnet.
 ///
 /// # Example
 ///
@@ -1256,5 +1269,10 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/review-packet", post(review_packet))
         .route("/review-packets", get(review_packets))
         .route("/metrics", get(metrics))
+        // Reject oversized request bodies BEFORE handlers (and therefore before
+        // any HMAC hashing of the body) to prevent a giant-body hashing DoS.
+        .layer(tower_http::limit::RequestBodyLimitLayer::new(
+            MAX_REQUEST_BODY_BYTES,
+        ))
         .with_state(state)
 }

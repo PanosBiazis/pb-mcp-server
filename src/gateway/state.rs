@@ -19,7 +19,7 @@ use std::sync::Mutex;
 ///
 /// # Fields
 ///
-/// - `token` — Optional bearer token for `Authorization: Bearer <token>`.
+/// - `token` — Optional bearer token checked from the request auth header.
 ///   When `None`, token authentication is disabled.
 /// - `signing_secret` — Optional HMAC-SHA256 secret for request signing.
 ///   When `None`, signed-request verification is skipped.
