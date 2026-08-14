@@ -25,6 +25,31 @@ export function getEnv(name: string): string | undefined {
   return (globalThis as any).process?.env?.[name] as string | undefined;
 }
 
+export function developmentMode(): boolean {
+  return getEnv("CONTROL_PLANE_MODE")?.trim().toLowerCase() === "development";
+}
+
+export function constantTimeEqual(left: string, right: string): boolean {
+  const a = new TextEncoder().encode(left);
+  const b = new TextEncoder().encode(right);
+  const length = Math.max(a.length, b.length, 1);
+  let mismatch = a.length ^ b.length;
+  for (let i = 0; i < length; i++) {
+    mismatch |= (a[i % Math.max(a.length, 1)] ?? 0) ^ (b[i % Math.max(b.length, 1)] ?? 0);
+  }
+  return mismatch === 0;
+}
+
+function boundedTokenKey(token: string): string {
+  // Non-cryptographic in-memory bucketing only. No token material is retained.
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < token.length; i++) {
+    hash ^= token.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `${token.length}:${hash.toString(16).padStart(8, "0")}`;
+}
+
 export function readBearerToken(req: Request): string | undefined {
   const raw = req.headers.get("authorization")?.trim();
   if (!raw) return undefined;
@@ -54,14 +79,14 @@ function fromBase64Url(s: string): Uint8Array | null {
 
 async function hmacSha256(key: string, data: string): Promise<Uint8Array> {
   const enc = new TextEncoder();
-  const k = await crypto.subtle.importKey(
+  const k = await globalThis.crypto.subtle.importKey(
     "raw",
     enc.encode(key),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign", "verify"]
   );
-  const sig = await crypto.subtle.sign("HMAC", k, enc.encode(data));
+  const sig = await globalThis.crypto.subtle.sign("HMAC", k, enc.encode(data));
   return new Uint8Array(sig);
 }
 
@@ -71,19 +96,19 @@ function toHex(bytes: Uint8Array): string {
 
 async function hmacVerifySha256(key: string, data: string, sig: Uint8Array): Promise<boolean> {
   const enc = new TextEncoder();
-  const k = await crypto.subtle.importKey(
+  const k = await globalThis.crypto.subtle.importKey(
     "raw",
     enc.encode(key),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["verify"]
   );
-  return await crypto.subtle.verify("HMAC", k, sig, enc.encode(data));
+  return await globalThis.crypto.subtle.verify("HMAC", k, sig, enc.encode(data));
 }
 
 async function sha256Hex(data: string): Promise<string> {
   const enc = new TextEncoder();
-  const h = await crypto.subtle.digest("SHA-256", enc.encode(data));
+  const h = await globalThis.crypto.subtle.digest("SHA-256", enc.encode(data));
   const u = new Uint8Array(h);
   return [...u].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
@@ -170,12 +195,12 @@ export async function gatewaySignedHeaders(
   if (!secret) return {};
 
   const tsMs = String(Date.now());
-  const nonceBytes = crypto.getRandomValues(new Uint8Array(16));
+  const nonceBytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
   const nonce = toBase64Url(nonceBytes);
   const u = new URL(url);
   const path = u.pathname || "/";
   const query = u.search.startsWith("?") ? u.search.slice(1) : u.search;
-  const bodyDigest = await crypto.subtle.digest(
+  const bodyDigest = await globalThis.crypto.subtle.digest(
     "SHA-256",
     new TextEncoder().encode(bodyText)
   );
@@ -190,15 +215,18 @@ export async function gatewaySignedHeaders(
   };
 }
 
-// Optional auth:
-// - If CONTROL_PLANE_TOKEN is unset: allow everything.
-// - If set: require Authorization header with that token.
+// Production auth is fail closed. An unauthenticated local/demo deployment
+// requires the explicit CONTROL_PLANE_MODE=development opt-in.
 export function requireControlPlaneAuth(req: Request): AuthDecision {
   const expected = getEnv("CONTROL_PLANE_TOKEN")?.trim();
-  if (!expected) return { ok: true };
+  if (!expected) {
+    return developmentMode()
+      ? { ok: true }
+      : { ok: false, status: 503, error: "CONTROL_PLANE_TOKEN not configured" };
+  }
   const got = readBearerToken(req);
   if (!got) return { ok: false, status: 401, error: "missing authorization token" };
-  if (got !== expected) return { ok: false, status: 403, error: "invalid token" };
+  if (!constantTimeEqual(got, expected)) return { ok: false, status: 403, error: "invalid token" };
   return { ok: true };
 }
 
@@ -219,30 +247,44 @@ export async function requireAgentAuth(req: Request): Promise<AgentAuthDecision>
   return { ok: true, agentId: v.agentId };
 }
 
-// Optional rate limiter:
-// - Disabled unless RATE_LIMIT_ENABLED=1
-// - Designed to be "soft" (very high ceiling possible) and per-instance best-effort.
+// Per-instance defense-in-depth limiter. Production defaults to enabled;
+// development can explicitly disable it. Netlify's verified connection IP is
+// used rather than caller-controlled forwarding headers.
 const buckets = new Map<string, { windowStartMs: number; count: number }>();
+const MAX_RATE_BUCKETS = 10_000;
 
 export function softRateLimit(req: Request): AuthDecision {
-  const enabled = getEnv("RATE_LIMIT_ENABLED")?.trim() === "1";
+  const configured = getEnv("RATE_LIMIT_ENABLED")?.trim();
+  const enabled = !developmentMode() || configured === "1";
   if (!enabled) return { ok: true };
 
-  const windowMs = Number(getEnv("RATE_LIMIT_WINDOW_MS") ?? "1000");
-  const maxReq = Number(getEnv("RATE_LIMIT_MAX_REQUESTS") ?? "1000000");
+  const windowMs = Number(getEnv("RATE_LIMIT_WINDOW_MS") ?? "60000");
+  const maxReq = Number(getEnv("RATE_LIMIT_MAX_REQUESTS") ?? "120");
 
-  if (!Number.isFinite(windowMs) || windowMs <= 0) return { ok: true };
-  if (!Number.isFinite(maxReq) || maxReq <= 0) return { ok: true };
+  if (!Number.isFinite(windowMs) || windowMs < 1000 || windowMs > 3600000) {
+    return { ok: false, status: 503, error: "invalid rate-limit window" };
+  }
+  if (!Number.isFinite(maxReq) || maxReq < 1 || maxReq > 10000) {
+    return { ok: false, status: 503, error: "invalid rate-limit maximum" };
+  }
 
-  // Key: token if present else IP-ish header (may be absent).
+  // Token values are hashed before becoming map keys, and unauthenticated
+  // callers use only the platform-provided connection address.
   const token = readBearerToken(req);
-  const ip =
-    req.headers.get("x-nf-client-connection-ip") ??
-    req.headers.get("x-forwarded-for") ??
-    "unknown";
-  const key = token ? `tok:${token}` : `ip:${ip}`;
+  const ip = req.headers.get("x-nf-client-connection-ip")?.trim() || "unknown";
+  const key = token ? `tok:${boundedTokenKey(token)}` : `ip:${ip}`;
 
   const now = Date.now();
+  if (buckets.size >= MAX_RATE_BUCKETS) {
+    for (const [candidate, value] of buckets) {
+      if (now - value.windowStartMs >= windowMs) buckets.delete(candidate);
+    }
+    while (buckets.size >= MAX_RATE_BUCKETS) {
+      const oldest = buckets.keys().next().value;
+      if (oldest === undefined) break;
+      buckets.delete(oldest);
+    }
+  }
   const b = buckets.get(key);
   if (!b || now - b.windowStartMs >= windowMs) {
     buckets.set(key, { windowStartMs: now, count: 1 });
@@ -250,8 +292,7 @@ export function softRateLimit(req: Request): AuthDecision {
   }
   b.count += 1;
   if (b.count > maxReq) {
-    return { ok: false, status: 429, error: "rate limited (soft limiter)" };
+    return { ok: false, status: 429, error: "rate limited" };
   }
   return { ok: true };
 }
-

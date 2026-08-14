@@ -40,14 +40,15 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs,
     fs::OpenOptions,
-    io::Write,
+    io::{Read, Write},
     net::SocketAddr,
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, Stdio},
     sync::Arc,
 };
+use tokio::io::{AsyncRead, AsyncReadExt};
 
-use super::auth::{authorize_request, is_local_network_ip};
+use super::auth::authorize_request;
 use super::state::AppState;
 
 // ===========================================================================
@@ -88,6 +89,8 @@ struct SecurityStatusResponse {
     signed_requests_enabled: bool,
     signed_requests_max_skew_ms: u64,
     project_root_confined: bool,
+    exec_enabled: bool,
+    exec_output_limit_bytes: usize,
     notes: Vec<String>,
 }
 
@@ -154,7 +157,10 @@ struct ExecResponse {
     stdout: String,
     stderr: String,
     timed_out: bool,
+    output_truncated: bool,
 }
+
+const MAX_EXEC_OUTPUT_BYTES: usize = 64 * 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct RemoteAgentMessage {
@@ -541,13 +547,21 @@ fn read_file_slice(
 ) -> Result<(String, bool), String> {
     let max_bytes: u64 = 512 * 1024;
     let max_chars: usize = 20_000;
-    let bytes = fs::read(path).map_err(|e| format!("read file: {e}"))?;
-    let clipped_disk = (bytes.len() as u64) > max_bytes;
-    let text = if clipped_disk {
-        String::from_utf8_lossy(&bytes[..max_bytes as usize]).to_string()
-    } else {
-        String::from_utf8_lossy(&bytes).to_string()
-    };
+    let mut file = fs::File::open(path).map_err(|e| format!("open file: {e}"))?;
+    let metadata = file.metadata().map_err(|e| format!("file metadata: {e}"))?;
+    if !metadata.is_file() {
+        return Err("path must be a regular file".to_string());
+    }
+    let mut bytes = Vec::with_capacity((max_bytes as usize).saturating_add(1));
+    Read::by_ref(&mut file)
+        .take(max_bytes + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|e| format!("read file: {e}"))?;
+    let clipped_disk = bytes.len() as u64 > max_bytes;
+    if clipped_disk {
+        bytes.truncate(max_bytes as usize);
+    }
+    let text = String::from_utf8_lossy(&bytes).to_string();
     let lines: Vec<&str> = text.split_inclusive('\n').collect();
     let n = lines.len();
     let mut out = if start_line.is_some() || end_line.is_some() {
@@ -566,6 +580,128 @@ fn read_file_slice(
         out = out.chars().take(max_chars).collect();
     }
     Ok((out, clipped_disk || clipped_chars))
+}
+
+async fn read_pipe_bounded<R>(mut reader: R, max_bytes: usize) -> std::io::Result<(Vec<u8>, bool)>
+where
+    R: AsyncRead + Unpin,
+{
+    let mut output = Vec::with_capacity(max_bytes.min(8192));
+    let mut chunk = [0_u8; 8192];
+    loop {
+        let count = reader.read(&mut chunk).await?;
+        if count == 0 {
+            return Ok((output, false));
+        }
+        let remaining = max_bytes.saturating_sub(output.len());
+        output.extend_from_slice(&chunk[..count.min(remaining)]);
+        if count > remaining {
+            return Ok((output, true));
+        }
+        if output.len() == max_bytes {
+            let mut probe = [0_u8; 1];
+            let extra = reader.read(&mut probe).await?;
+            return Ok((output, extra > 0));
+        }
+    }
+}
+
+fn kill_process_tree(root_pid: u32) {
+    #[cfg(windows)]
+    {
+        let _ = Command::new("taskkill")
+            .args(["/PID", &root_pid.to_string(), "/T", "/F"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+    #[cfg(unix)]
+    if let Ok(raw_pid) = i32::try_from(root_pid) {
+        let _ = nix::sys::signal::killpg(
+            nix::unistd::Pid::from_raw(raw_pid),
+            nix::sys::signal::Signal::SIGKILL,
+        );
+    }
+    let system = sysinfo::System::new_all();
+    let root = sysinfo::Pid::from_u32(root_pid);
+    let mut pending = vec![root];
+    let mut descendants = Vec::new();
+    while let Some(parent) = pending.pop() {
+        for (pid, process) in system.processes() {
+            if process.parent() == Some(parent) && !descendants.contains(pid) {
+                descendants.push(*pid);
+                pending.push(*pid);
+            }
+        }
+    }
+    for pid in descendants.into_iter().rev() {
+        if let Some(process) = system.process(pid) {
+            process.kill();
+        }
+    }
+    if let Some(process) = system.process(root) {
+        process.kill();
+    }
+}
+
+async fn run_bounded_exec(
+    command: &str,
+    project_root: &Path,
+    timeout_ms: u64,
+) -> Result<(Option<i32>, String, String, bool, bool), String> {
+    let mut cmd = tokio::process::Command::new("sh");
+    cmd.arg("-lc")
+        .arg(command)
+        .current_dir(project_root)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
+    #[cfg(unix)]
+    cmd.process_group(0);
+    let mut child = cmd.spawn().map_err(|e| format!("exec failed: {e}"))?;
+    let pid = child.id();
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "stdout pipe unavailable".to_string())?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| "stderr pipe unavailable".to_string())?;
+    let stdout_task = tokio::spawn(read_pipe_bounded(stdout, MAX_EXEC_OUTPUT_BYTES));
+    let stderr_task = tokio::spawn(read_pipe_bounded(stderr, MAX_EXEC_OUTPUT_BYTES));
+
+    let deadline = std::time::Duration::from_millis(timeout_ms);
+    let wait = tokio::time::timeout(deadline, child.wait()).await;
+    let (status, timed_out) = match wait {
+        Ok(Ok(status)) => (status.code(), false),
+        Ok(Err(error)) => return Err(format!("exec wait failed: {error}")),
+        Err(_) => {
+            if let Some(root_pid) = pid {
+                let _ = tokio::task::spawn_blocking(move || kill_process_tree(root_pid)).await;
+            }
+            let _ = child.kill().await;
+            let _ = child.wait().await;
+            (None, true)
+        }
+    };
+    let (stdout, stdout_truncated) = stdout_task
+        .await
+        .map_err(|e| format!("stdout task failed: {e}"))?
+        .map_err(|e| format!("stdout read failed: {e}"))?;
+    let (stderr, stderr_truncated) = stderr_task
+        .await
+        .map_err(|e| format!("stderr task failed: {e}"))?
+        .map_err(|e| format!("stderr read failed: {e}"))?;
+    Ok((
+        status,
+        String::from_utf8_lossy(&stdout).to_string(),
+        String::from_utf8_lossy(&stderr).to_string(),
+        timed_out,
+        stdout_truncated || stderr_truncated,
+    ))
 }
 
 // ===========================================================================
@@ -689,6 +825,9 @@ async fn security_status(
     if !confined {
         notes.push("project_root does not exist or is not a directory.".to_string());
     }
+    if state.exec_enabled {
+        notes.push("PB_GATEWAY_EXEC_ENABLE is active for trusted loopback requests.".to_string());
+    }
     Json(SecurityStatusResponse {
         ok: true,
         service: "pb-gateway",
@@ -696,6 +835,8 @@ async fn security_status(
         signed_requests_enabled: state.signing_secret.is_some(),
         signed_requests_max_skew_ms: state.signing_max_skew_ms,
         project_root_confined: confined,
+        exec_enabled: state.exec_enabled,
+        exec_output_limit_bytes: MAX_EXEC_OUTPUT_BYTES,
         notes,
     })
     .into_response()
@@ -892,49 +1033,33 @@ async fn exec_local(
     ConnectInfo(peer): ConnectInfo<SocketAddr>,
     Json(req): Json<ExecRequest>,
 ) -> axum::response::Response {
-    if !(state.trust_local_network && is_local_network_ip(peer.ip())) {
+    if !(state.exec_enabled && state.trust_local_network && peer.ip().is_loopback()) {
         return (
             StatusCode::FORBIDDEN,
-            "exec is only allowed for local trusted network",
+            "exec requires explicit enablement on a trusted loopback connection",
         )
             .into_response();
     }
     if req.command.trim().is_empty() {
         return (StatusCode::BAD_REQUEST, "command is required").into_response();
     }
+    if req.command.len() > 8192 {
+        return (StatusCode::PAYLOAD_TOO_LARGE, "command exceeds 8192 bytes").into_response();
+    }
     let timeout_ms = req.timeout_ms.unwrap_or(20_000).clamp(200, 120_000);
-    let mut cmd = tokio::process::Command::new("sh");
-    cmd.arg("-lc")
-        .arg(req.command.clone())
-        .current_dir(state.project_root.clone());
-    let result =
-        tokio::time::timeout(std::time::Duration::from_millis(timeout_ms), cmd.output()).await;
-    match result {
-        Ok(Ok(o)) => Json(ExecResponse {
-            ok: true,
+    match run_bounded_exec(&req.command, &state.project_root, timeout_ms).await {
+        Ok((exit_code, stdout, stderr, timed_out, output_truncated)) => Json(ExecResponse {
+            ok: !timed_out,
             service: "pb-gateway",
             command: req.command,
-            exit_code: o.status.code(),
-            stdout: String::from_utf8_lossy(&o.stdout).to_string(),
-            stderr: String::from_utf8_lossy(&o.stderr).to_string(),
-            timed_out: false,
+            exit_code,
+            stdout,
+            stderr,
+            timed_out,
+            output_truncated,
         })
         .into_response(),
-        Ok(Err(e)) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("exec failed: {e}"),
-        )
-            .into_response(),
-        Err(_) => Json(ExecResponse {
-            ok: false,
-            service: "pb-gateway",
-            command: req.command,
-            exit_code: None,
-            stdout: String::new(),
-            stderr: "timed out".to_string(),
-            timed_out: true,
-        })
-        .into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
     }
 }
 
@@ -1214,7 +1339,7 @@ async fn metrics(
     Json(MetricsResponse {
         ok: true,
         service: "pb-gateway",
-        uptime_secs: now_ms() / 1000,
+        uptime_secs: state.uptime_secs(),
         project_root: state.project_root.display().to_string(),
     })
     .into_response()
@@ -1275,4 +1400,64 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             MAX_REQUEST_BODY_BYTES,
         ))
         .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Seek, SeekFrom};
+
+    #[test]
+    fn file_slice_reads_only_the_documented_prefix() {
+        let dir = tempfile::tempdir().expect("create tempdir");
+        let path = dir.path().join("large.bin");
+        let mut file = fs::File::create(&path).expect("create fixture");
+        file.write_all(b"bounded-prefix\n").expect("write prefix");
+        file.seek(SeekFrom::Start(8 * 1024 * 1024))
+            .expect("seek sparse fixture");
+        file.write_all(b"tail").expect("write sparse tail");
+
+        let (text, truncated) = read_file_slice(&path, None, None).expect("bounded read");
+        assert!(truncated);
+        assert!(text.starts_with("bounded-prefix"));
+        assert!(text.chars().count() <= 20_000);
+    }
+
+    #[test]
+    fn file_slice_rejects_directories() {
+        let dir = tempfile::tempdir().expect("create tempdir");
+        assert!(read_file_slice(dir.path(), None, None).is_err());
+    }
+
+    #[tokio::test]
+    async fn bounded_exec_caps_output_during_collection() {
+        let dir = tempfile::tempdir().expect("create tempdir");
+        let result = run_bounded_exec("yes x | head -c 200000", dir.path(), 5_000)
+            .await
+            .expect("run bounded fixture");
+        assert!(result.4, "large output must be marked truncated");
+        assert!(result.1.len() <= MAX_EXEC_OUTPUT_BYTES);
+        assert!(result.2.len() <= MAX_EXEC_OUTPUT_BYTES);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn timed_out_exec_kills_background_descendant() {
+        let dir = tempfile::tempdir().expect("create tempdir");
+        let result = run_bounded_exec("sleep 30 & echo $!; wait", dir.path(), 250)
+            .await
+            .expect("run timeout fixture");
+        assert!(result.3, "fixture must time out");
+        let child_pid = result
+            .1
+            .lines()
+            .next()
+            .and_then(|line| line.trim().parse::<u32>().ok())
+            .expect("descendant pid");
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        assert!(
+            !Path::new(&format!("/proc/{child_pid}")).exists(),
+            "timed-out descendant survived"
+        );
+    }
 }

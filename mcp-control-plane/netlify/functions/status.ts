@@ -1,6 +1,13 @@
-import { gatewaySignedHeaders } from "./_shared";
+import { gatewaySignedHeaders, json, requireControlPlaneAuth, softRateLimit } from "./_shared";
 
 export default async function handler(req: Request) {
+  const rl = softRateLimit(req);
+  if (!rl.ok) return json({ ok: false, error: rl.error }, { status: rl.status });
+  const admin = requireControlPlaneAuth(req);
+  if (!admin.ok) return json({ ok: false, error: admin.error }, { status: admin.status });
+  if (req.method !== "GET") {
+    return json({ ok: false, error: "method not allowed" }, { status: 405 });
+  }
   // Proxy to your Asus-hosted gateway when configured.
   //
   // Set in Netlify env vars (Functions scope):
@@ -8,7 +15,7 @@ export default async function handler(req: Request) {
   // - PB_GATEWAY_BASE_URL=https://<reachable-host>     (base URL; /status will be appended)
   // - PB_GATEWAY_TOKEN=<optional token>               (must match PB_GATEWAY_TOKEN on the gateway)
   //
-  // If neither PB_GATEWAY_URL nor PB_GATEWAY_BASE_URL is set, we fall back to mock mode.
+  // Development mode may expose a mock response when no gateway is configured.
   //
   const full = (globalThis as any).process?.env?.PB_GATEWAY_URL as string | undefined;
   const base = (globalThis as any).process?.env?.PB_GATEWAY_BASE_URL as string | undefined;
@@ -17,15 +24,17 @@ export default async function handler(req: Request) {
   const url = (full?.trim() || (normBase ? `${normBase}/status` : undefined));
 
   if (!url) {
-    return new Response(
-      JSON.stringify({
+    if ((globalThis as any).process?.env?.CONTROL_PLANE_MODE !== "development") {
+      return json({ ok: false, error: "PB_GATEWAY_URL / PB_GATEWAY_BASE_URL not configured" }, { status: 503 });
+    }
+    return json(
+      {
         ok: true,
         service: "mcp-control-plane",
         mode: "mock",
         message: "Netlify side is working (PB_GATEWAY_URL / PB_GATEWAY_BASE_URL not set).",
         ts: Date.now(),
-      }),
-      { headers: { "content-type": "application/json; charset=utf-8" } }
+      }
     );
   }
 
@@ -60,4 +69,3 @@ export default async function handler(req: Request) {
     );
   }
 }
-

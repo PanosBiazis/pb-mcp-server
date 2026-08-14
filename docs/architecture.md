@@ -340,7 +340,7 @@ Deploy it by connecting the repository to Netlify or using drag-and-drop.
 
 | Function | Route | Purpose |
 |---|---|---|
-| `status.ts` | `/.netlify/functions/status` | Proxies to `PB_GATEWAY_URL` or returns mock |
+| `status.ts` | `/.netlify/functions/status` | Authenticated gateway proxy; development-only mock |
 | `auth.ts` | `/.netlify/functions/auth` | Mints short-lived agent tokens |
 | `agent-request.ts` | `/.netlify/functions/agent-request` | Allowlisted forwarder to pb-gateway |
 | `review-packet.ts` | `/.netlify/functions/review-packet` | Validates and stores review packets |
@@ -364,6 +364,8 @@ gateway.
 
 | Variable | Purpose |
 |---|---|
+| `CONTROL_PLANE_TOKEN` | Required production admin bearer token |
+| `CONTROL_PLANE_MODE` | Explicit `development` mode only; production is the default |
 | `PB_GATEWAY_BASE_URL` | Full base URL of the pb-gateway on the local host or private server |
 | `PB_GATEWAY_URL` | Optional: full URL ending in `/status` for `status.ts` |
 | `PB_GATEWAY_TOKEN` | Bearer token for gateway auth (keep secret) |
@@ -373,9 +375,9 @@ gateway.
 | `AGENT_JOIN_SECRET` | Shared secret required to call `/auth` |
 | `AGENT_POW_DIFFICULTY_BITS` | Proof-of-work difficulty (0 disables) |
 | `AGENT_ID_ALLOWLIST` | Comma-separated approved agent IDs |
-| `RATE_LIMIT_ENABLED` | `1` to enable soft rate limiting |
-| `RATE_LIMIT_WINDOW_MS` | Window for rate limit (default: 1000 ms) |
-| `RATE_LIMIT_MAX_REQUESTS` | Max requests per window (default: very high) |
+| `RATE_LIMIT_ENABLED` | Production defaults enabled; `0` is explicit opt-out |
+| `RATE_LIMIT_WINDOW_MS` | Window (default: 60,000 ms) |
+| `RATE_LIMIT_MAX_REQUESTS` | Requests per window (default: 120) |
 
 > **Security note:** never commit real token values. Use Netlify's environment
 > variable settings UI to inject secrets at deploy time.
@@ -403,6 +405,9 @@ endpoint that Netlify forwards to.
 |---|---|---|
 | `PB_GATEWAY_BIND` | `127.0.0.1:8080` | Listen address (keep on localhost) |
 | `PB_GATEWAY_TOKEN` | — | Required for protected endpoints |
+| `PB_GATEWAY_SIGNING_SECRET` | — | Alternative HMAC request authentication |
+| `PB_GATEWAY_TRUST_LOCAL_NETWORK` | `false` | Development-only loopback auth bypass |
+| `PB_GATEWAY_EXEC_ENABLE` | `false` | Separate loopback-only `/exec` opt-in |
 | `MINT_PROJECT_ROOT` | — | Project root the gateway represents |
 
 ### systemd unit

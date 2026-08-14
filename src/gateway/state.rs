@@ -6,6 +6,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::time::Instant;
 
 // ---------------------------------------------------------------------------
 // AppState
@@ -30,6 +31,7 @@ use std::sync::Mutex;
 ///   [`verify_signature`](super::auth::verify_signature) call.
 /// - `trust_local_network` — When `true`, requests originating from
 ///   loopback, private-range, or Tailscale CGNAT IPs bypass auth entirely.
+/// - `exec_enabled` — Explicit opt-in for the high-risk `/exec` endpoint.
 /// - `project_root` — The directory the gateway confines file access to.
 pub struct AppState {
     /// Optional bearer token for `Authorization` header validation.
@@ -42,8 +44,12 @@ pub struct AppState {
     pub nonce_seen: Mutex<HashMap<String, u64>>,
     /// When true, local/private/Tailscale IPs bypass auth.
     pub trust_local_network: bool,
+    /// Explicit opt-in for `/exec`; disabled by default.
+    pub exec_enabled: bool,
     /// Project root directory that confines file access.
     pub project_root: PathBuf,
+    /// Monotonic gateway startup instant used for real uptime metrics.
+    pub started_at: Instant,
 }
 
 impl AppState {
@@ -55,6 +61,7 @@ impl AppState {
     /// | `PB_GATEWAY_SIGNING_SECRET` | `None` (signing disabled) |
     /// | `PB_GATEWAY_SIGNING_MAX_SKEW_MS` | `120_000` |
     /// | `PB_GATEWAY_TRUST_LOCAL_NETWORK` | `false` |
+    /// | `PB_GATEWAY_EXEC_ENABLE` | `false` |
     /// | `PB_PROJECT_ROOT` / `MINT_PROJECT_ROOT` / `PROJECT_ROOT` | current directory |
     pub fn from_env() -> Self {
         let token = std::env::var("PB_GATEWAY_TOKEN")
@@ -75,6 +82,11 @@ impl AppState {
             .map(|s| s == "1" || s.eq_ignore_ascii_case("true"))
             .unwrap_or(false);
 
+        let exec_enabled = std::env::var("PB_GATEWAY_EXEC_ENABLE")
+            .ok()
+            .map(|s| s == "1" || s.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+
         let project_root = sanitize_project_root(
             std::env::var("PB_PROJECT_ROOT")
                 .or_else(|_| std::env::var("MINT_PROJECT_ROOT"))
@@ -89,7 +101,9 @@ impl AppState {
             signing_max_skew_ms,
             nonce_seen: Mutex::new(HashMap::new()),
             trust_local_network,
+            exec_enabled,
             project_root,
+            started_at: Instant::now(),
         }
     }
 
@@ -107,8 +121,15 @@ impl AppState {
             signing_max_skew_ms,
             nonce_seen: Mutex::new(HashMap::new()),
             trust_local_network,
+            exec_enabled: false,
             project_root,
+            started_at: Instant::now(),
         }
+    }
+
+    /// Whole seconds elapsed since this gateway state was constructed.
+    pub fn uptime_secs(&self) -> u64 {
+        self.started_at.elapsed().as_secs()
     }
 }
 
@@ -123,4 +144,16 @@ fn sanitize_project_root(root: PathBuf) -> PathBuf {
             .unwrap_or_else(|| PathBuf::from("."));
     }
     root
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn programmatic_state_is_exec_default_deny() {
+        let state = AppState::new(None, None, 120_000, true, PathBuf::from("."));
+        assert!(!state.exec_enabled);
+        assert_eq!(state.uptime_secs(), 0);
+    }
 }
