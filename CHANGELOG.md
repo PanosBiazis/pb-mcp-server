@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **Canonical bounded gateway:** consolidated the three gateway implementations
+  into `src/gateway/`; both binaries are thin wrappers around the same
+  `serve_from_env`. `/read-file` now streams at most 512 KiB instead of reading
+  an arbitrary file into memory. `/exec` is default-deny behind a separate
+  `PB_GATEWAY_EXEC_ENABLE` flag, is restricted to trusted loopback requests,
+  bounds stdout/stderr while draining, and terminates the Unix process group
+  plus discovered descendants on timeout. Non-loopback startup fails closed
+  unless bearer or signature authentication is configured. Metrics now report
+  monotonic process uptime rather than Unix epoch seconds.
+- **Reproducible patched dependencies:** the two minimal `libp2p` and `eframe`
+  patch trees referenced by `[patch.crates-io]` are now explicitly versioned
+  instead of hidden by `vendor/`, restoring clean-checkout resolution.
+
 - **Gateway `trust_local_network` bind-exposure gap (High)**: the guard that refuses
   `PB_GATEWAY_TRUST_LOCAL_NETWORK=true` combined with a non-loopback bind lived only in the
   standalone `pb-gateway` binary's `main()`; the reusable library serve path (`AppState::from_env`

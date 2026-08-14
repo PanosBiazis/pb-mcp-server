@@ -20,12 +20,20 @@ fn ide_not_found() -> Value {
 }
 
 /// Check whether a command exists on `$PATH`.
+#[cfg(not(test))]
 fn which(cmd: &str) -> bool {
     Command::new("which")
         .arg(cmd)
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false)
+}
+
+// Unit tests must never launch host IDEs or attach to physical Android devices.
+// Live integration lanes exercise the normal implementation above.
+#[cfg(test)]
+fn which(_cmd: &str) -> bool {
+    false
 }
 
 /// Extract a string field from a JSON value, defaulting to `default`.
@@ -187,7 +195,11 @@ pub fn vscode_list_extensions_work(args: Value) -> Value {
     let _ = args; // no arguments needed
 
     if !which("code") {
-        return ide_not_found();
+        return json!({
+            "extensions": [],
+            "error": "VS Code CLI not found",
+            "tool_available": false
+        });
     }
 
     match Command::new("code")

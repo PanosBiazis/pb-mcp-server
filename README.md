@@ -650,6 +650,7 @@ policy.validate("git", &["status", ";", "rm", "-rf", "/"])?; // ✗ Error
 | `PB_PROJECT_TEST_ENABLE` | Enable test runner tools | `false` |
 | `PB_GATEWAY_TOKEN` | Bearer token for HTTP gateway auth | (none) |
 | `PB_GATEWAY_SIGNING_SECRET` | HMAC secret for request signing | (none) |
+| `PB_GATEWAY_EXEC_ENABLE` | Explicitly enable loopback-only `/exec` | `false` |
 | `PB_NODE_SECRET` | HMAC secret for inter-node signing | (none) |
 
 > **Note:** `MINT_*` variable names are supported as backward-compatible aliases (e.g. `MINT_PROJECT_ROOT` = `PB_PROJECT_ROOT`).
@@ -862,8 +863,8 @@ MINT_PROJECT_ROOT=/path/to/project \
 
 | Endpoint | Auth | Description |
 |----------|------|-------------|
-| `GET /list-files?path=...` | Optional | Directory listing |
-| `GET /read-file?path=...` | Optional | File read (bounded) |
+| `GET /list-files?path=...` | Yes | Directory listing |
+| `GET /read-file?path=...` | Yes | File read (512 KiB input, 20,000 chars output) |
 | `GET /search-code?pattern=...` | Yes | Code search |
 
 #### Agent Bus (Read-only)
@@ -871,8 +872,8 @@ MINT_PROJECT_ROOT=/path/to/project \
 | Endpoint | Auth | Description |
 |----------|------|-------------|
 | `POST /agent-send` | Yes | Send message |
-| `GET /agent-recent?limit=...` | Optional | Recent messages |
-| `GET /agent-thread?topic=...` | Optional | Thread view |
+| `GET /agent-recent?limit=...` | Yes | Recent messages |
+| `GET /agent-thread?topic=...` | Yes | Thread view |
 
 #### Review
 
@@ -885,7 +886,7 @@ MINT_PROJECT_ROOT=/path/to/project \
 
 | Endpoint | Auth | Description |
 |----------|------|-------------|
-| `POST /exec` | Local only | Execute command |
+| `POST /exec` | Explicit trusted loopback only | Execute with timeout, process-tree kill, and 64 KiB per-stream output caps |
 
 ### Security Configuration
 
@@ -896,12 +897,20 @@ export PB_GATEWAY_TOKEN=your-secure-token-here
 # Request signing (anti-replay)
 export PB_GATEWAY_SIGNING_SECRET=your-signing-secret
 
-# Trust local network (disables auth for LAN/Tailscale)
+# Development-only loopback auth bypass
 export PB_GATEWAY_TRUST_LOCAL_NETWORK=1
+
+# Separate high-risk opt-in required for /exec
+export PB_GATEWAY_EXEC_ENABLE=1
 
 # Bind address (keep localhost for security)
 export PB_GATEWAY_BIND=127.0.0.1:8080
 ```
+
+Non-loopback startup requires a bearer token or signing secret. The local
+trust bypass is refused on non-loopback listeners, and `/exec` additionally
+requires both local trust and `PB_GATEWAY_EXEC_ENABLE=1`. Keep execution
+disabled for network-facing deployments.
 
 ### Example Requests
 
@@ -1173,4 +1182,3 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 - **Documentation**: [docs/](docs/)
 
 ---
-

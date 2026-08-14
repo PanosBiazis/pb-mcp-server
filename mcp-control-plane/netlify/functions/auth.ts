@@ -1,4 +1,4 @@
-import { json, requireControlPlaneAuth, softRateLimit, getEnv, mintAgentToken, verifyPow } from "./_shared";
+import { constantTimeEqual, json, requireControlPlaneAuth, softRateLimit, getEnv, mintAgentToken, verifyPow } from "./_shared";
 
 export default async function handler(req: Request) {
   // Agent authentication endpoint (best-effort).
@@ -12,14 +12,16 @@ export default async function handler(req: Request) {
   // If you want to keep the control plane public, you should still set CONTROL_PLANE_TOKEN
   // for admin-only endpoints, and keep PB_GATEWAY_TOKEN for the gateway itself.
   //
-  // Optional soft rate limit (disabled by default; set extremely high if you enable it).
+  // Production rate limiting is enabled by default.
   const rl = softRateLimit(req);
   if (!rl.ok) return json({ ok: false, error: rl.error }, { status: rl.status });
 
-  // If CONTROL_PLANE_TOKEN is set, require it even here (keeps the endpoint private).
-  // If you want agents to self-serve, leave CONTROL_PLANE_TOKEN unset and rely on AGENT_JOIN_SECRET + PoW.
-  const admin = requireControlPlaneAuth(req);
-  if (!admin.ok) return json({ ok: false, error: admin.error }, { status: admin.status });
+  // A configured admin token keeps enrollment private. Without one,
+  // production self-service still requires join-secret or PoW below.
+  if (getEnv("CONTROL_PLANE_TOKEN")?.trim()) {
+    const admin = requireControlPlaneAuth(req);
+    if (!admin.ok) return json({ ok: false, error: admin.error }, { status: admin.status });
+  }
 
   if (req.method !== "POST") {
     return json(
@@ -44,13 +46,19 @@ export default async function handler(req: Request) {
   if (agentId.length > 80) return json({ ok: false, error: "agent_id too long" }, { status: 400 });
 
   const joinSecret = getEnv("AGENT_JOIN_SECRET")?.trim();
+  const powBits = Number(getEnv("AGENT_POW_DIFFICULTY_BITS") ?? "0");
+  if (!joinSecret && !(Number.isFinite(powBits) && powBits > 0) && getEnv("CONTROL_PLANE_MODE") !== "development") {
+    return json(
+      { ok: false, error: "agent enrollment requires AGENT_JOIN_SECRET or proof of work" },
+      { status: 503 }
+    );
+  }
   if (joinSecret) {
     const got = String(body?.join_secret ?? "").trim();
     if (!got) return json({ ok: false, error: "missing join_secret" }, { status: 401 });
-    if (got !== joinSecret) return json({ ok: false, error: "invalid join_secret" }, { status: 403 });
+    if (!constantTimeEqual(got, joinSecret)) return json({ ok: false, error: "invalid join_secret" }, { status: 403 });
   }
 
-  const powBits = Number(getEnv("AGENT_POW_DIFFICULTY_BITS") ?? "0");
   if (Number.isFinite(powBits) && powBits > 0) {
     const nonce = String(body?.nonce ?? "").trim();
     const solution = String(body?.solution ?? "").trim();
@@ -91,4 +99,3 @@ export default async function handler(req: Request) {
     ts: Date.now(),
   });
 }
-

@@ -306,6 +306,24 @@ pub fn assert_bind_safe(bind: &str, trust_local_network: bool) -> Result<(), Str
     Ok(())
 }
 
+/// Return whether a configured listener address is explicitly loopback.
+/// Hostnames other than `localhost` fail closed because their resolution may
+/// change between validation and bind.
+pub fn is_loopback_bind(bind: &str) -> bool {
+    let host = bind
+        .rsplit_once(':')
+        .map(|(h, _)| h)
+        .unwrap_or(bind)
+        .trim_matches(|c| c == '[' || c == ']')
+        .trim();
+    host.is_empty()
+        || host.eq_ignore_ascii_case("localhost")
+        || host
+            .parse::<IpAddr>()
+            .map(|ip| ip.is_loopback())
+            .unwrap_or(false)
+}
+
 // ---------------------------------------------------------------------------
 // Composite authorisation helper
 // ---------------------------------------------------------------------------
@@ -377,6 +395,15 @@ mod tests {
         assert!(assert_bind_safe("[::]:8080", true).is_err());
         // Fail-closed on an unresolved hostname (the closed gap): NOT assumed loopback.
         assert!(assert_bind_safe("my-lan-host:8080", true).is_err());
+    }
+
+    #[test]
+    fn loopback_bind_parser_fails_closed_for_hostnames_and_wildcards() {
+        assert!(is_loopback_bind("127.0.0.1:8080"));
+        assert!(is_loopback_bind("[::1]:8080"));
+        assert!(is_loopback_bind("localhost:8080"));
+        assert!(!is_loopback_bind("0.0.0.0:8080"));
+        assert!(!is_loopback_bind("gateway.internal:8080"));
     }
 
     #[test]
