@@ -42,7 +42,7 @@ fn args_u64(args: &serde_json::Value, key: &str, default: u64) -> u64 {
 // ---------------------------------------------------------------------------
 
 /// ICMP ping. Args: `host` (string), `count` (int, default 4).
-/// Returns: {host, sent, received, packet_loss_pct, rtt_min/avg/max_ms}
+/// Returns: `{host, sent, received, packet_loss_pct, rtt_min/avg/max_ms}`
 pub fn net_ping_work(args: serde_json::Value) -> serde_json::Value {
     let host = match args.get("host").and_then(|v| v.as_str()) {
         Some(h) if !h.is_empty() => h.to_string(),
@@ -160,7 +160,7 @@ pub fn net_ping_work(args: serde_json::Value) -> serde_json::Value {
 // ---------------------------------------------------------------------------
 
 /// Traceroute. Args: `host` (string), `max_hops` (int, default 30).
-/// Returns: {hops: [{hop_number, host, ip, latency_ms}]}
+/// Returns: `{hops: [{hop_number, host, ip, latency_ms}]}`
 pub fn net_traceroute_work(args: serde_json::Value) -> serde_json::Value {
     let host = match args.get("host").and_then(|v| v.as_str()) {
         Some(h) if !h.is_empty() => h.to_string(),
@@ -255,7 +255,7 @@ pub fn net_traceroute_work(args: serde_json::Value) -> serde_json::Value {
 // ---------------------------------------------------------------------------
 
 /// TCP port scan. Args: `host`, `ports` (array of ints), `timeout_ms` (default 2000).
-/// Returns: {host, ports: [{port, open, latency_ms}]}
+/// Returns: `{host, ports: [{port, open, latency_ms}]}`
 pub fn net_port_scan_work(args: serde_json::Value) -> serde_json::Value {
     let host = match args.get("host").and_then(|v| v.as_str()) {
         Some(h) if !h.is_empty() => h.to_string(),
@@ -318,7 +318,7 @@ pub fn net_port_scan_work(args: serde_json::Value) -> serde_json::Value {
 // ---------------------------------------------------------------------------
 
 /// DNS lookup. Args: `domain`, `record_type` (default "A").
-/// Returns: {domain, record_type, records: [strings]}
+/// Returns: `{domain, record_type, records: [strings]}`
 pub fn net_dns_lookup_work(args: serde_json::Value) -> serde_json::Value {
     let domain = match args.get("domain").and_then(|v| v.as_str()) {
         Some(d) if !d.is_empty() => d.to_string(),
@@ -402,7 +402,7 @@ pub fn net_dns_lookup_work(args: serde_json::Value) -> serde_json::Value {
 // ---------------------------------------------------------------------------
 
 /// WHOIS lookup. Args: `domain`.
-/// Returns: {domain, registrar, raw_snippet (first 500 chars)}
+/// Returns: `{domain, registrar, raw_snippet (first 500 chars)}`
 pub fn net_whois_work(args: serde_json::Value) -> serde_json::Value {
     let domain = match args.get("domain").and_then(|v| v.as_str()) {
         Some(d) if !d.is_empty() => d.to_string(),
@@ -456,7 +456,7 @@ pub fn net_whois_work(args: serde_json::Value) -> serde_json::Value {
 // ---------------------------------------------------------------------------
 
 /// TLS certificate info. Args: `host`, `port` (default 443).
-/// Returns: {subject, issuer, not_after, days_until_expiry, san: [strings]}
+/// Returns: `{subject, issuer, not_after, days_until_expiry, san: [strings]}`
 pub fn net_tls_inspect_work(args: serde_json::Value) -> serde_json::Value {
     let host = match args.get("host").and_then(|v| v.as_str()) {
         Some(h) if !h.is_empty() => h.to_string(),
@@ -579,7 +579,7 @@ pub fn net_tls_inspect_work(args: serde_json::Value) -> serde_json::Value {
 // ---------------------------------------------------------------------------
 
 /// HTTP load test. Args: `url`, `requests` (default 50), `concurrency` (default 4).
-/// Returns: {rps, p50_ms, p95_ms, errors}
+/// Returns: `{rps, p50_ms, p95_ms, errors}`
 pub fn net_http_benchmark_work(args: serde_json::Value) -> serde_json::Value {
     let url = match args.get("url").and_then(|v| v.as_str()) {
         Some(u) if !u.is_empty() => u.to_string(),
@@ -703,7 +703,7 @@ pub fn net_http_benchmark_work(args: serde_json::Value) -> serde_json::Value {
 // ---------------------------------------------------------------------------
 
 /// ARP scan. Runs `ip neigh show` or `arp -a`.
-/// Returns: {hosts: [{ip, mac, interface, state}]}
+/// Returns: `{hosts: [{ip, mac, interface, state}]}`
 #[allow(dead_code)]
 pub fn net_arp_scan_work(_args: serde_json::Value) -> serde_json::Value {
     if tool_available("ip") {
@@ -809,7 +809,7 @@ pub fn net_arp_scan_work(_args: serde_json::Value) -> serde_json::Value {
 /// WiFi scan (Linux). Args: `interface` (string, optional, default "wlan0").
 /// Tries `nmcli -t -f SSID,SIGNAL,SECURITY dev wifi list` first,
 /// falls back to `iw dev <interface> scan`.
-/// Returns: {networks: [{ssid, signal, security}], count: N}
+/// Returns: `{networks: [{ssid, signal, security}], count: N}`
 #[allow(dead_code)]
 pub fn net_wifi_scan_work(args: serde_json::Value) -> serde_json::Value {
     let interface = match args.get("interface").and_then(|v| v.as_str()) {
@@ -924,8 +924,8 @@ pub fn net_wifi_scan_work(args: serde_json::Value) -> serde_json::Value {
 // ---------------------------------------------------------------------------
 
 /// Quick bandwidth test. Args: `url` (string, optional, default
-/// "http://speedtest.tele2.net/10MB.zip"), `timeout_secs` (int, default 30).
-/// Returns: {download_bytes_per_sec: N, details: "..."}
+/// "<http://speedtest.tele2.net/10MB.zip>"), `timeout_secs` (int, default 30).
+/// Returns: `{download_bytes_per_sec: N, details: "..."}`
 #[allow(dead_code)]
 pub fn net_bandwidth_test_work(args: serde_json::Value) -> serde_json::Value {
     let url = match args.get("url").and_then(|v| v.as_str()) {
@@ -978,7 +978,7 @@ pub fn net_bandwidth_test_work(args: serde_json::Value) -> serde_json::Value {
 
 /// nmap scan. Args: `host` (required), `ports` (string, optional, default "1-1000"),
 /// `timeout_secs` (int, optional, default 30).
-/// Returns: {host: "...", ports: [{port, state, service}], details: "..."}
+/// Returns: `{host: "...", ports: [{port, state, service}], details: "..."}`
 #[allow(dead_code)]
 pub fn net_nmap_quick_work(args: serde_json::Value) -> serde_json::Value {
     let host = match args.get("host").and_then(|v| v.as_str()) {
@@ -1064,7 +1064,7 @@ pub fn net_nmap_quick_work(args: serde_json::Value) -> serde_json::Value {
 /// SSH exec. Args: `host` (required), `command` (required),
 /// `user` (optional), `key_path` (optional), `port` (default 22).
 /// Runs `ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 ...`.
-/// Returns: {host, exit_code, stdout, stderr}
+/// Returns: `{host, exit_code, stdout, stderr}`
 #[allow(dead_code)]
 pub fn net_ssh_exec_work(args: serde_json::Value) -> serde_json::Value {
     let host = match args.get("host").and_then(|v| v.as_str()) {
@@ -1124,7 +1124,7 @@ pub fn net_ssh_exec_work(args: serde_json::Value) -> serde_json::Value {
 // ---------------------------------------------------------------------------
 
 /// Upload via SCP. Args: `local_path`, `remote_path`, `host`, `user`, `port` (default 22).
-/// Returns: {success: bool}
+/// Returns: `{success: bool}`
 pub fn net_sftp_upload_work(args: serde_json::Value) -> serde_json::Value {
     let local_path = match args.get("local_path").and_then(|v| v.as_str()) {
         Some(p) if !p.is_empty() => p.to_string(),
@@ -1173,7 +1173,7 @@ pub fn net_sftp_upload_work(args: serde_json::Value) -> serde_json::Value {
 // ---------------------------------------------------------------------------
 
 /// Download via SCP. Args: `remote_path`, `local_path`, `host`, `user`, `port` (default 22).
-/// Returns: {success: bool}
+/// Returns: `{success: bool}`
 pub fn net_sftp_download_work(args: serde_json::Value) -> serde_json::Value {
     let remote_path = match args.get("remote_path").and_then(|v| v.as_str()) {
         Some(p) if !p.is_empty() => p.to_string(),
@@ -1224,7 +1224,7 @@ pub fn net_sftp_download_work(args: serde_json::Value) -> serde_json::Value {
 /// Send WOL magic packet. Args: `mac` (string, required),
 /// `broadcast_ip` (string, optional, default "255.255.255.255"),
 /// `port` (int, default 9).
-/// Returns: {sent: bool, mac: "...", details: "..."}
+/// Returns: `{sent: bool, mac: "...", details: "..."}`
 #[allow(dead_code)]
 pub fn net_wake_on_lan_work(args: serde_json::Value) -> serde_json::Value {
     let mac = match args.get("mac").and_then(|v| v.as_str()) {
@@ -1301,7 +1301,7 @@ pub fn net_wake_on_lan_work(args: serde_json::Value) -> serde_json::Value {
 // ---------------------------------------------------------------------------
 
 /// List serial ports. Reads /dev/ttyUSB*, /dev/ttyACM*.
-/// Returns: {ports: [{path}]}
+/// Returns: `{ports: [{path}]}`
 #[allow(dead_code)]
 pub fn net_serial_list_work(_args: serde_json::Value) -> serde_json::Value {
     let mut ports = Vec::new();
@@ -1343,7 +1343,7 @@ pub fn net_serial_list_work(_args: serde_json::Value) -> serde_json::Value {
 // ---------------------------------------------------------------------------
 
 /// Send to serial port. Args: `port`, `data`, `baud_rate` (default 9600).
-/// Returns: {bytes_sent}
+/// Returns: `{bytes_sent}`
 #[allow(dead_code)]
 pub fn net_serial_send_work(args: serde_json::Value) -> serde_json::Value {
     let port = match args.get("port").and_then(|v| v.as_str()) {
@@ -1382,7 +1382,7 @@ pub fn net_serial_send_work(args: serde_json::Value) -> serde_json::Value {
 // ---------------------------------------------------------------------------
 
 /// Read from serial port. Args: `port`, `baud_rate` (default 9600), `timeout_ms` (default 3000).
-/// Returns: {data, bytes_read}
+/// Returns: `{data, bytes_read}`
 #[allow(dead_code)]
 pub fn net_serial_read_work(args: serde_json::Value) -> serde_json::Value {
     let port = match args.get("port").and_then(|v| v.as_str()) {
@@ -1448,7 +1448,7 @@ pub fn net_serial_read_work(args: serde_json::Value) -> serde_json::Value {
 // ---------------------------------------------------------------------------
 
 /// BT scan (Linux). Runs `bluetoothctl scan on` briefly.
-/// Returns: {devices: [{mac, name}]}
+/// Returns: `{devices: [{mac, name}]}`
 #[allow(dead_code)]
 pub fn net_bluetooth_scan_work(_args: serde_json::Value) -> serde_json::Value {
     if !tool_available("bluetoothctl") {
@@ -1503,7 +1503,7 @@ pub fn net_bluetooth_scan_work(_args: serde_json::Value) -> serde_json::Value {
 // ---------------------------------------------------------------------------
 
 /// Publish to MQTT. Args: `broker`, `topic`, `message`, `timeout_secs` (int, default 10).
-/// Returns: {published: bool, broker: "...", topic: "..."}
+/// Returns: `{published: bool, broker: "...", topic: "..."}`
 #[allow(dead_code)]
 pub fn net_mqtt_publish_work(args: serde_json::Value) -> serde_json::Value {
     let broker = match args.get("broker").and_then(|v| v.as_str()) {
@@ -1555,7 +1555,7 @@ pub fn net_mqtt_publish_work(args: serde_json::Value) -> serde_json::Value {
 
 /// Subscribe to MQTT. Args: `broker`, `topic`, `timeout_secs` (default 5).
 /// Runs `mosquitto_sub -h <broker> -t <topic> -C 10 -W <timeout>`.
-/// Returns: {messages: [strings], count: N}
+/// Returns: `{messages: [strings], count: N}`
 #[allow(dead_code)]
 pub fn net_mqtt_subscribe_work(args: serde_json::Value) -> serde_json::Value {
     let broker = match args.get("broker").and_then(|v| v.as_str()) {
@@ -1609,7 +1609,7 @@ pub fn net_mqtt_subscribe_work(args: serde_json::Value) -> serde_json::Value {
 /// Args: `interface` (string, required), `count` (int, default 100),
 /// `timeout_secs` (int, default 10, max 60), `filter` (string, optional BPF).
 ///
-/// Returns: `{interface, count, timeout_secs, filter, exit_code, output, tool_available}`.
+/// Returns: ``{interface, count, timeout_secs, filter, exit_code, output, tool_available}`.`
 #[allow(dead_code)]
 pub fn net_packet_capture_work(args: serde_json::Value) -> serde_json::Value {
     let interface = match args.get("interface").and_then(|v| v.as_str()) {
@@ -1669,7 +1669,7 @@ pub fn net_packet_capture_work(args: serde_json::Value) -> serde_json::Value {
 ///
 /// Args: `vpn_type` (string, optional — "wireguard", "openvpn", or "all", default "all").
 ///
-/// Returns: `{wireguard: {...}, openvpn: {...}, tool_available}`.
+/// Returns: ``{wireguard: {...}, openvpn: {...}, tool_available}`.`
 #[allow(dead_code)]
 pub fn net_vpn_status_work(args: serde_json::Value) -> serde_json::Value {
     let vpn_type = args_str(&args, "vpn_type").to_string();
@@ -1752,7 +1752,7 @@ pub fn net_vpn_status_work(args: serde_json::Value) -> serde_json::Value {
 ///
 /// Args: `domain` (string, required), `nameserver` (string, optional).
 ///
-/// Returns: `{domain, nameserver, transferred, records, details, tool_available}`.
+/// Returns: ``{domain, nameserver, transferred, records, details, tool_available}`.`
 #[allow(dead_code)]
 pub fn net_dns_zone_transfer_work(args: serde_json::Value) -> serde_json::Value {
     let domain = match args.get("domain").and_then(|v| v.as_str()) {
@@ -1823,7 +1823,7 @@ pub fn net_dns_zone_transfer_work(args: serde_json::Value) -> serde_json::Value 
 ///
 /// Args: `host` (string, required), `port` (int, default 443).
 ///
-/// Returns: `{host, port, grade, tls_versions, strong_ciphers_count, weak_ciphers_count, details, tool_available}`.
+/// Returns: ``{host, port, grade, tls_versions, strong_ciphers_count, weak_ciphers_count, details, tool_available}`.`
 #[allow(dead_code)]
 pub fn net_ssl_grade_work(args: serde_json::Value) -> serde_json::Value {
     let host = match args.get("host").and_then(|v| v.as_str()) {
@@ -1942,7 +1942,7 @@ pub fn net_ssl_grade_work(args: serde_json::Value) -> serde_json::Value {
 /// one of "holding"/"input"/"coil"/"discrete"),
 /// `timeout_secs` (int, default 5).
 ///
-/// Returns: `{host, port, register, count, unit_id, function, values, details, tool_available}`.
+/// Returns: ``{host, port, register, count, unit_id, function, values, details, tool_available}`.`
 #[allow(dead_code)]
 pub fn net_modbus_read_work(args: serde_json::Value) -> serde_json::Value {
     let host = match args.get("host").and_then(|v| v.as_str()) {

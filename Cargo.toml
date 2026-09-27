@@ -30,20 +30,28 @@ path = "src/main.rs"
 
 [[bin]]
 name = "pb-dashboard"
+# The corresponding workspace package owns this binary documentation.
+doc = false
 path = "src/bin/pb-dashboard.rs"
 required-features = ["dashboard"]
 
 [[bin]]
 name = "pb-gateway"
+# The corresponding workspace package owns this binary documentation.
+doc = false
 path = "src/bin/pb-gateway.rs"
 
 [[bin]]
 name = "pb-lsp-bridge"
+# The corresponding workspace package owns this binary documentation.
+doc = false
 path = "src/bin/pb-lsp-bridge.rs"
 required-features = ["lsp-bridge"]
 
 [[bin]]
 name = "pb-network-node"
+# The corresponding workspace package owns this binary documentation.
+doc = false
 path = "src/bin/pb-network-node.rs"
 required-features = ["network-node"]
 
@@ -193,7 +201,7 @@ optional = true
 
 # Network & P2P
 [dependencies.libp2p]
-version = "0.56"
+version = "0.57"
 default-features = false
 features = ["tokio", "macros", "tcp", "noise", "yamux", "gossipsub", "kad", "identify", "ping"]
 optional = true
