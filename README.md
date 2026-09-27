@@ -86,7 +86,7 @@ Tools are organized into profiles for better discoverability and security:
 
 ### Prerequisites
 
-- Rust 1.75+ (use `rustup` for installation)
+- Current stable Rust (validated with Rust 1.94.0; use `rustup` for installation). Older toolchains are not currently covered by CI.
 - A project directory to work with
 
 ### Build
