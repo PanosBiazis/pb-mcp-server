@@ -4,12 +4,12 @@
 //! the tool registry, and the MCP protocol layer. It:
 //!
 //! 1. Reads `PB_MCP_PROFILE` from the environment (falls back to `CoreCode`).
-//! 2. Builds a [`ToolRegistry`] from the full [`ToolCatalog`] + chosen profile.
+//! 2. Builds a [`crate::tools::registry::ToolRegistry`] from the full [`crate::tools::catalog::ToolCatalog`] + chosen profile.
 //! 3. Logs four diagnostic counts so misconfiguration is immediately visible:
 //!    - total tools in catalog
 //!    - total tools enabled after profile gating
 //!    - profile name in use
-//! 4. Exposes [`build_router`] / [`run_server`] as the stable API surface.
+//! 4. Exposes [`crate::server::build_router`] / [`crate::server::run_server`] as the stable API surface.
 
 use crate::profiles::ToolProfile;
 use crate::tools::registry::ToolRegistry;

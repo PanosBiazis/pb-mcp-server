@@ -403,7 +403,7 @@ impl OllamaHttpClient {
 
 /// A single LLM-backed agent worker.
 ///
-/// Each worker owns an [`OllamaHttpClient`] configured with an Ollama model
+/// Each worker owns an `OllamaHttpClient` configured with an Ollama model
 /// and a role-specific system prompt. The main [`run`](AgentWorker::run) loop
 /// listens on a broadcast receiver for [`AgentMessage`]s, forwards each
 /// message to the LLM, and logs the response.

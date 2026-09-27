@@ -1,6 +1,6 @@
 # pb-mcp-server
 
-[![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
+[![Rust](https://img.shields.io/badge/rust-stable-orange.svg)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/PanosBiazis/pb-mcp-server/workflows/CI/badge.svg)](https://github.com/PanosBiazis/pb-mcp-server/actions)
 [![MCP](https://img.shields.io/badge/Protocol-MCP-blue.svg)](https://modelcontextprotocol.io/)
@@ -86,7 +86,7 @@ Tools are organized into profiles for better discoverability and security:
 
 ### Prerequisites
 
-- Rust 1.75+ (use `rustup` for installation)
+- Current stable Rust (validated with Rust 1.94.0; use `rustup` for installation). Older toolchains are not currently covered by CI.
 - A project directory to work with
 
 ### Build

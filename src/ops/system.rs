@@ -298,7 +298,7 @@ fn tool_available_sys(name: &str) -> bool {
 ///
 /// `kill -<signal> <pid>` or `pkill -<signal> <name>`.
 /// Populates `targets_found` by querying `pgrep -a` before killing.
-/// Returns JSON: {killed, targets_found: [{pid, name}], signal}
+/// Returns JSON: `{killed, targets_found: [{pid, name}], signal}`
 pub fn sys_process_kill_work(pid: Option<u32>, name: Option<String>, signal: String) -> String {
     let sig = signal.trim_start_matches("SIG").to_string();
     if sig.is_empty() {
@@ -367,7 +367,7 @@ pub fn sys_process_kill_work(pid: Option<u32>, name: Option<String>, signal: Str
 // ---------------------------------------------------------------------------
 
 /// Control a systemd service (start/stop/restart/status/enable/disable/reload).
-/// Returns JSON: {service, action, success, output, active_state}
+/// Returns JSON: `{service, action, success, output, active_state}`
 pub fn sys_service_control_work(service: String, action: String) -> String {
     const VALID: &[&str] = &[
         "start",
@@ -445,7 +445,7 @@ pub fn sys_service_control_work(service: String, action: String) -> String {
 // ---------------------------------------------------------------------------
 
 /// List cron jobs: current user's crontab + system cron directories.
-/// Returns JSON: {user_crontab: [entries], system_cron_files: [paths], total_jobs}
+/// Returns JSON: `{user_crontab: [entries], system_cron_files: [paths], total_jobs}`
 pub fn sys_cron_list_work() -> String {
     let user_crontab: Vec<String> = Command::new("crontab")
         .args(["-l"])
@@ -495,7 +495,7 @@ pub fn sys_cron_list_work() -> String {
 ///
 /// Validates that `schedule` has exactly 5 or 6 whitespace-separated fields.
 /// Appends via `(crontab -l 2>/dev/null; echo "<entry>") | crontab -`.
-/// Returns JSON: {added, entry}
+/// Returns JSON: `{added, entry}`
 pub fn sys_cron_add_work(schedule: String, command: String) -> String {
     if command.is_empty() {
         return json!({"error": "command is required"}).to_string();
@@ -537,7 +537,7 @@ pub fn sys_cron_add_work(schedule: String, command: String) -> String {
 /// Tail journald log entries for a systemd unit.
 ///
 /// Runs `journalctl -u <unit> -n <lines> --no-pager -o json`.
-/// Returns JSON: {unit, lines_returned, entries: [{timestamp, priority, message}]}
+/// Returns JSON: `{unit, lines_returned, entries: [{timestamp, priority, message}]}`
 pub fn sys_journal_tail_work(unit: String, lines: usize) -> String {
     if unit.is_empty() {
         return json!({"error": "unit name is required"}).to_string();
@@ -615,7 +615,7 @@ pub fn sys_journal_tail_work(unit: String, lines: usize) -> String {
 ///
 /// Runs `docker ps [--all] --format json` (newer Docker) or
 /// `--format '{{json .}}'` (older Docker).
-/// Returns JSON: {containers: [{id, name, image, status, ports, created}]}
+/// Returns JSON: `{containers: [{id, name, image, status, ports, created}]}`
 pub fn sys_docker_ps_work(all: bool) -> String {
     if !tool_available_sys("docker") {
         return json!({
@@ -678,7 +678,7 @@ pub fn sys_docker_ps_work(all: bool) -> String {
 /// Fetch recent log output from a Docker container.
 ///
 /// Runs `docker logs --tail <lines> <container>`.
-/// Returns JSON: {container, lines, output}
+/// Returns JSON: `{container, lines, output}`
 pub fn sys_docker_logs_work(container: String, lines: usize) -> String {
     if container.is_empty() {
         return json!({"error": "container name/id is required"}).to_string();
@@ -726,7 +726,7 @@ pub fn sys_docker_logs_work(container: String, lines: usize) -> String {
 /// Execute a shell command inside a running Docker container.
 ///
 /// Runs `docker exec <container> sh -c '<command>'`.
-/// Returns JSON: {container, command, exit_code, stdout, stderr}
+/// Returns JSON: `{container, command, exit_code, stdout, stderr}`
 pub fn sys_docker_exec_work(container: String, command: String) -> String {
     if container.is_empty() {
         return json!({"error": "container name/id is required"}).to_string();
@@ -773,7 +773,7 @@ pub fn sys_docker_exec_work(container: String, command: String) -> String {
 /// Build a Docker image and return timing + last 20 lines of output.
 ///
 /// Runs `docker build -t <tag> <path>`.
-/// Returns JSON: {tag, path, success, output_tail: [last 20 lines], build_time_ms}
+/// Returns JSON: `{tag, path, success, output_tail: [last 20 lines], build_time_ms}`
 pub fn sys_docker_build_work(path: String, tag: String) -> String {
     if path.is_empty() {
         return json!({"error": "build context path is required"}).to_string();
@@ -837,7 +837,7 @@ pub fn sys_docker_build_work(path: String, tag: String) -> String {
 /// List Kubernetes pods in a namespace.
 ///
 /// Runs `kubectl get pods -n <namespace> -o json`.
-/// Returns JSON: {namespace, pod_count, pods: [{name, status, ready, restarts, node, start_time}]}
+/// Returns JSON: `{namespace, pod_count, pods: [{name, status, ready, restarts, node, start_time}]}`
 pub fn sys_k8s_pods_work(namespace: String) -> String {
     if !tool_available_sys("kubectl") {
         return json!({
@@ -919,7 +919,7 @@ pub fn sys_k8s_pods_work(namespace: String) -> String {
 /// Fetch recent log lines from a Kubernetes pod.
 ///
 /// Runs `kubectl logs <pod> -n <namespace> --tail=<lines> [-c <container>]`.
-/// Returns JSON: {pod, namespace, container, lines, output}
+/// Returns JSON: `{pod, namespace, container, lines, output}`
 pub fn sys_k8s_logs_work(
     pod: String,
     namespace: String,
@@ -982,7 +982,7 @@ pub fn sys_k8s_logs_work(
 /// Apply a Kubernetes manifest file.
 ///
 /// Runs `kubectl apply -f <manifest_path>` and parses resource names from output.
-/// Returns JSON: {success, output, resources_applied: [names], manifest_path}
+/// Returns JSON: `{success, output, resources_applied: [names], manifest_path}`
 pub fn sys_k8s_apply_work(manifest_path: String) -> String {
     if manifest_path.is_empty() {
         return json!({"error": "manifest_path is required"}).to_string();
@@ -1042,7 +1042,7 @@ pub fn sys_k8s_apply_work(manifest_path: String) -> String {
 /// Aggregate hardware information from multiple system commands.
 ///
 /// Runs `lscpu`, `free -h`, `lsblk [-J]`, `lspci`, `lsusb`.
-/// Returns JSON: {cpu: {...}, memory: {...}, disks: [...], pci_devices: [...], usb_devices: [...]}
+/// Returns JSON: `{cpu: {...}, memory: {...}, disks: [...], pci_devices: [...], usb_devices: [...]}`
 pub fn sys_hardware_info_work() -> String {
     // -- CPU via lscpu --------------------------------------------------------
     let cpu_info = if tool_available_sys("lscpu") {
