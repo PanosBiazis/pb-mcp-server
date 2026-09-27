@@ -10,7 +10,7 @@
 //!
 //! ## Algorithm
 //!
-//! Each key maps to a [`TokenBucket`] with a configurable:
+//! Each key maps to a `TokenBucket` with a configurable:
 //!
 //! - **max_tokens** – bucket capacity (burst size)
 //! - **refill_rate** – tokens added per second
@@ -283,7 +283,7 @@ impl RateLimiter {
     /// Check whether an operation with the given key is currently allowed
     /// **without** consuming a token.
     ///
-    /// This is useful for pre-flight checks. Use [`check_and_record`] for
+    /// This is useful for pre-flight checks. Use [`Self::check_and_record`] for
     /// the atomic check+consume pattern.
     pub fn check(&self, key: &str) -> Result<()> {
         self.total_checks.fetch_add(1, Ordering::Relaxed);
@@ -309,8 +309,8 @@ impl RateLimiter {
     /// Record that an operation has occurred (consume one token).
     ///
     /// **Caution:** This does *not* check whether tokens are available.
-    /// Prefer [`check_and_record`] for the atomic pattern, or call
-    /// [`check`] first.
+    /// Prefer [`Self::check_and_record`] for the atomic pattern, or call
+    /// [`Self::check`] first.
     pub fn record(&self, key: &str) {
         let config = &self.config;
         self.buckets

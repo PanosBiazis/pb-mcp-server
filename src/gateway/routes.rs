@@ -8,22 +8,22 @@
 //!
 //! | Endpoint            | Method | Access     | Handler           |
 //! |---------------------|--------|------------|-------------------|
-//! | `/health`           | GET    | Public     | [`health`]        |
-//! | `/status`           | GET    | Auth       | [`status`]        |
-//! | `/security-status`  | GET    | Auth       | [`security_status`]|
-//! | `/project-info`     | GET    | Auth       | [`project_info`]  |
-//! | `/list-files`       | GET    | Auth       | [`list_files`]    |
-//! | `/read-file`        | GET    | Auth       | [`read_file`]     |
-//! | `/git-status`       | GET    | Auth       | [`git_status`]    |
-//! | `/search-code`      | GET    | Auth       | [`search_code`]   |
-//! | `/search-docs`      | GET    | Auth       | [`search_docs`]   |
-//! | `/agent-send`       | POST   | Auth       | [`agent_send`]    |
-//! | `/agent-recent`     | GET    | Auth       | [`agent_recent`]  |
-//! | `/agent-thread`     | GET    | Auth       | [`agent_thread`]  |
-//! | `/exec`             | POST   | Local-only | [`exec_local`]    |
-//! | `/review-packet`    | POST   | Auth       | [`review_packet`] |
-//! | `/review-packets`   | GET    | Auth       | [`review_packets`]|
-//! | `/metrics`          | GET    | Auth       | [`metrics`]       |
+//! | `/health`           | GET    | Public     | `health`        |
+//! | `/status`           | GET    | Auth       | `status`        |
+//! | `/security-status`  | GET    | Auth       | `security_status`|
+//! | `/project-info`     | GET    | Auth       | `project_info`  |
+//! | `/list-files`       | GET    | Auth       | `list_files`    |
+//! | `/read-file`        | GET    | Auth       | `read_file`     |
+//! | `/git-status`       | GET    | Auth       | `git_status`    |
+//! | `/search-code`      | GET    | Auth       | `search_code`   |
+//! | `/search-docs`      | GET    | Auth       | `search_docs`   |
+//! | `/agent-send`       | POST   | Auth       | `agent_send`    |
+//! | `/agent-recent`     | GET    | Auth       | `agent_recent`  |
+//! | `/agent-thread`     | GET    | Auth       | `agent_thread`  |
+//! | `/exec`             | POST   | Local-only | `exec_local`    |
+//! | `/review-packet`    | POST   | Auth       | `review_packet` |
+//! | `/review-packets`   | GET    | Auth       | `review_packets`|
+//! | `/metrics`          | GET    | Auth       | `metrics`       |
 
 use axum::{
     body::Bytes,

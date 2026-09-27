@@ -315,7 +315,7 @@ pub struct SyncState {
 /// 1. `agent_sync_confirm` creates a `SyncState` with status `Pending`.
 /// 2. Target agents reply with a `sync_confirm` message on the bus.
 /// 3. The caller periodically calls [`SyncStateStore::record_confirmation`]
-///    and [`SyncStateStore::check_sync`] until all agents have confirmed or
+///    and [`SyncStateStore::get_sync`] until all agents have confirmed or
 ///    a timeout elapses.
 /// 4. If any agent is missing after the deadline, call
 ///    [`SyncStateStore::mark_rolled_back`].

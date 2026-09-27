@@ -28,7 +28,7 @@ use tokio::sync::{mpsc, RwLock};
 
 /// Combined network behaviour for the P2P node.
 ///
-/// Aggregates four libp2p protocols under a single [`NetworkBehaviour`]
+/// Aggregates four libp2p protocols under a single [`libp2p::swarm::NetworkBehaviour`]
 /// derive so that the `Swarm` can drive them all simultaneously:
 ///
 /// - **Kademlia** – DHT-based peer discovery and record storage.
@@ -99,7 +99,7 @@ impl P2PNode {
     /// - **Ping** for periodic health checks.
     ///
     /// The Swarm is not yet listening or dialling — call
-    /// [`start()`](P2PNode::start) to activate the node.
+    /// [`Self::start()`](P2PNode::start) to activate the node.
     pub fn new(config: NetworkConfig) -> Self {
         let discovery = Arc::new(RwLock::new(NodeDiscovery::new()));
         let (incoming_tx, incoming_rx) = mpsc::channel(256);
@@ -122,7 +122,7 @@ impl P2PNode {
     /// 4. Dials all statically-configured peers.
     /// 5. Spawns a background tokio task that continuously polls the
     ///    Swarm event loop and dispatches incoming events:
-    ///    - **Gossipsub messages** → forwarded on [`incoming_tx`].
+    ///    - **Gossipsub messages** → forwarded on `incoming_tx`.
     ///    - **Identify events** → peer information added to discovery.
     ///    - **ConnectionEstablished** / **ConnectionClosed** → discovery updates.
     ///    - **Ping results** → latency recorded in discovery.
@@ -458,7 +458,7 @@ impl P2PNode {
     /// # Errors
     ///
     /// Returns an error if:
-    /// - The Swarm has not been started (no [`start()`] call yet).
+    /// - The Swarm has not been started (no [`Self::start()`] call yet).
     /// - The message cannot be serialised to JSON.
     /// - The command channel to the Swarm task has been closed.
     pub async fn send_message(&self, msg: NodeMessage) -> Result<(), String> {

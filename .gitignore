@@ -8,7 +8,7 @@ node_modules/
 *.log
 setup.json
 .finetune_data.jsonl
-screenshot*
+/screenshot*
 asus-server.md
 PrjAnalysis.md
 /dist
